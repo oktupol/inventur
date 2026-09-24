@@ -56,6 +56,6 @@ describe('frontend delivery', () => {
   it('responds with 404 instead of index.html for unknown API paths', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/gibt-es-nicht' });
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ error: 'Not found' });
+    expect(response.json()).toEqual({ error: 'Not found', code: 'not_found' });
   });
 });

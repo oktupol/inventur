@@ -1,10 +1,13 @@
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
-import type { HealthResponse } from '@inventur/shared';
+import type { ApiError, HealthResponse } from '@inventur/shared';
 import type { Config } from './config.ts';
+import type { Db } from './db/connection.ts';
+import { registerErrorHandler } from './http/error-handler.ts';
 import { EventBus } from './realtime/event-bus.ts';
 import type { RealtimeHub } from './realtime/hub.ts';
 import { registerRealtime } from './realtime/plugin.ts';
+import { stocktakeRoutes } from './stocktake/routes.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -17,12 +20,15 @@ declare module 'fastify' {
 export type AppOptions = Pick<Config, 'version'> &
   Partial<Pick<Config, 'staticDir'>> & {
     events?: EventBus;
+    /** Without a database, only the health check, realtime and the frontend are available. */
+    db?: Db;
   };
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
   const events = options.events ?? new EventBus();
   app.decorate('events', events);
+  registerErrorHandler(app);
 
   app.decorate('realtime', await registerRealtime(app, { events }));
 
@@ -30,6 +36,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.get('/api/health', { logLevel: 'warn' }, async (): Promise<HealthResponse> => {
     return { status: 'ok', version: options.version };
   });
+
+  if (options.db) {
+    const context = { db: options.db, events };
+    await stocktakeRoutes(app, context);
+  }
 
   if (options.staticDir) {
     await app.register(fastifyStatic, { root: options.staticDir, wildcard: false });
@@ -41,7 +52,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       // Single-page app: unknown paths such as /admin or /scan get index.html.
       return reply.sendFile('index.html');
     }
-    return reply.code(404).send({ error: 'Not found' });
+    const body: ApiError = { error: 'Not found', code: 'not_found' };
+    return reply.code(404).send(body);
   });
 
   return app;
