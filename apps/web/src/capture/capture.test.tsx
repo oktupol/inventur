@@ -702,6 +702,48 @@ describe('checkpoints', () => {
     expect(document.querySelector('tr.selected')?.getAttribute('data-entry-id')).toBe('3');
   });
 
+  it('shows the insert button at the edge the mouse is near', async () => {
+    const server = stubServer();
+    renderStation();
+    await scanTimes(server, 3);
+    const row = (id: number) =>
+      document.querySelector(`table.entries tr[data-entry-id="${id}"]`) as HTMLElement;
+    const rect = (top: number) =>
+      ({ top, bottom: top + 40, height: 40, left: 0, right: 800, width: 800 }) as DOMRect;
+    vi.spyOn(row(3), 'getBoundingClientRect').mockReturnValue(rect(100));
+
+    const button = (id: number) =>
+      row(id).querySelector('.insert-checkpoint') as HTMLElement | null;
+
+    // Lower half of line 3: the gap between line 3 and line 2, whose button sits at line 2.
+    fireEvent.mouseMove(row(3), { clientY: 135 });
+    expect(button(2)!.classList.contains('shown')).toBe(true);
+    expect(button(3)!.classList.contains('shown')).toBe(false);
+
+    // Upper half of line 3: the gap above it.
+    fireEvent.mouseMove(row(3), { clientY: 105 });
+    expect(button(3)!.classList.contains('shown')).toBe(true);
+    expect(button(2)!.classList.contains('shown')).toBe(false);
+
+    // Moving from the lower half of line 3 into the upper half of line 2 keeps the same button.
+    fireEvent.mouseMove(row(3), { clientY: 135 });
+    vi.spyOn(row(2), 'getBoundingClientRect').mockReturnValue(rect(140));
+    act(() => {
+      fireEvent.mouseLeave(row(3));
+      fireEvent.mouseMove(row(2), { clientY: 145 });
+    });
+    expect(button(2)!.classList.contains('shown')).toBe(true);
+
+    fireEvent.mouseLeave(row(2));
+    expect(document.querySelector('.insert-checkpoint.shown')).toBeNull();
+
+    fireEvent.click(button(2)!);
+    await waitFor(() => expect(checkpointPosts(server)).toHaveLength(1));
+    expect(checkpointPosts(server)[0]!.body).toEqual({ afterEntryId: 2 });
+    // Each gap has exactly one button.
+    expect(document.querySelectorAll('.insert-checkpoint')).toHaveLength(3);
+  });
+
   it('sets F3 checkpoints at the top of the list even with a chosen line', async () => {
     const server = stubServer();
     renderStation();
