@@ -1,7 +1,7 @@
 import type { Checkpoint, Entry } from '@inventur/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { formatEuro, formatNumber, formatTime } from '../format.ts';
-import { buildRows } from './rows.ts';
+import { buildRows, insertionTargets } from './rows.ts';
 
 export type RowAction =
   { type: 'delta'; delta: 1 | -1 } | { type: 'set'; quantity: number } | { type: 'delete' };
@@ -81,6 +81,15 @@ export function EntryTable({
   onDeleteCheckpoint,
   onInsertCheckpoint,
 }: EntryTableProps) {
+  // Which edge of which line the mouse is near; the insert button appears there.
+  const [hover, setHover] = useState<{ id: number; edge: 'top' | 'bottom' } | null>(null);
+
+  function trackHover(event: MouseEvent<HTMLTableRowElement>, id: number) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const edge = event.clientY - rect.top < rect.height / 2 ? 'top' : 'bottom';
+    if (hover?.id !== id || hover.edge !== edge) setHover({ id, edge });
+  }
+
   useEffect(() => {
     if (selectedId === null) return;
     document
@@ -92,6 +101,7 @@ export function EntryTable({
     return <p className="muted">In diesem Bereich wurde noch nichts erfasst.</p>;
   }
   const columns = onAction ? 8 : 7;
+  const rows = buildRows(entries, checkpoints, sinceLastCheckpoint);
   return (
     <div className="table-wrap">
       <table className="entries">
@@ -108,7 +118,7 @@ export function EntryTable({
           </tr>
         </thead>
         <tbody>
-          {buildRows(entries, checkpoints, sinceLastCheckpoint).map((row) => {
+          {rows.map((row, index) => {
             if (row.type === 'since') {
               return (
                 <tr key="since" className="since-checkpoint-row">
@@ -146,6 +156,30 @@ export function EntryTable({
               );
             }
             const { entry } = row;
+            const targets = insertionTargets(rows, index);
+            const insertButton = (edge: 'top' | 'bottom') => {
+              const target = targets[edge];
+              if (!onInsertCheckpoint || target === null) return null;
+              const shown = hover?.id === entry.id && hover.edge === edge;
+              return (
+                <button
+                  type="button"
+                  className={`small insert-checkpoint ${edge} ${shown ? 'shown' : ''}`}
+                  disabled={disabled}
+                  title="Checkpoint an dieser Stelle einfügen"
+                  aria-label={`Checkpoint nach Zeile ${
+                    entries.find((e) => e.id === target)?.description ?? ''
+                  } einfügen`}
+                  data-after-entry={target}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onInsertCheckpoint(target);
+                  }}
+                >
+                  + Checkpoint
+                </button>
+              );
+            };
             return (
               <tr
                 key={entry.id}
@@ -153,24 +187,13 @@ export function EntryTable({
                 className={entry.id === selectedId ? 'selected' : undefined}
                 aria-selected={entry.id === selectedId}
                 onClick={() => onSelect?.(entry.id)}
+                onMouseMove={(event) => trackHover(event, entry.id)}
+                onMouseLeave={() => setHover(null)}
               >
                 <td className="muted time-cell">
                   {formatTime(entry.createdAt)}
-                  {onInsertCheckpoint && (
-                    <button
-                      type="button"
-                      className="small insert-checkpoint"
-                      disabled={disabled}
-                      title="Checkpoint nach dieser Zeile einfügen"
-                      aria-label={`Checkpoint nach Zeile ${entry.description} einfügen`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onInsertCheckpoint(entry.id);
-                      }}
-                    >
-                      + Checkpoint
-                    </button>
-                  )}
+                  {insertButton('top')}
+                  {insertButton('bottom')}
                 </td>
                 <td>
                   {entry.description}

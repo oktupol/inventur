@@ -702,6 +702,37 @@ describe('checkpoints', () => {
     expect(document.querySelector('tr.selected')?.getAttribute('data-entry-id')).toBe('3');
   });
 
+  it('shows the insert button at the edge the mouse is near', async () => {
+    const server = stubServer();
+    renderStation();
+    await scanTimes(server, 3);
+    const row = (id: number) =>
+      document.querySelector(`table.entries tr[data-entry-id="${id}"]`) as HTMLElement;
+    const rect = (top: number) =>
+      ({ top, bottom: top + 40, height: 40, left: 0, right: 800, width: 800 }) as DOMRect;
+    vi.spyOn(row(3), 'getBoundingClientRect').mockReturnValue(rect(100));
+
+    // Lower half of line 3: between line 3 and line 2, i.e. after line 2.
+    fireEvent.mouseMove(row(3), { clientY: 135 });
+    const bottom = row(3).querySelector('.insert-checkpoint.bottom')!;
+    expect(bottom.classList.contains('shown')).toBe(true);
+    expect(row(3).querySelector('.insert-checkpoint.top')!.classList.contains('shown')).toBe(false);
+
+    // Upper half of line 3: after line 3.
+    fireEvent.mouseMove(row(3), { clientY: 105 });
+    expect(row(3).querySelector('.insert-checkpoint.top')!.classList.contains('shown')).toBe(true);
+    expect(bottom.classList.contains('shown')).toBe(false);
+
+    fireEvent.mouseLeave(row(3));
+    expect(row(3).querySelector('.insert-checkpoint.shown')).toBeNull();
+
+    fireEvent.click(bottom);
+    await waitFor(() => expect(checkpointPosts(server)).toHaveLength(1));
+    expect(checkpointPosts(server)[0]!.body).toEqual({ afterEntryId: 2 });
+    // Nothing can be inserted below the oldest line.
+    expect(row(1).querySelector('.insert-checkpoint.bottom')).toBeNull();
+  });
+
   it('sets F3 checkpoints at the top of the list even with a chosen line', async () => {
     const server = stubServer();
     renderStation();

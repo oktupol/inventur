@@ -715,7 +715,12 @@ table.entries td.time-cell {
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
 }
 
-table.entries tr:hover .insert-checkpoint,
+.insert-checkpoint.bottom {
+  top: auto;
+  bottom: -0.8rem;
+}
+
+.insert-checkpoint.shown,
 .insert-checkpoint:focus-visible {
   visibility: visible;
 }
