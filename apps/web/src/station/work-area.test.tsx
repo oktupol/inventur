@@ -48,6 +48,7 @@ function stubServer(areas: WorkArea[]) {
   };
   const api = stubApi(({ method, url }) => {
     if (url === '/api/station/me') return { body: state };
+    if (url === '/api/station/pairings') return { body: [] };
     if (url === '/api/station/employees') return { body: [] };
     if (url === '/api/station/work-areas') return { body: areas };
     const match = /^\/api\/station\/work-areas\/(\d+)\/(join|close|reopen)$/.exec(url);

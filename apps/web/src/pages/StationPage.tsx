@@ -12,6 +12,7 @@ import { ErrorNotice } from '../components/Notice.tsx';
 import { ConnectionIndicator } from '../realtime/ConnectionIndicator.tsx';
 import { installAudioUnlock } from '../station/audio.ts';
 import { EmployeePanel } from '../station/EmployeePanel.tsx';
+import { PairingPanel } from '../station/PairingPanel.tsx';
 import { RegistrationView } from '../station/RegistrationView.tsx';
 import { StationContext, type Station } from '../station/StationContext.tsx';
 import { WorkAreaPanel } from '../station/WorkAreaPanel.tsx';
@@ -73,6 +74,7 @@ function RegisteredStation({ token, onUnknown }: { token: string; onUnknown: () 
               <>
                 <WorkAreaPanel />
                 <EmployeePanel />
+                <PairingPanel />
                 {station.state.workArea && <CaptureView key={station.state.workArea.id} />}
               </>
             ) : (

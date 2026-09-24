@@ -26,6 +26,11 @@ const MESSAGES: Record<ErrorCode | 'network_error', string> = {
   no_employee_logged_in: 'Zum Erfassen muss mindestens ein Mitarbeiter angemeldet sein.',
   checkpoint_empty_section:
     'Zwischen zwei Checkpoints muss mindestens ein Artikel liegen. Hier wäre der Abschnitt leer.',
+  pairing_invalid: 'Dieser Code ist nicht gültig. Bitte den Code auf der Station prüfen.',
+  pairing_expired: 'Dieser Code ist abgelaufen. Bitte an der Station einen neuen Code erzeugen.',
+  pairing_used:
+    'Dieser Code wurde schon verwendet. Bitte an der Station einen neuen Code erzeugen.',
+  device_unknown: 'Dieses Handy ist nicht mehr mit einer Station gekoppelt.',
   internal_error: 'Auf dem Server ist ein Fehler aufgetreten.',
   network_error: 'Der Server ist nicht erreichbar.',
 };

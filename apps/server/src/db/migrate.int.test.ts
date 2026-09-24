@@ -40,6 +40,7 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     'valid_until',
     'device_token',
     'paired_at',
+    'device_label',
   ],
 };
 
@@ -58,6 +59,7 @@ describe('migrations', () => {
       '0001_initial_schema',
       '0002_entry_request_id',
       '0003_checkpoint_boundary',
+      '0004_pairing_device_label',
     ]);
   });
 

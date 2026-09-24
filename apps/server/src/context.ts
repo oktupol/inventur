@@ -5,4 +5,6 @@ import type { EventBus } from './realtime/event-bus.ts';
 export interface Context {
   db: Db;
   events: EventBus;
+  /** See `Config.publicHost`. */
+  publicHost?: string;
 }

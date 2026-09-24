@@ -99,9 +99,10 @@ export interface PairingTable {
   workstation_id: number;
   one_time_code: string;
   qr_token: string;
-  valid_until: Date;
+  valid_until: Date | string;
   device_token: string | null;
   paired_at: NullableTimestamp;
+  device_label: string | null;
 }
 
 export interface Database {

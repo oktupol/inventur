@@ -37,6 +37,7 @@ describe('workstation registration', () => {
       if (method === 'POST' && url === '/api/station/register') {
         return { status: 201, body: { token: 'secret', workstation: kasse } };
       }
+      if (url === '/api/station/pairings') return { body: [] };
       if (url === '/api/station/me') {
         return { body: { workstation: kasse, stocktake: null, employees: [], workArea: null } };
       }
@@ -63,6 +64,7 @@ describe('workstation registration', () => {
       if (method === 'POST' && url === '/api/station/take-over') {
         return { body: { token: 'new', workstation: kasse } };
       }
+      if (url === '/api/station/pairings') return { body: [] };
       if (url === '/api/station/me') {
         return { body: { workstation: kasse, stocktake: null, employees: [], workArea: null } };
       }
@@ -80,6 +82,7 @@ describe('workstation registration', () => {
   it('asks to register again when the token is no longer valid', async () => {
     saveToken('stale');
     stubApi(({ url }) => {
+      if (url === '/api/station/pairings') return { body: [] };
       if (url === '/api/station/me') {
         return { status: 401, body: { error: 'x', code: 'workstation_unknown' } };
       }
@@ -102,6 +105,7 @@ describe('employees at the workstation', () => {
     ];
     const api = stubApi(({ method, url }) => {
       if (url === '/api/station/me') return { body: state };
+      if (url === '/api/station/pairings') return { body: [] };
       if (url === '/api/station/employees') return { body: employees };
       if (url === '/api/station/work-areas') return { body: [] };
       if (method === 'POST' && url === '/api/station/employees/1/login') {
@@ -131,6 +135,7 @@ describe('employees at the workstation', () => {
   it('shows why a busy employee cannot log in', async () => {
     saveToken('secret');
     stubApi(({ method, url }) => {
+      if (url === '/api/station/pairings') return { body: [] };
       if (url === '/api/station/me') {
         return { body: { workstation: kasse, stocktake, employees: [], workArea: null } };
       }

@@ -10,6 +10,7 @@ import { registerRealtime } from './realtime/plugin.ts';
 import { checkpointRoutes } from './checkpoint/routes.ts';
 import { employeeRoutes } from './employee/routes.ts';
 import { entryRoutes } from './entry/routes.ts';
+import { pairingRoutes } from './pairing/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { stationRoutes } from './station/routes.ts';
 import { stocktakeRoutes } from './stocktake/routes.ts';
@@ -25,7 +26,7 @@ declare module 'fastify' {
 }
 
 export type AppOptions = Pick<Config, 'version'> &
-  Partial<Pick<Config, 'staticDir'>> & {
+  Partial<Pick<Config, 'staticDir' | 'publicHost'>> & {
     events?: EventBus;
     /** Without a database, only the health check, realtime and the frontend are available. */
     db?: Db;
@@ -45,7 +46,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
 
   if (options.db) {
-    const context = { db: options.db, events };
+    const context = { db: options.db, events, publicHost: options.publicHost };
     await stocktakeRoutes(app, context);
     await employeeRoutes(app, context);
     await workAreaRoutes(app, context);
@@ -54,6 +55,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await searchRoutes(app, context);
     await entryRoutes(app, context);
     await checkpointRoutes(app, context);
+    await pairingRoutes(app, context);
   }
 
   if (options.staticDir) {

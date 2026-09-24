@@ -5,6 +5,7 @@ export * from './employee.ts';
 export * from './entry.ts';
 export * from './errors.ts';
 export * from './names.ts';
+export * from './pairing.ts';
 export * from './station.ts';
 export * from './stocktake.ts';
 export * from './work-area.ts';
