@@ -20,6 +20,7 @@ Webanwendung zur Inventurerfassung für ein Uhren- und Schmuckgeschäft, betrieb
 - Integrationstests heißen `*.int.test.ts` und laufen gegen einen Postgres-Testcontainer (`apps/server/test/`).
 - Caddy als Reverse-Proxy mit interner CA (HTTPS für die Smartphone-Kamera)
 - Vitest für Unit-Tests, Testcontainers für Datenbank-Integrationstests
+- PDFs mit pdfmake und den PDF-Standardschriften (`apps/server/src/pdf/render.ts`), Barcodes mit bwip-js als SVG (`apps/server/src/pdf/barcode.ts`). Wird für Testblatt und Zählliste verwendet.
 - Der Server läuft ohne Build direkt als TypeScript (Node.js Type Stripping). Deshalb: relative Importe mit Endung `.ts`, nur löschbare Syntax (`erasableSyntaxOnly`, keine `enum`s oder Parameter-Properties). `packages/shared` wird als Quellcode importiert.
 - `deploy/` enthält `docker-compose.yml`, `Caddyfile` und `.env.example`.
 
@@ -37,7 +38,7 @@ pnpm typecheck  # tsc in allen Paketen
 pnpm test       # Vitest in allen Paketen, inkl. Integrationstests (Docker)
 pnpm test:unit  # nur Unit-Tests
 pnpm seed       # Stammdaten mit Dummy-Daten befüllen (--count, --seed, --replace)
-pnpm test-sheet # PDF mit Test-Barcodes erzeugen (ab Schritt 4a)
+pnpm test-sheet --output testblatt.pdf  # PDF mit Test-Barcodes (--count, --seed)
 ```
 
 ## Konventionen
