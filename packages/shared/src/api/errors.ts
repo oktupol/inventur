@@ -17,6 +17,8 @@ export type ErrorCode =
   | 'no_active_stocktake'
   | 'employee_busy'
   | 'employee_not_logged_in'
+  | 'work_area_closed'
+  | 'not_in_work_area'
   | 'internal_error';
 
 /** Body of every error response. */

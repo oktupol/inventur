@@ -15,6 +15,8 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   no_active_stocktake: 409,
   employee_busy: 409,
   employee_not_logged_in: 409,
+  work_area_closed: 409,
+  not_in_work_area: 409,
   internal_error: 500,
 };
 

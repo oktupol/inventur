@@ -13,6 +13,7 @@ import { installAudioUnlock } from '../station/audio.ts';
 import { EmployeePanel } from '../station/EmployeePanel.tsx';
 import { RegistrationView } from '../station/RegistrationView.tsx';
 import { StationContext, type Station } from '../station/StationContext.tsx';
+import { WorkAreaPanel } from '../station/WorkAreaPanel.tsx';
 import { clearToken, loadToken, saveToken } from '../station/token.ts';
 
 /** Interval in which the workstation reports itself as seen and refreshes its state. */
@@ -23,18 +24,23 @@ function RegisteredStation({ token, onUnknown }: { token: string; onUnknown: () 
   const api = useMemo(() => createApi(headers), [headers]);
   // Known after the first response; until then only the shared channel is subscribed.
   const [workstationId, setWorkstationId] = useState<number>();
+  // The status of the own work area changes when other workstations join or leave.
+  const [workAreaId, setWorkAreaId] = useState<number>();
   const me = useApiData<StationState>('/api/station/me', {
     channels: workstationId
       ? ['workstations', workstationChannel(workstationId)]
       : ['workstations'],
     filter: (event) =>
       event.type === 'stocktake.changed' ||
-      (event.type === 'workstation.changed' && event.workstationId === workstationId),
+      (event.type === 'workstation.changed' && event.workstationId === workstationId) ||
+      (event.type === 'work_area.changed' && event.workAreaId === workAreaId),
     headers,
   });
   const { reload } = me;
   const id = me.data?.workstation.id;
   if (id !== undefined && id !== workstationId) setWorkstationId(id);
+  const areaId = me.data?.workArea?.id;
+  if (areaId !== workAreaId) setWorkAreaId(areaId);
 
   useEffect(() => {
     const timer = setInterval(reload, HEARTBEAT_MS);
@@ -63,7 +69,10 @@ function RegisteredStation({ token, onUnknown }: { token: string; onUnknown: () 
         {station && (
           <StationContext.Provider value={station}>
             {station.state.stocktake ? (
-              <EmployeePanel />
+              <>
+                <WorkAreaPanel />
+                <EmployeePanel />
+              </>
             ) : (
               <div className="card no-stocktake">
                 <h2>Keine aktive Inventur</h2>

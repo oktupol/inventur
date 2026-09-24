@@ -261,3 +261,33 @@ describe('work areas page', () => {
     ]);
   });
 });
+
+describe('closing work areas in the dashboard', () => {
+  it('closes after confirming the quantity and reopens', async () => {
+    const areas = [{ ...workArea(1, 'Vitrine', 'in_progress'), quantity: 42, entryCount: 40 }];
+    const api = stubApi(({ method, url }) => {
+      if (url === '/api/admin/stocktakes/active') return { body: { stocktake } };
+      if (method === 'GET' && url.endsWith('/work-areas')) return { body: areas };
+      if (method === 'POST' && url.endsWith('/close')) {
+        areas[0] = { ...areas[0]!, status: 'closed' };
+        return { status: 204 };
+      }
+      if (method === 'POST' && url.endsWith('/reopen')) {
+        areas[0] = { ...areas[0]!, status: 'open' };
+        return { status: 204 };
+      }
+    });
+    renderAdmin('/admin/bereiche');
+    fireEvent.click(await screen.findByRole('button', { name: 'Abschließen' }));
+    const dialog = screen.getByRole('dialog', { name: 'Arbeitsbereich abschließen' });
+    expect(dialog.textContent).toContain('42 Stück in 40 Zeilen');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Abschließen' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Wieder öffnen' }));
+    expect(await screen.findByRole('button', { name: 'Abschließen' })).toBeTruthy();
+    expect(api.writes().map((c) => c.url)).toEqual([
+      '/api/admin/stocktakes/1/work-areas/1/close',
+      '/api/admin/stocktakes/1/work-areas/1/reopen',
+    ]);
+  });
+});

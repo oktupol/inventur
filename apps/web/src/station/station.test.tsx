@@ -38,7 +38,7 @@ describe('workstation registration', () => {
         return { status: 201, body: { token: 'secret', workstation: kasse } };
       }
       if (url === '/api/station/me') {
-        return { body: { workstation: kasse, stocktake: null, employees: [] } };
+        return { body: { workstation: kasse, stocktake: null, employees: [], workArea: null } };
       }
     });
     renderStation();
@@ -64,7 +64,7 @@ describe('workstation registration', () => {
         return { body: { token: 'new', workstation: kasse } };
       }
       if (url === '/api/station/me') {
-        return { body: { workstation: kasse, stocktake: null, employees: [] } };
+        return { body: { workstation: kasse, stocktake: null, employees: [], workArea: null } };
       }
     });
     renderStation();
@@ -95,7 +95,7 @@ describe('workstation registration', () => {
 describe('employees at the workstation', () => {
   it('offers only free employees and logs them in', async () => {
     saveToken('secret');
-    let state: StationState = { workstation: kasse, stocktake, employees: [] };
+    let state: StationState = { workstation: kasse, stocktake, employees: [], workArea: null };
     const employees: StationEmployee[] = [
       { id: 1, name: 'Anna', workstation: null },
       { id: 2, name: 'Ben', workstation: { id: 8, name: 'Lager' } },
@@ -103,6 +103,7 @@ describe('employees at the workstation', () => {
     const api = stubApi(({ method, url }) => {
       if (url === '/api/station/me') return { body: state };
       if (url === '/api/station/employees') return { body: employees };
+      if (url === '/api/station/work-areas') return { body: [] };
       if (method === 'POST' && url === '/api/station/employees/1/login') {
         state = { ...state, employees: [{ id: 1, name: 'Anna' }] };
         employees[0] = { ...employees[0]!, workstation: kasse };
@@ -131,11 +132,12 @@ describe('employees at the workstation', () => {
     saveToken('secret');
     stubApi(({ method, url }) => {
       if (url === '/api/station/me') {
-        return { body: { workstation: kasse, stocktake, employees: [] } };
+        return { body: { workstation: kasse, stocktake, employees: [], workArea: null } };
       }
       if (url === '/api/station/employees') {
         return { body: [{ id: 1, name: 'Anna', workstation: null }] };
       }
+      if (url === '/api/station/work-areas') return { body: [] };
       if (method === 'POST') {
         return { status: 409, body: { error: 'x', code: 'employee_busy' } };
       }

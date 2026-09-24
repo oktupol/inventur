@@ -5,7 +5,11 @@ import { isUniqueViolation } from '../db/errors.ts';
 import { DomainError } from '../errors.ts';
 import { assertDeletable, assertNameAvailable, parseName } from '../management/rules.ts';
 import type { Trx } from '../stocktake/service.ts';
-import { statusAfterLeave } from '../work-area/status.ts';
+import {
+  leaveCurrentWorkArea,
+  lockWorkAreaTransitions,
+  WorkAreaChanges,
+} from '../work-area/transitions.ts';
 
 async function loadWorkstations(db: Db | Trx, id?: number): Promise<Workstation[]> {
   let query = db
@@ -107,38 +111,29 @@ export async function renameWorkstation(
  * Deletes a workstation that has no entries in any stocktake. Logged-in
  * employees are logged out, and the workstation leaves its work area.
  */
-export async function deleteWorkstation({ db, events }: Context, id: number): Promise<void> {
+export async function deleteWorkstation(context: Context, id: number): Promise<void> {
+  const { db, events } = context;
+  const changes = new WorkAreaChanges();
   const result = await db.transaction().execute(async (trx) => {
     const workstation = await getWorkstation(trx, id);
     assertDeletable(workstation.entryCount, 'Workstation');
+    let stocktakeId: number | undefined;
+    if (workstation.workArea) {
+      ({ stocktake_id: stocktakeId } = await trx
+        .selectFrom('inventory.work_area')
+        .select('stocktake_id')
+        .where('id', '=', workstation.workArea.id)
+        .executeTakeFirstOrThrow());
+      await lockWorkAreaTransitions(trx, stocktakeId);
+      await leaveCurrentWorkArea(trx, stocktakeId, id, changes);
+    }
     const employees = await trx
       .selectFrom('inventory.employee')
       .select(['id', 'stocktake_id'])
       .where('workstation_id', '=', id)
       .execute();
     await trx.deleteFrom('inventory.workstation').where('id', '=', id).execute();
-
-    let workArea: { id: number; stocktake_id: number } | undefined;
-    if (workstation.workArea) {
-      const area = await trx
-        .selectFrom('inventory.work_area')
-        .select(['id', 'stocktake_id', 'status'])
-        .where('id', '=', workstation.workArea.id)
-        .forUpdate()
-        .executeTakeFirstOrThrow();
-      const remaining = await trx
-        .selectFrom('inventory.workstation')
-        .select((eb) => eb.fn.countAll<number>().as('n'))
-        .where('work_area_id', '=', area.id)
-        .executeTakeFirstOrThrow();
-      await trx
-        .updateTable('inventory.work_area')
-        .set({ status: statusAfterLeave(area.status, Number(remaining.n)) })
-        .where('id', '=', area.id)
-        .execute();
-      workArea = { id: area.id, stocktake_id: area.stocktake_id };
-    }
-    return { employees, workArea };
+    return { employees, stocktakeId };
   });
 
   events.publish({ type: 'workstation.changed', action: 'deleted', workstationId: id });
@@ -150,12 +145,8 @@ export async function deleteWorkstation({ db, events }: Context, id: number): Pr
       employeeId: employee.id,
     });
   }
-  if (result.workArea) {
-    events.publish({
-      type: 'work_area.changed',
-      action: 'updated',
-      stocktakeId: result.workArea.stocktake_id,
-      workAreaId: result.workArea.id,
-    });
+  if (result.stocktakeId !== undefined) {
+    changes.workstations.delete(id);
+    changes.publish(context, result.stocktakeId);
   }
 }

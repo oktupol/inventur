@@ -15,6 +15,7 @@ import {
   listWorkAreas,
   updateWorkArea,
 } from './service.ts';
+import { closeWorkArea, reopenWorkArea } from './transitions.ts';
 
 const description = { type: ['string', 'null'] } as const;
 
@@ -77,6 +78,24 @@ export async function workAreaRoutes(app: FastifyInstance, context: Context): Pr
     { schema: { params: itemParams } },
     async (request, reply) => {
       await deleteWorkArea(context, request.params.id, request.params.itemId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.post<{ Params: ItemParams }>(
+    '/api/admin/stocktakes/:id/work-areas/:itemId/close',
+    { schema: { params: itemParams } },
+    async (request, reply) => {
+      await closeWorkArea(context, request.params.id, request.params.itemId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.post<{ Params: ItemParams }>(
+    '/api/admin/stocktakes/:id/work-areas/:itemId/reopen',
+    { schema: { params: itemParams } },
+    async (request, reply) => {
+      await reopenWorkArea(context, request.params.id, request.params.itemId);
       return reply.code(204).send();
     },
   );

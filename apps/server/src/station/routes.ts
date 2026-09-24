@@ -5,11 +5,21 @@ import {
   type StationEmployee,
   type StationState,
   type TakeOverWorkstationRequest,
+  type WorkArea,
   type WorkstationRegistration,
 } from '@inventur/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Context } from '../context.ts';
 import { idParams, nameBody, type IdParams } from '../http/schemas.ts';
+import { getActiveStocktake } from '../stocktake/service.ts';
+import { listWorkAreas } from '../work-area/service.ts';
+import {
+  closeWorkArea,
+  joinWorkArea,
+  leaveWorkArea,
+  reopenWorkArea,
+} from '../work-area/transitions.ts';
+import { requireActiveStocktake } from './rules.ts';
 import {
   authenticate,
   getStationState,
@@ -86,4 +96,42 @@ export async function stationRoutes(app: FastifyInstance, context: Context): Pro
       return getStationState(db, identity);
     },
   );
+
+  app.get('/api/station/work-areas', async (request): Promise<WorkArea[]> => {
+    await station(request);
+    const stocktake = requireActiveStocktake(await getActiveStocktake(db));
+    return listWorkAreas(db, stocktake.id);
+  });
+
+  app.post<{ Params: IdParams }>(
+    '/api/station/work-areas/:id/join',
+    { schema: { params: idParams } },
+    async (request): Promise<StationState> => {
+      const identity = await station(request);
+      await joinWorkArea(context, identity, request.params.id);
+      return getStationState(db, identity);
+    },
+  );
+
+  app.post('/api/station/work-area/leave', async (request): Promise<StationState> => {
+    const identity = await station(request);
+    await leaveWorkArea(context, identity);
+    return getStationState(db, identity);
+  });
+
+  for (const [action, transition] of [
+    ['close', closeWorkArea],
+    ['reopen', reopenWorkArea],
+  ] as const) {
+    app.post<{ Params: IdParams }>(
+      `/api/station/work-areas/:id/${action}`,
+      { schema: { params: idParams } },
+      async (request): Promise<StationState> => {
+        const identity = await station(request);
+        const stocktake = requireActiveStocktake(await getActiveStocktake(db));
+        await transition(context, stocktake.id, request.params.id, identity);
+        return getStationState(db, identity);
+      },
+    );
+  }
 }
