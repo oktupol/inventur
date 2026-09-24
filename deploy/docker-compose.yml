@@ -37,7 +37,10 @@ services:
     image: caddy:2
     restart: unless-stopped
     ports:
+      # Workstations
       - 80:80
+      # Admin dashboard: reachable only on the server itself.
+      - 127.0.0.1:8080:8080
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

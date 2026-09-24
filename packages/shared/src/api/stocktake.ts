@@ -21,18 +21,18 @@ export interface StocktakeSummary extends Stocktake {
   quantity: number;
 }
 
-/** `GET /api/stocktakes/active` */
+/** `GET /api/admin/stocktakes/active` */
 export interface ActiveStocktakeResponse {
   stocktake: Stocktake | null;
 }
 
-/** `POST /api/stocktakes` */
+/** `POST /api/admin/stocktakes` */
 export interface StartStocktakeRequest {
   name: string;
 }
 
 /**
- * `POST /api/stocktakes/:id/finish`. Without `confirm`, finishing is rejected
+ * `POST /api/admin/stocktakes/:id/finish`. Without `confirm`, finishing is rejected
  * with `unclosed_work_areas` while work areas are not closed.
  */
 export interface FinishStocktakeRequest {

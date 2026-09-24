@@ -28,10 +28,11 @@ export class FakeSocket implements WebSocketLike {
 }
 
 /** A RealtimeClient backed by fake sockets; `latest()` returns the current socket. */
-export function createFakeRealtime() {
+export function createFakeRealtime(options: { reconnectDelayMs?: () => number } = {}) {
   const sockets: FakeSocket[] = [];
   const client = new RealtimeClient({
     url: 'ws://test/api/ws',
+    ...options,
     createSocket: () => {
       const socket = new FakeSocket();
       sockets.push(socket);

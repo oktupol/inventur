@@ -10,7 +10,7 @@ export interface Employee {
   entryCount: number;
 }
 
-/** `POST /api/stocktakes/:id/employees` */
+/** `POST /api/admin/stocktakes/:id/employees` */
 export interface CreateEmployeeRequest {
   name: string;
 }

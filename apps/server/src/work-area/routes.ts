@@ -22,7 +22,7 @@ export async function workAreaRoutes(app: FastifyInstance, context: Context): Pr
   const { db } = context;
 
   app.get<{ Params: IdParams }>(
-    '/api/stocktakes/:id/work-areas',
+    '/api/admin/stocktakes/:id/work-areas',
     { schema: { params: idParams } },
     async (request): Promise<WorkArea[]> => {
       await getStocktake(db, request.params.id);
@@ -31,7 +31,7 @@ export async function workAreaRoutes(app: FastifyInstance, context: Context): Pr
   );
 
   app.post<{ Params: IdParams; Body: CreateWorkAreaRequest }>(
-    '/api/stocktakes/:id/work-areas',
+    '/api/admin/stocktakes/:id/work-areas',
     {
       schema: {
         params: idParams,
@@ -50,14 +50,14 @@ export async function workAreaRoutes(app: FastifyInstance, context: Context): Pr
   );
 
   app.post<{ Params: IdParams }>(
-    '/api/stocktakes/:id/work-areas/import',
+    '/api/admin/stocktakes/:id/work-areas/import',
     { schema: { params: idParams } },
     async (request): Promise<ImportResponse<WorkArea>> =>
       importWorkAreas(context, request.params.id),
   );
 
   app.patch<{ Params: ItemParams; Body: UpdateWorkAreaRequest }>(
-    '/api/stocktakes/:id/work-areas/:itemId',
+    '/api/admin/stocktakes/:id/work-areas/:itemId',
     {
       schema: {
         params: itemParams,
@@ -73,7 +73,7 @@ export async function workAreaRoutes(app: FastifyInstance, context: Context): Pr
   );
 
   app.delete<{ Params: ItemParams }>(
-    '/api/stocktakes/:id/work-areas/:itemId',
+    '/api/admin/stocktakes/:id/work-areas/:itemId',
     { schema: { params: itemParams } },
     async (request, reply) => {
       await deleteWorkArea(context, request.params.id, request.params.itemId);

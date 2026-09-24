@@ -5,17 +5,19 @@ import { idParams, nameBody, type IdParams } from '../http/schemas.ts';
 import { deleteWorkstation, listWorkstations, renameWorkstation } from './service.ts';
 
 export async function workstationRoutes(app: FastifyInstance, context: Context): Promise<void> {
-  app.get('/api/workstations', async (): Promise<Workstation[]> => listWorkstations(context.db));
+  app.get('/api/admin/workstations', async (): Promise<Workstation[]> =>
+    listWorkstations(context.db),
+  );
 
   app.patch<{ Params: IdParams; Body: RenameWorkstationRequest }>(
-    '/api/workstations/:id',
+    '/api/admin/workstations/:id',
     { schema: { params: idParams, body: nameBody } },
     async (request): Promise<Workstation> =>
       renameWorkstation(context, request.params.id, request.body.name),
   );
 
   app.delete<{ Params: IdParams }>(
-    '/api/workstations/:id',
+    '/api/admin/workstations/:id',
     { schema: { params: idParams } },
     async (request, reply) => {
       await deleteWorkstation(context, request.params.id);

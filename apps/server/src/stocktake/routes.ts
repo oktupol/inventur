@@ -19,20 +19,20 @@ import {
 export async function stocktakeRoutes(app: FastifyInstance, context: Context): Promise<void> {
   const { db } = context;
 
-  app.get('/api/stocktakes', async (): Promise<StocktakeSummary[]> => listStocktakes(db));
+  app.get('/api/admin/stocktakes', async (): Promise<StocktakeSummary[]> => listStocktakes(db));
 
-  app.get('/api/stocktakes/active', async (): Promise<ActiveStocktakeResponse> => ({
+  app.get('/api/admin/stocktakes/active', async (): Promise<ActiveStocktakeResponse> => ({
     stocktake: await getActiveStocktake(db),
   }));
 
   app.get<{ Params: IdParams }>(
-    '/api/stocktakes/:id',
+    '/api/admin/stocktakes/:id',
     { schema: { params: idParams } },
     async (request): Promise<Stocktake> => getStocktake(db, request.params.id),
   );
 
   app.post<{ Body: StartStocktakeRequest }>(
-    '/api/stocktakes',
+    '/api/admin/stocktakes',
     {
       schema: { body: nameBody },
     },
@@ -43,7 +43,7 @@ export async function stocktakeRoutes(app: FastifyInstance, context: Context): P
   );
 
   app.post<{ Params: IdParams; Body: FinishStocktakeRequest | undefined }>(
-    '/api/stocktakes/:id/finish',
+    '/api/admin/stocktakes/:id/finish',
     {
       schema: {
         params: idParams,
