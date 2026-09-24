@@ -64,3 +64,36 @@ export const MAX_QUANTITY = 99_999;
  * `delta` (+1/−1). A decrement never goes below 1.
  */
 export type UpdateEntryRequest = { quantity: number } | { delta: number };
+
+/**
+ * `POST /api/station/entries/manual`: an article that is not in the master
+ * data. It has no net price and no category.
+ */
+export interface CreateManualEntryRequest {
+  /** The original input, e.g. the unknown scanned code; empty without a scan. */
+  input: string;
+  description: string;
+  /** Gross price in EUR as a decimal string with a dot, e.g. "129.90"; greater than 0. */
+  priceGross: string;
+  serialNumber?: string | null;
+  requestId?: string;
+}
+
+/**
+ * Parses a price as typed in German, e.g. "129,90", "1.299,00", "1299.9" or
+ * "12 €", into a decimal string with a dot ("129.90"). Returns null for
+ * invalid prices and prices of 0.
+ */
+export function parsePrice(text: string): string | null {
+  let value = text.replace(/€|\s/g, '');
+  if (value.includes(',')) {
+    value = value.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(value)) {
+    // A dot followed by groups of three digits separates thousands.
+    value = value.replace(/\./g, '');
+  }
+  const match = /^(\d{1,10})(?:\.(\d{1,2}))?$/.exec(value);
+  if (!match) return null;
+  const price = `${BigInt(match[1]!)}.${(match[2] ?? '').padEnd(2, '0')}`;
+  return Number(price) > 0 ? price : null;
+}

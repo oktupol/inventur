@@ -1,4 +1,4 @@
-import { MAX_QUANTITY, type Article, type WorkAreaStatus } from '@inventur/shared';
+import { MAX_QUANTITY, parsePrice, type Article, type WorkAreaStatus } from '@inventur/shared';
 import { DomainError } from '../errors.ts';
 import { acceptsEntries } from '../work-area/status.ts';
 
@@ -63,4 +63,44 @@ export function nextQuantity(
     return change.quantity;
   }
   return Math.min(MAX_QUANTITY, Math.max(1, current + change.delta));
+}
+
+export interface ManualEntryInput {
+  input: string;
+  description: string;
+  priceGross: string;
+  serialNumber?: string | null;
+}
+
+/**
+ * Validates a manually captured article: description and a gross price
+ * greater than 0 are required, the serial number is optional. Net price and
+ * category stay empty.
+ */
+export function manualEntryValues(request: ManualEntryInput) {
+  const description = request.description.trim().replace(/\s+/g, ' ');
+  if (description === '' || description.length > 200) {
+    throw new DomainError('validation_failed', 'Description must not be empty or too long');
+  }
+  const priceGross = parsePrice(request.priceGross);
+  if (priceGross === null) {
+    throw new DomainError('validation_failed', 'Gross price must be a positive amount');
+  }
+  const serialNumber = request.serialNumber?.trim() || null;
+  if (serialNumber && serialNumber.length > 100) {
+    throw new DomainError('validation_failed', 'Serial number is too long');
+  }
+  const input = request.input.trim();
+  if (input.length > 200) throw new DomainError('validation_failed', 'Input is too long');
+  return {
+    article_id: null,
+    is_manual: true,
+    input,
+    description,
+    ean: null,
+    category: null,
+    price_net: null,
+    price_gross: priceGross,
+    serial_number: serialNumber,
+  };
 }

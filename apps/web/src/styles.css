@@ -652,3 +652,25 @@ table.entries tr.selected td:first-child {
   border-color: var(--accent);
   border-width: 2px;
 }
+
+.manual-button {
+  line-height: 1.2;
+  font-size: 0.9rem;
+}
+
+.manual-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.manual-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.manual-form input {
+  font-size: 1.1rem;
+}

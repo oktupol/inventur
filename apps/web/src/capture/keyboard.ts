@@ -30,7 +30,8 @@ export type KeyCommand =
   | { type: 'invalid_quantity' }
   | { type: 'cancel_quantity' }
   | { type: 'select'; delta: -1 | 1 }
-  | { type: 'reset_selection' };
+  | { type: 'reset_selection' }
+  | { type: 'manual' };
 
 const MAX_DIGITS = String(MAX_QUANTITY).length;
 
@@ -59,6 +60,8 @@ function quantityModeKey(digits: string, key: string): KeyCommand {
 
 /** Decides what a key press in the capture input does. */
 export function interpretKey(state: KeyState, key: string): KeyCommand {
+  // Manual capture works at any time, also with text in the input (it becomes the original input).
+  if (key === 'F2' && !state.choiceOpen) return { type: 'manual' };
   if (state.quantityDigits !== null) return quantityModeKey(state.quantityDigits, key);
   if (state.choiceOpen || state.text !== '') return { type: 'none' };
   switch (key) {
