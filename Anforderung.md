@@ -2,7 +2,7 @@
 
 Ziel ist, eine Webanwendung zu schaffen, die zur Inventurerfassung in einem Uhren- und Schmuckgeschäft verwendet werden kann.
 
-> Legende: Abschnitte ohne Markierung sind abgestimmte Anforderungen. **(Annahme)** kennzeichnet sinnvolle Standardentscheidungen, die ohne Rückmeldung so umgesetzt werden. Offene Punkte stehen am Ende unter [Offene Fragen](#offene-fragen).
+> Legende: Abschnitte ohne Markierung sind abgestimmte Anforderungen. **(Annahme)** kennzeichnet sinnvolle Standardentscheidungen, die ohne Rückmeldung so umgesetzt werden.
 
 ## Begriffe
 
@@ -14,6 +14,7 @@ Ziel ist, eine Webanwendung zu schaffen, die zur Inventurerfassung in einem Uhre
 | Arbeitsbereich | Ein physischer Zählbereich, z. B. „Vitrine 3“ oder „Lager Uhren“. |
 | Erfassung (Zeile) | Ein erfasster Artikel mit Menge in einem Arbeitsbereich. **Jeder Scan erzeugt eine neue Zeile**, auch beim selben Artikel. |
 | Kopplung | Die Verbindung eines Smartphones als Kamera-Scanner mit einer Arbeitsstation. |
+| Checkpoint | Eine Markierung in der Erfassungsliste eines Arbeitsbereichs, die eine Zwischensumme bildet. |
 
 ## Stammdaten
 
@@ -59,7 +60,7 @@ CREATE TABLE stammdaten.artikelnummer (
 
 Die Anwendung soll als docker-compose Projekt laufen. Die Software soll in einem Mono-Repository auf Github liegen. Selbst entwickelte Software-Komponenten werden in der Github Container Registry veröffentlicht, sodass man nur mit dem Docker-Compose-File die Anwendung von jedem Computer aus starten kann. Die Anwendung wird nicht aus dem Internet erreichbar sein. Eine Authentifizierung ist nicht notwendig, auch nicht für den Administrator.
 
-Das Repository muss noch angelegt werden, zusammen mit den Workflow-Files, die die Images erstellen und veröffentlichen.
+Das Repository ist angelegt ([`oktupol/inventur`](https://github.com/oktupol/inventur)). Die Workflow-Files, die die Images erstellen und veröffentlichen, müssen noch erstellt werden.
 
 Die Funktionalität wird mit Unit-Tests abgedeckt.
 
@@ -83,7 +84,7 @@ Es gibt keine Vorgaben bezüglich Programmiersprachen und Frameworks.
 | Dienst | Image | Ports |
 |---|---|---|
 | `db` | `postgres:16` | `127.0.0.1:5432` |
-| `app` | `ghcr.io/<owner>/inventur-app` (eigenes Image: API und ausgeliefertes Frontend) | nur intern |
+| `app` | `ghcr.io/oktupol/inventur-app` (eigenes Image: API und ausgeliefertes Frontend) | nur intern |
 | `proxy` | `caddy:2` | `80` (HTTP, Arbeitsstationen), `443` (HTTPS, Smartphones), `127.0.0.1:8080` (Admin-Dashboard) |
 
 - Volumes für die Postgres-Daten und die Caddy-Daten (die CA muss Neustarts überleben).
@@ -102,15 +103,15 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 
 ### Repository und CI/CD
 
-- Das Repository ist **privat**. Deshalb muss auf jedem Zielrechner einmalig `docker login ghcr.io` mit einem Personal Access Token (Scope `read:packages`) ausgeführt werden. Die README beschreibt das Schritt für Schritt.
+- Das Repository ist [`oktupol/inventur`](https://github.com/oktupol/inventur) und **privat**. Deshalb muss auf jedem Zielrechner einmalig `docker login ghcr.io` mit einem Personal Access Token (Scope `read:packages`) ausgeführt werden. Die README beschreibt das Schritt für Schritt.
 - Struktur (Annahme): `apps/server`, `apps/web`, `packages/shared`, `deploy/` (Compose-File, Caddyfile, `.env.example`), `.github/workflows/`.
 - Workflow `ci.yml`: Lint, Typprüfung und Tests bei jedem Push und Pull Request.
-- Workflow `release.yml`: Bei Push auf `main` und bei Tags `v*` wird das Image gebaut und nach GHCR gepusht, mit den Tags `latest`, `sha-<kurz>` und der Version. Zielarchitekturen sind `linux/amd64` und `linux/arm64`. **(Annahme)**
+- Workflow `release.yml`: Bei Push auf `main` und bei Tags `v*` wird das Image gebaut und nach GHCR gepusht, mit den Tags `latest`, `sha-<kurz>` und der Version. Der Server läuft auf Linux. Zielarchitekturen sind `linux/amd64` und `linux/arm64`, damit auch ARM-Rechner wie ein Raspberry Pi funktionieren. **(Annahme für die Architekturen)**
 - Das Compose-File referenziert eine feste Version, `latest` ist optional.
 
 ### Tests
 
-- Unit-Tests decken die gesamte Fachlogik ab: Statusübergänge von Inventur und Arbeitsbereich, Mitarbeiterzuordnung, Suchauflösung (grün, gelb, rot), Mengenänderungen, Tastatursteuerung, Kopplung und Export-Inhalte.
+- Unit-Tests decken die gesamte Fachlogik ab: Statusübergänge von Inventur und Arbeitsbereich, Mitarbeiterzuordnung, Suchauflösung (grün, gelb, rot), Mengenänderungen, Checkpoint-Zählung, Tastatursteuerung, Kopplung und Export-Inhalte.
 - Integrationstests gegen eine echte Postgres-Instanz (Testcontainers) für Suche und Migrationen. **(Annahme)**
 - Mindestabdeckung der Fachlogik: 80 %. **(Annahme)**
 
@@ -120,7 +121,8 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 - Suchvorschläge erscheinen in weniger als 200 ms. Ein Scan ist in weniger als 300 ms bestätigt, auch bei schnellen Scan-Folgen, und es darf kein Scan verloren gehen.
 - Oberfläche nur auf Deutsch.
 - Unterstützte Browser: aktuelle Versionen von Chrome, Edge und Firefox (Desktop) sowie Safari (iOS) und Chrome (Android).
-- Bei Verbindungsverlust erscheint auf der Station ein deutlicher Hinweis, die Eingabe wird gesperrt, und die Verbindung wird automatisch wiederhergestellt. Es gibt keine Offline-Warteschlange (siehe offene Fragen).
+- Bei Verbindungsverlust erscheint auf der Station ein deutlicher Hinweis, die Eingabe wird gesperrt, und die Verbindung wird automatisch wiederhergestellt. Es gibt keine Offline-Warteschlange.
+- Eine Datensicherung ist nicht Teil der Anwendung.
 - Frühere Inventuren bleiben gespeichert und können im Dashboard eingesehen und exportiert werden.
 
 ## Datenmodell der Anwendung (Schema `inventur`, Annahme)
@@ -129,7 +131,8 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 - **mitarbeiter**: id, inventur_id, name, arbeitsstation_id (nullable = nicht zugewiesen)
 - **arbeitsstation**: id, name (eindeutig), token, arbeitsbereich_id (nullable), zuletzt_gesehen
 - **arbeitsbereich**: id, inventur_id, name, beschreibung, status (`offen`, `in_arbeit` oder `abgeschlossen`), abgeschlossen_am
-- **erfassung**: id, inventur_id, arbeitsbereich_id, artikel_id (nullable), manuell (bool), eingabe (gescannter oder getippter Code), Momentaufnahme (bezeichnung, ean, kategorie, preis_netto, preis_brutto), seriennummer (nullable), menge (≥ 1), arbeitsstation_id, mitarbeiter_ids (die zum Zeitpunkt zugewiesenen Mitarbeiter), erfasst_am, geaendert_am, geloescht_am (Soft-Delete für die Nachvollziehbarkeit)
+- **erfassung**: id, inventur_id, arbeitsbereich_id, artikel_id (nullable), manuell (bool), eingabe (gescannter oder getippter Code), Momentaufnahme (bezeichnung, ean, kategorie, preis_netto, preis_brutto; bei manuellen Artikeln sind kategorie und preis_netto leer), seriennummer (nullable), menge (≥ 1), arbeitsstation_id, mitarbeiter_ids (die zum Zeitpunkt zugewiesenen Mitarbeiter), erfasst_am, geaendert_am, geloescht_am (Soft-Delete für die Nachvollziehbarkeit)
+- **checkpoint**: id, arbeitsbereich_id, nummer (fortlaufend je Bereich), arbeitsstation_id, erstellt_am
 - **kopplung**: id, arbeitsstation_id, einmalcode, qr_token, gueltig_bis, geraet_token, gekoppelt_am
 
 ## Administrations-Dashboard
@@ -150,20 +153,25 @@ Der Administrator kann
   - Arbeitsbereiche lassen sich aus der letzten Inventur übernehmen. **(Annahme)**
 - Arbeitsstationen verwalten: umbenennen und löschen. Stationen bleiben über Inventuren hinweg bestehen.
 - Die Inventur beenden
-  - Sind noch Arbeitsbereiche nicht abgeschlossen, erscheint eine Warnung mit Liste. Der Administrator kann trotzdem beenden. **(Annahme)**
+  - Sind noch Arbeitsbereiche nicht abgeschlossen, erscheint eine Warnung mit Liste. Der Administrator kann trotzdem beenden.
   - Nach dem Beenden ist die Inventur schreibgeschützt. Alle Stationen zeigen „Keine aktive Inventur“, und alle Kopplungen werden getrennt.
 - Statistiken über die Inventur einsehen (live aktualisiert):
   - Fortschritt: Arbeitsbereiche nach Status
-  - Anzahl Zeilen, Stückzahl und Gesamtwert (netto und brutto), gesamt, je Arbeitsbereich und je Kategorie
+  - Anzahl Zeilen, Stückzahl und Gesamtwert (netto und brutto), gesamt, je Arbeitsbereich und je Kategorie. Manuelle Artikel haben keinen Nettopreis und keine Kategorie. Sie fließen nur in die Bruttosumme ein und werden bei den Kategorien als „ohne Kategorie (manuell)“ ausgewiesen.
   - Erfassungen je Mitarbeiter und je Station sowie die Erfassungsrate über die Zeit
   - Manuell erfasste Artikel (Anzahl, Wert, Liste)
   - Auffälligkeiten: Einzelstücke, die mehrfach erfasst wurden (mehrere Zeilen oder Menge > 1)
-  - Nicht erfasste Stammdatenartikel, also der Soll/Ist-Abgleich (siehe offene Fragen)
+  - **Soll/Ist-Abgleich**: Da die Stammdaten Einzelstücke sind, gilt jeder Stammdatenartikel als Soll-Bestand von 1.
+    - Fehlbestand: Stammdatenartikel, die in keiner Zeile erfasst wurden (Anzahl, Wert netto und brutto, Liste nach Kategorie)
+    - Mehrbestand: Stammdatenartikel mit einer erfassten Gesamtmenge größer als 1, außerdem alle manuell erfassten Artikel
+    - Der Abgleich wird immer gegen den aktuellen Stand der Stammdaten berechnet. **(Annahme)**
 - Ergebnisse exportieren (während und nach der Inventur):
   - **CSV** (UTF-8 mit BOM, Semikolon-getrennt, deutsches Zahlenformat, damit Excel sie direkt öffnet) und **XLSX**
     - Spalten: Arbeitsbereich, Bezeichnung, EAN, Artikelnummer(n), Kategorie, Seriennummer, Menge, Preis netto, Preis brutto, Summe netto, Summe brutto, manuell (ja/nein), Station, Mitarbeiter, Zeitpunkt
     - Eine Variante als Einzelzeilen und eine aggregiert je Artikel
-  - **PDF-Zählliste** je Arbeitsbereich und gesamt: Kopf mit Inventur, Bereich, Datum und beteiligten Mitarbeitern; Positionen mit Summen; Unterschriftsfelder für Zähler und Verantwortlichen
+    - Bei manuellen Artikeln bleiben Nettopreis und Kategorie leer.
+    - Der Soll/Ist-Abgleich lässt sich als eigene Liste exportieren (Fehlbestand und Mehrbestand).
+  - **PDF-Zählliste** je Arbeitsbereich und gesamt: Kopf mit Inventur, Bereich, Datum und beteiligten Mitarbeitern; Positionen mit Summen; Checkpoints als Zwischensummen **(Annahme)**; Unterschriftsfelder für Zähler und Verantwortlichen
 
 ## Arbeitsstationen
 
@@ -203,7 +211,8 @@ Während der Erfassung sehen die Nutzer ein Eingabefeld und eine Liste der im ak
 
 - Die Liste ist nach Erfassungszeit sortiert, die neueste Zeile steht oben.
 - Spalten: Zeit, Bezeichnung, EAN oder Artikelnummer, Seriennummer, Menge, Preis brutto, Station und eine Markierung für manuell erfasste Artikel.
-- Darüber steht eine Summenzeile für den Bereich mit Zeilen, Stückzahl und Wert.
+- Die **Gesamtanzahl der Artikel** im aktuellen Arbeitsbereich ist jederzeit gut sichtbar neben dem Eingabefeld zu sehen. Gezählt wird die Stückzahl, also die Summe der Mengen. Die Anzeige aktualisiert sich live, auch bei Erfassungen anderer Stationen. Daneben stehen kleiner die Zeilenzahl und der Bruttowert.
+- Jede Zeile hat Bedienelemente für die Maus: `+`, `−`, ein direkt editierbares Mengenfeld und `Löschen`. Sie funktionieren unabhängig von den Tastenkürzeln.
 - Jeder Scan erzeugt eine **neue Zeile**, auch wenn derselbe Artikel schon erfasst ist. Eine erneute Erfassung eines Einzelstücks wird dabei dezent als Hinweis angezeigt, damit Doppelscans auffallen. **(Annahme)**
 
 Standardmäßig ist das Eingabefeld fokussiert. Beim Eintippen erhält der Nutzer Suchvorschläge, die zu seiner Suche passen. Gesucht werden kann:
@@ -233,7 +242,7 @@ Wenn es bei der Bestätigung gar kein Ergebnis gibt, wird der Hintergrund rot hi
   - Bezeichnung (Pflicht)
   - Bruttopreis (Pflicht, > 0)
   - Seriennummer (optional)
-  - Der Nettopreis wird mit einem konfigurierbaren MwSt.-Satz berechnet, standardmäßig 19 %. **(Annahme)**
+  - Es gibt keinen Nettopreis und keine Kategorie. Beides bleibt leer, eine Kategorie ist nicht wählbar.
   - Die ursprüngliche Eingabe (gescannter Code) wird mitgespeichert.
   - Die Zeile wird als „manuell erfasst“ markiert und in Liste, Statistik und Export entsprechend ausgewiesen.
 - Die manuelle Erfassung ist auch ohne vorherigen Fehlscan über dasselbe Kürzel möglich. **(Annahme)**
@@ -254,6 +263,19 @@ Regeln für die Tastenkürzel:
 - `=` oder `*` wechselt in den Mengenmodus. Das Feld zeigt dann „Menge:“, nimmt nur Ziffern an, `Enter` übernimmt, `Esc` bricht ab. Die Menge muss mindestens 1 sein.
 - `Delete` löscht ohne Rückfrage, zeigt aber einen Hinweis „Zeile gelöscht“. Intern wird nur ein Soft-Delete durchgeführt.
 - Änderungen erscheinen live auf allen Stationen im Bereich.
+- Es gibt kein Rückgängig.
+
+### Checkpoints
+
+- Innerhalb eines Arbeitsbereichs kann jede Station jederzeit einen Checkpoint erstellen, per Button oder mit dem Tastenkürzel `F3` bei leerem Eingabefeld. **(Annahme für das Kürzel)**
+- Ein Checkpoint wird in der Erfassungsliste als deutlich abgesetzte Trennzeile an der Stelle angezeigt, an der er erstellt wurde. Die Zeile zeigt:
+  - die fortlaufende Nummer, den Zeitpunkt und die Station
+  - die Anzahl der Artikel **seit dem letzten Checkpoint**, beim ersten Checkpoint seit Beginn des Bereichs
+  - die Anzahl der Artikel **seit Beginn des Bereichs**
+- Oberhalb des neuesten Checkpoints wird zusätzlich live angezeigt, wie viele Artikel seit dem letzten Checkpoint erfasst wurden.
+- „Anzahl Artikel“ meint wie bei der Gesamtanzahl die Stückzahl, also die Summe der Mengen. **(Annahme)**
+- Eine Zeile gehört zu dem Abschnitt, in dem sie erfasst wurde (nach Erfassungszeitpunkt). Wird eine Zeile später geändert oder gelöscht, werden die Zahlen des betroffenen Checkpoints neu berechnet. **(Annahme)**
+- Checkpoints sind für alle Stationen im Bereich live sichtbar. Sie bleiben beim Abschließen und Wiedereröffnen erhalten und können nicht gelöscht werden. **(Annahme)**
 
 ## Barcode-Scanner
 
@@ -283,16 +305,3 @@ Man soll alternativ auch Smartphones als Barcode-Scanner koppeln. Der Kopplungsp
   - **Gelb**: Auswahlliste auf dem Handy, alternativ die Auswahl an der Station.
   - **Rot**: Hinweis „Artikel unbekannt – bitte an der Station manuell erfassen“.
 
-## Offene Fragen
-
-Diese Punkte blockieren den Start der Implementierung nicht. Die genannte Annahme wird umgesetzt, falls keine Rückmeldung kommt.
-
-1. **GitHub-Owner und Repository-Name**: Unter welchem Account oder welcher Organisation soll das Repository liegen, und wie soll es heißen? Vorschlag: `inventur`.
-2. **Soll/Ist-Abgleich**: Da die Stammdaten Einzelstücke sind, lässt sich eine Liste „in Stammdaten, aber nicht erfasst“ (Fehlbestand) erzeugen. Soll das in Statistik und Export? Annahme: ja, als eigene Auswertung.
-3. **MwSt. bei manuellen Artikeln**: Ist ein fester Satz von 19 % richtig, oder gibt es Sonderfälle wie differenzbesteuerte Gebrauchtware oder Altgold? Annahme: 19 %, im Dashboard konfigurierbar.
-4. **Offline-Verhalten**: Reicht es, die Eingabe bei Verbindungsverlust zu sperren, oder sollen Scans lokal gepuffert und später übertragen werden? Annahme: sperren.
-5. **Rückgängig**: Soll es ein Rückgängig für Löschen und Mengenänderung geben (z. B. `Strg+Z`)? Annahme: nein, das Soft-Delete reicht für die Nachvollziehbarkeit.
-6. **Zielhardware**: Auf welchem Rechner läuft das Compose-Projekt (Windows mit Docker Desktop, Linux, Raspberry Pi)? Das ist relevant für die Image-Architekturen und die README. Annahme: amd64 und arm64.
-7. **Inventur beenden**: Soll das Beenden nur möglich sein, wenn alle Arbeitsbereiche abgeschlossen sind? Annahme: Warnung, aber erlaubt.
-8. **Datensicherung**: Wird ein Backup-Mechanismus benötigt (z. B. ein `pg_dump`-Dienst mit täglicher Sicherung in ein Host-Verzeichnis)? Annahme: ein einfaches Backup-Skript und eine Anleitung in der README.
-9. **Kategorie bei manuellen Artikeln**: Soll man bei der manuellen Erfassung optional eine Kategorie aus den vorhandenen wählen können, damit die Kategorie-Statistik vollständig ist? Annahme: ja, optional.
