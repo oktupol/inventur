@@ -758,3 +758,62 @@ describe('checkpoints', () => {
     expect(checkpointPosts(server)).toEqual([]);
   });
 });
+
+describe('scans of a paired phone', () => {
+  const phoneScan = (
+    realtime: ReturnType<typeof renderStation>,
+    result: 'unique' | 'ambiguous' | 'not_found',
+    input: string,
+  ) =>
+    act(() =>
+      realtime.latest().receive({
+        type: 'event',
+        event: {
+          type: 'phone_scan.result',
+          workstationId: 7,
+          input,
+          result,
+          entryId: result === 'unique' ? 1 : null,
+          description: result === 'unique' ? 'Herrenring Gold' : null,
+        },
+      }),
+    );
+
+  it('shows the result at the workstation', async () => {
+    stubServer();
+    const realtime = renderStation();
+    await input();
+    await waitFor(() =>
+      expect(realtime.latest().sent).toContainEqual({
+        type: 'subscribe',
+        channels: ['workstation:7'],
+      }),
+    );
+    phoneScan(realtime, 'unique', '4000000000017');
+    expect(await screen.findByText('Vom Handy erfasst:')).toBeTruthy();
+    expect(panel().getAttribute('data-feedback')).toBe('unique');
+
+    phoneScan(realtime, 'ambiguous', '4000000000031');
+    expect(await screen.findByText(/Die Auswahl erfolgt auf dem Handy/)).toBeTruthy();
+    expect(panel().getAttribute('data-feedback')).toBe('ambiguous');
+  });
+
+  it('offers the manual capture with the unknown code of the phone', async () => {
+    stubServer();
+    const realtime = renderStation();
+    await input();
+    await waitFor(() =>
+      expect(realtime.latest().sent).toContainEqual({
+        type: 'subscribe',
+        channels: ['workstation:7'],
+      }),
+    );
+    phoneScan(realtime, 'not_found', '4099999999994');
+    expect(await screen.findByText(/\(vom Handy\)/)).toBeTruthy();
+    expect(playTone).toHaveBeenCalled();
+    fireEvent.keyDown(await input(), { key: 'F2' });
+    expect((await screen.findByRole('dialog', { name: 'Manuell erfassen' })).textContent).toContain(
+      '4099999999994',
+    );
+  });
+});

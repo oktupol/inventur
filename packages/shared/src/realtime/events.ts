@@ -27,6 +27,15 @@ export type DomainEvent =
     }
   | { type: 'pairing.changed'; action: ChangeAction; workstationId: number; pairingId: number }
   | {
+      /** A paired phone captured a code for the workstation, which shows the result too. */
+      type: 'phone_scan.result';
+      workstationId: number;
+      input: string;
+      result: 'unique' | 'ambiguous' | 'not_found';
+      entryId: number | null;
+      description: string | null;
+    }
+  | {
       type: 'checkpoint.changed';
       action: ChangeAction;
       stocktakeId: number;
@@ -45,6 +54,8 @@ export function channelsForEvent(event: DomainEvent): Channel[] {
     case 'work_area.changed':
       // Work area status is visible on all workstations.
       return [adminChannel, workstationsChannel, workAreaChannel(event.workAreaId)];
+    case 'phone_scan.result':
+      return [workstationChannel(event.workstationId)];
     case 'workstation.changed':
     case 'pairing.changed':
       // Paired phones listen on the channel of their workstation.

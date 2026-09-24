@@ -1,5 +1,6 @@
 import {
   workAreaChannel,
+  workstationChannel,
   type ArticleMatch,
   type Checkpoint,
   type CreateEntryResponse,
@@ -13,7 +14,7 @@ import { ApiRequestError } from '../api/client.ts';
 import { useApiData } from '../api/useApiData.ts';
 import { ErrorNotice } from '../components/Notice.tsx';
 import { formatEuro, formatNumber } from '../format.ts';
-import { useConnectionStatus } from '../realtime/RealtimeProvider.tsx';
+import { useConnectionStatus, useRealtimeEvents } from '../realtime/RealtimeProvider.tsx';
 import { playTone } from '../station/audio.ts';
 import { useStation } from '../station/StationContext.tsx';
 import { completionFor, matchedText, moveSelection } from './completion.ts';
@@ -45,7 +46,8 @@ type Task =
 
 type Feedback =
   | { kind: 'unique'; entry: Entry }
-  | { kind: 'not_found'; input: string }
+  | { kind: 'not_found'; input: string; fromPhone?: boolean }
+  | { kind: 'phone'; result: 'unique' | 'ambiguous'; input: string; description: string | null }
   | { kind: 'updated'; entry: Entry }
   | { kind: 'deleted'; description: string; removedCheckpoints: number[] }
   | { kind: 'info'; message: string }
@@ -250,6 +252,23 @@ export function CaptureView() {
     });
   });
 
+  // Scans of paired phones run through the same logic; the workstation shows their results too.
+  useRealtimeEvents([workstationChannel(state.workstation.id)], (event) => {
+    if (event.type !== 'phone_scan.result') return;
+    if (event.result === 'not_found') {
+      setFeedback({ kind: 'not_found', input: event.input, fromPhone: true });
+      playTone();
+      return;
+    }
+    if (event.entryId !== null) lastCreatedId.current = event.entryId;
+    setFeedback({
+      kind: 'phone',
+      result: event.result,
+      input: event.input,
+      description: event.description,
+    });
+  });
+
   // Retry scans that failed because the server was unreachable.
   useEffect(() => {
     if (!connected) return;
@@ -390,9 +409,11 @@ export function CaptureView() {
     ? 'ambiguous'
     : feedback?.kind === 'unique' || feedback?.kind === 'not_found'
       ? feedback.kind
-      : feedback?.kind === 'error'
-        ? 'not_found'
-        : undefined;
+      : feedback?.kind === 'phone'
+        ? feedback.result
+        : feedback?.kind === 'error'
+          ? 'not_found'
+          : undefined;
   const quantityMode = quantityDigits !== null;
   const latestCheckpoint = entries.data?.checkpoints[0];
   const totals = entries.data?.totals;
@@ -512,7 +533,8 @@ export function CaptureView() {
           )}
           {!choice && feedback?.kind === 'not_found' && (
             <span>
-              <strong>Kein Artikel gefunden</strong> für „{feedback.input}“.{' '}
+              <strong>Kein Artikel gefunden</strong> für „{feedback.input}“
+              {feedback.fromPhone && ' (vom Handy)'}.{' '}
               <button type="button" className="small primary" onClick={openManual}>
                 Manuell erfassen (F2)
               </button>
@@ -533,6 +555,17 @@ export function CaptureView() {
             </span>
           )}
           {!choice && feedback?.kind === 'info' && <span>{feedback.message}</span>}
+          {!choice && feedback?.kind === 'phone' && feedback.result === 'unique' && (
+            <span>
+              Vom Handy erfasst: <strong>{feedback.description}</strong>
+            </span>
+          )}
+          {!choice && feedback?.kind === 'phone' && feedback.result === 'ambiguous' && (
+            <span>
+              Vom Handy: <strong>Mehrere Artikel</strong> passen zu „{feedback.input}“. Die Auswahl
+              erfolgt auf dem Handy.
+            </span>
+          )}
           {!choice && feedback?.kind === 'checkpoint' && (
             <span>
               <strong>Checkpoint {feedback.checkpoint.number} gesetzt:</strong>{' '}
