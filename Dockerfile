@@ -3,8 +3,8 @@
 ARG NODE_VERSION=24
 ARG PNPM_VERSION=12.6.0
 
-# Frontend bauen. Das Ergebnis ist plattformunabhängig und entsteht deshalb nur
-# einmal auf der Build-Plattform, auch beim Multi-Arch-Build.
+# Build the frontend. The output is platform independent, so it is built only
+# once on the build platform, even for multi-arch builds.
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build
 ARG PNPM_VERSION
 RUN npm install -g pnpm@${PNPM_VERSION}
@@ -18,7 +18,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 COPY . .
 RUN pnpm --filter @inventur/web build
 
-# Produktionsabhängigkeiten des Servers für die Zielplattform.
+# Production dependencies of the server for the target platform.
 FROM node:${NODE_VERSION}-alpine AS prod-deps
 ARG PNPM_VERSION
 RUN npm install -g pnpm@${PNPM_VERSION}
@@ -40,6 +40,8 @@ WORKDIR /app
 COPY --from=prod-deps /app ./
 COPY packages/shared/src packages/shared/src
 COPY apps/server/src apps/server/src
+# Commands for `docker compose run --rm app <command>`
+COPY --chmod=755 apps/server/bin/ /usr/local/bin/
 COPY --from=build /app/apps/web/dist web
 USER node
 EXPOSE 3000

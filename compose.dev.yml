@@ -1,0 +1,22 @@
+# Postgres for local development: `pnpm db:up`, then `pnpm dev`.
+name: inventur-dev
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: inventur
+      POSTGRES_USER: inventur
+      POSTGRES_PASSWORD: inventur
+    ports:
+      - 127.0.0.1:54329:5432
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U inventur -d inventur]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  db-data:

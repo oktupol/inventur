@@ -26,22 +26,22 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 
 ### 4. Datenbank und Migrationen
 - Datenbankzugriff (z. B. Kysely oder Drizzle) und ein Migrationswerkzeug, das beim Start automatisch migriert
-- Schema `stammdaten` (`artikel`, `artikelnummer`) mit `pg_trgm` und den Suchindizes
-- Schema `inventur` mit allen Tabellen aus dem Datenmodell (inventur, mitarbeiter, arbeitsstation, arbeitsbereich, erfassung, checkpoint, kopplung)
+- Schema `master_data` (`article`, `article_number`) mit `pg_trgm` und den Suchindizes
+- Schema `inventory` mit allen Tabellen aus dem Datenmodell (stocktake, employee, workstation, work_area, entry, checkpoint, pairing)
 - Testcontainers-Setup für Integrationstests, das auch in der CI läuft
-- Dummy-Daten-Generator `seed-stammdaten` (siehe [Anforderung.md](Anforderung.md#dummy-daten-für-testzwecke)):
-  - Parameter `--anzahl`, `--seed` und `--ersetzen`
+- Dummy-Daten-Generator `seed-master-data` (siehe [Anforderung.md](Anforderung.md#dummy-daten-für-testzwecke)):
+  - Parameter `--count`, `--seed` und `--replace`
   - Gültige EAN-13, bewusste Dubletten für den Fall „gelb“
   - Aufrufbar mit `pnpm seed` und im Container
   - Die Integrationstests nutzen ihn mit festem Startwert.
 - **Fertig, wenn:** Die Migrationen auf einer leeren Datenbank laufen und ein Integrationstest das Schema prüft. Außerdem:
   - Derselbe Startwert erzeugt identische Daten.
   - Alle erzeugten EANs haben eine korrekte Prüfziffer.
-  - Ohne `--ersetzen` bricht der Befehl ab, wenn schon Stammdaten vorhanden sind.
-  - Im Compose-Setup befüllt `docker compose run --rm app seed-stammdaten` die Datenbank.
+  - Ohne `--replace` bricht der Befehl ab, wenn schon Stammdaten vorhanden sind.
+  - Im Compose-Setup befüllt `docker compose run --rm app seed-master-data` die Datenbank.
 
 ### 4a. Barcode-Testblatt
-- Befehl `barcode-testblatt` (siehe [Anforderung.md](Anforderung.md#barcode-testblatt)) mit den Parametern `--anzahl`, `--seed` und `--ausgabe`, aufrufbar mit `pnpm testblatt` und im Container
+- Befehl `barcode-test-sheet` (siehe [Anforderung.md](Anforderung.md#barcode-testblatt)) mit den Parametern `--count`, `--seed` und `--output`, aufrufbar mit `pnpm test-sheet` und im Container
 - PDF-Erzeugung (z. B. pdfmake) und Barcodes (z. B. bwip-js); die PDF-Bibliothek wird später für die Zählliste wiederverwendet.
 - Abschnitte: eindeutig per EAN, eindeutig per Artikelnummer, mehrdeutig, unbekannt, jeweils mit erwartetem Ergebnis
 - **Fertig, wenn:**

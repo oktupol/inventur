@@ -16,7 +16,8 @@ Webanwendung zur Inventurerfassung für ein Uhren- und Schmuckgeschäft, betrieb
   - `apps/server`: Fastify, WebSockets, PostgreSQL
   - `apps/web`: React und Vite, Routen `/` (Station), `/admin` und `/scan` (Handy)
   - `packages/shared`: gemeinsame Typen und Nachrichtenformate
-- PostgreSQL 16 mit `pg_trgm`. Das Schema `stammdaten` wird nur gelesen, das Schema `inventur` gehört der Anwendung.
+- PostgreSQL 16 mit `pg_trgm`, Kysely als Query-Builder mit Migrationen in `apps/server/src/db/migrations`. Das Schema `master_data` wird nur gelesen, das Schema `inventory` gehört der Anwendung.
+- Integrationstests heißen `*.int.test.ts` und laufen gegen einen Postgres-Testcontainer (`apps/server/test/`).
 - Caddy als Reverse-Proxy mit interner CA (HTTPS für die Smartphone-Kamera)
 - Vitest für Unit-Tests, Testcontainers für Datenbank-Integrationstests
 - Der Server läuft ohne Build direkt als TypeScript (Node.js Type Stripping). Deshalb: relative Importe mit Endung `.ts`, nur löschbare Syntax (`erasableSyntaxOnly`, keine `enum`s oder Parameter-Properties). `packages/shared` wird als Quellcode importiert.
@@ -28,18 +29,21 @@ Node.js ≥ 24, pnpm. Befehle (die mit späterem Schritt markierten existieren n
 
 ```sh
 pnpm install
+pnpm db:up      # Entwicklungsdatenbank (Docker) starten
 pnpm dev        # Server und Frontend im Entwicklungsmodus
 pnpm lint       # ESLint und Prettier --check
 pnpm format     # Prettier --write
 pnpm typecheck  # tsc in allen Paketen
-pnpm test       # Vitest in allen Paketen
-pnpm seed       # Stammdaten mit Dummy-Daten befüllen (ab Schritt 4)
-pnpm testblatt  # PDF mit Test-Barcodes erzeugen (ab Schritt 4a)
+pnpm test       # Vitest in allen Paketen, inkl. Integrationstests (Docker)
+pnpm test:unit  # nur Unit-Tests
+pnpm seed       # Stammdaten mit Dummy-Daten befüllen (--count, --seed, --replace)
+pnpm test-sheet # PDF mit Test-Barcodes erzeugen (ab Schritt 4a)
 ```
 
 ## Konventionen
 
-- **Sprache:** Die Oberfläche, die Dokumentation und die Commit-Nachrichten sind auf Deutsch. Fachbegriffe im Code folgen dem Datenmodell der Spezifikation (z. B. `arbeitsbereich`, `erfassung`, `checkpoint`). Technische Bezeichner und Framework-Code bleiben englisch.
+- **Sprache:** Nur die Oberfläche (UI-Texte) und die Markdown-Dateien sind auf Deutsch. Alles andere ist englisch: Bezeichner, Code-Kommentare, Testbeschreibungen, Datenbank (Schemas, Tabellen, Spalten, Statuswerte), CLI-Befehle, Parameter und Ausgaben, API-Fehlermeldungen, Konfigurationskommentare sowie Commit-Nachrichten und Pull Requests. Inhaltsdaten wie Dummy-Artikelbezeichnungen sind deutsch, weil sie in der Oberfläche erscheinen.
+- **Glossar** (Fachbegriff der Spezifikation → Bezeichner): Inventur → `stocktake`, Stammdaten → `master_data`, Artikel → `article`, Artikelnummer → `article_number`, Bezeichnung → `description`, Mitarbeiter → `employee`, Arbeitsstation → `workstation`, Arbeitsbereich → `work_area`, Erfassung (Zeile) → `entry`, Checkpoint → `checkpoint`, Kopplung → `pairing`, Menge → `quantity`, manuell → `is_manual`, Status offen/in Arbeit/abgeschlossen → `open`/`in_progress`/`closed`, Inventur aktiv/beendet → `active`/`finished`, Ergebnis grün/gelb/rot → `unique`/`ambiguous`/`not_found`.
 - **Tests:** Jede Fachlogik bekommt Unit-Tests im selben Schritt. Die Fachlogik (Statusübergänge, Suchauflösung, Mengen, Checkpoints, Tastatursteuerung) liegt in reinen, ohne Datenbank testbaren Modulen.
 - **Git:** Pro Arbeitsschritt ein eigener Branch (`schritt-NN-kurzname`) und ein Pull Request. Nicht direkt auf `main` entwickeln.
 - **Stammdaten** werden von der Anwendung nie geschrieben. Erfassungen speichern eine Momentaufnahme der Stammdaten.

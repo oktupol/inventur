@@ -1,3 +1,9 @@
 packages:
   - apps/*
   - packages/*
+
+# Optional native add-ons of testcontainers' dependencies; not needed.
+allowBuilds:
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

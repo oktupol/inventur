@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { isHealthResponse } from './health.ts';
 
 describe('isHealthResponse', () => {
-  it('erkennt eine gültige Antwort', () => {
+  it('accepts a valid response', () => {
     expect(isHealthResponse({ status: 'ok', version: '1.0.0' })).toBe(true);
   });
 
-  it('lehnt ungültige Werte ab', () => {
+  it('rejects invalid values', () => {
     expect(isHealthResponse(null)).toBe(false);
-    expect(isHealthResponse({ status: 'fehler', version: '1.0.0' })).toBe(false);
+    expect(isHealthResponse({ status: 'error', version: '1.0.0' })).toBe(false);
     expect(isHealthResponse({ status: 'ok' })).toBe(false);
   });
 });
