@@ -10,12 +10,25 @@ export class SerialQueue<T> {
   private readonly items: T[] = [];
   private running = false;
   private paused = false;
-  private readonly handler: (item: T) => Promise<QueueOutcome>;
-  private readonly onChange: () => void;
+  private handler: ((item: T) => Promise<QueueOutcome>) | undefined;
+  private readonly changed: (queue: SerialQueue<T>) => void;
 
-  constructor(handler: (item: T) => Promise<QueueOutcome>, onChange: () => void = () => {}) {
+  constructor(
+    handler?: (item: T) => Promise<QueueOutcome>,
+    onChange: (queue: SerialQueue<T>) => void = () => {},
+  ) {
     this.handler = handler;
-    this.onChange = onChange;
+    this.changed = onChange;
+  }
+
+  /** Replaces the handler, e.g. with one that uses the latest UI state; items wait until one is set. */
+  setHandler(handler: (item: T) => Promise<QueueOutcome>): void {
+    this.handler = handler;
+    void this.run();
+  }
+
+  private onChange(): void {
+    this.changed(this);
   }
 
   /** Items not yet handled, including the one in progress. */
@@ -46,13 +59,13 @@ export class SerialQueue<T> {
   }
 
   private async run(): Promise<void> {
-    if (this.running) return;
+    if (this.running || !this.handler) return;
     this.running = true;
     try {
       while (!this.paused && this.items.length > 0) {
         let outcome: QueueOutcome;
         try {
-          outcome = await this.handler(this.items[0]!);
+          outcome = await this.handler!(this.items[0]!);
         } catch {
           outcome = 'retry';
         }

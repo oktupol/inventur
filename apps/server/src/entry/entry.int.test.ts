@@ -254,4 +254,95 @@ describe('capturing entries', () => {
     );
     expect(badId.statusCode).toBe(400);
   });
+
+  describe('changing lines', () => {
+    const patch = (id: number, payload: object, token = kasse.token) =>
+      t.app.inject({
+        method: 'PATCH',
+        url: `/api/station/entries/${id}`,
+        payload,
+        headers: { 'x-workstation-token': token },
+      });
+    const remove = (id: number, token = kasse.token) =>
+      t.app.inject({
+        method: 'DELETE',
+        url: `/api/station/entries/${id}`,
+        headers: { 'x-workstation-token': token },
+      });
+
+    async function captured(): Promise<number> {
+      const response = await capture('4000000000017');
+      t.takeEvents();
+      return (response as { entry: { id: number } }).entry.id;
+    }
+
+    it('increments, decrements (not below 1) and sets the quantity', async () => {
+      const id = await captured();
+      expect((await patch(id, { delta: 1 })).json().quantity).toBe(2);
+      expect((await patch(id, { delta: -1 })).json().quantity).toBe(1);
+      expect((await patch(id, { delta: -1 })).json().quantity).toBe(1);
+      expect((await patch(id, { quantity: 20 })).json().quantity).toBe(20);
+      expect((await list()).totals).toMatchObject({
+        quantity: 20,
+        lines: 1,
+        grossValue: '2380.00',
+      });
+      // The decrement at 1 changed nothing and published nothing.
+      expect(t.takeEvents()).toHaveLength(3);
+      expect(t.takeEvents()).toEqual([]);
+    });
+
+    it('applies concurrent increments of two workstations', async () => {
+      const id = await captured();
+      const lager = await register('Lager');
+      const ben = (
+        await post(`/api/admin/stocktakes/${stocktakeId}/employees`, { name: 'Ben' })
+      ).json().id;
+      await post(`/api/station/employees/${ben}/login`, {}, lager.token);
+      await post(`/api/station/work-areas/${workAreaId}/join`, {}, lager.token);
+      await Promise.all([
+        ...Array.from({ length: 5 }, () => patch(id, { delta: 1 })),
+        ...Array.from({ length: 5 }, () => patch(id, { delta: 1 }, lager.token)),
+      ]);
+      expect((await list()).entries[0]!.quantity).toBe(11);
+    });
+
+    it('rejects invalid quantities', async () => {
+      const id = await captured();
+      for (const payload of [{ quantity: 0 }, { quantity: 1.5 }, { delta: 2 }, {}]) {
+        expect((await patch(id, payload)).statusCode).toBe(400);
+      }
+    });
+
+    it('deletes a line permanently', async () => {
+      const id = await captured();
+      expect((await remove(id)).statusCode).toBe(204);
+      expect((await list()).entries).toEqual([]);
+      expect(t.takeEvents()).toEqual([
+        { type: 'entry.changed', action: 'deleted', stocktakeId, workAreaId, entryId: id },
+      ]);
+      expect((await remove(id)).statusCode).toBe(404);
+    });
+
+    it('only changes lines of the own work area', async () => {
+      const id = await captured();
+      const lagerArea = (
+        await post(`/api/admin/stocktakes/${stocktakeId}/work-areas`, { name: 'Lager' })
+      ).json().id;
+      const lager = await register('Lager');
+      const ben = (
+        await post(`/api/admin/stocktakes/${stocktakeId}/employees`, { name: 'Ben' })
+      ).json().id;
+      await post(`/api/station/employees/${ben}/login`, {}, lager.token);
+      await post(`/api/station/work-areas/${lagerArea}/join`, {}, lager.token);
+      expect((await patch(id, { delta: 1 }, lager.token)).statusCode).toBe(404);
+      expect((await remove(id, lager.token)).statusCode).toBe(404);
+    });
+
+    it('rejects changes in a closed work area', async () => {
+      const id = await captured();
+      await post(`/api/admin/stocktakes/${stocktakeId}/work-areas/${workAreaId}/close`, {});
+      expect((await patch(id, { delta: 1 })).json().code).toBe('no_work_area');
+    });
+  });
 });

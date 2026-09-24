@@ -3,6 +3,7 @@ import type {
   CreateEntryResponse,
   Entry,
   EntryListResponse,
+  UpdateEntryRequest,
 } from '@inventur/shared';
 import { sql } from 'kysely';
 import type { Context } from '../context.ts';
@@ -13,7 +14,7 @@ import { getArticle, resolveArticle } from '../search/service.ts';
 import { requireActiveStocktake } from '../station/rules.ts';
 import type { StationIdentity } from '../station/service.ts';
 import { getActiveStocktake, withWritableStocktake, type Trx } from '../stocktake/service.ts';
-import { assertCanCapture, parseInput, snapshotOf } from './rules.ts';
+import { assertCanCapture, nextQuantity, parseInput, snapshotOf } from './rules.ts';
 
 function entryQuery(db: Db | Trx) {
   return db
@@ -206,4 +207,69 @@ export async function listWorkAreaEntries(db: Db | Trx, workAreaId: number) {
       grossValue: totals.gross_value,
     },
   };
+}
+
+/**
+ * Loads a line of the workstation's work area for a change and locks it.
+ * Workstations can only change lines of the area they work in.
+ */
+async function lockOwnAreaEntry(trx: Trx, station: StationIdentity, entryId: number) {
+  const { workArea } = await lockCaptureContext(trx, station);
+  const entry = await trx
+    .selectFrom('inventory.entry')
+    .select(['id', 'quantity', 'work_area_id'])
+    .where('id', '=', entryId)
+    .forUpdate()
+    .executeTakeFirst();
+  if (!entry || entry.work_area_id !== workArea.id) {
+    throw new DomainError('not_found', 'Entry not found in the work area of this workstation');
+  }
+  return { entry, workArea };
+}
+
+/** Changes the quantity of a line; +/− are applied relative to the current value. */
+export async function updateEntryQuantity(
+  { db, events }: Context,
+  station: StationIdentity,
+  entryId: number,
+  change: UpdateEntryRequest,
+): Promise<Entry> {
+  const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
+  const { entry, changed } = await withWritableStocktake(db, stocktakeId, async (trx) => {
+    const { entry: current } = await lockOwnAreaEntry(trx, station, entryId);
+    const quantity = nextQuantity(current.quantity, change);
+    if (quantity !== current.quantity) {
+      await trx
+        .updateTable('inventory.entry')
+        .set({ quantity, updated_at: new Date() })
+        .where('id', '=', entryId)
+        .execute();
+    }
+    return { entry: await getEntry(trx, entryId), changed: quantity !== current.quantity };
+  });
+  if (changed) {
+    events.publish({
+      type: 'entry.changed',
+      action: 'updated',
+      stocktakeId,
+      workAreaId: entry.workAreaId,
+      entryId,
+    });
+  }
+  return entry;
+}
+
+/** Deletes a line permanently; there is no undo. */
+export async function deleteEntry(
+  { db, events }: Context,
+  station: StationIdentity,
+  entryId: number,
+): Promise<void> {
+  const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
+  const workAreaId = await withWritableStocktake(db, stocktakeId, async (trx) => {
+    const { workArea } = await lockOwnAreaEntry(trx, station, entryId);
+    await trx.deleteFrom('inventory.entry').where('id', '=', entryId).execute();
+    return workArea.id;
+  });
+  events.publish({ type: 'entry.changed', action: 'deleted', stocktakeId, workAreaId, entryId });
 }

@@ -1,7 +1,7 @@
 import type { Article } from '@inventur/shared';
 import { describe, expect, it } from 'vitest';
 import { DomainError } from '../errors.ts';
-import { assertCanCapture, parseInput, snapshotOf } from './rules.ts';
+import { assertCanCapture, nextQuantity, parseInput, snapshotOf } from './rules.ts';
 
 function codeOf(action: () => unknown): string | undefined {
   try {
@@ -71,5 +71,30 @@ describe('snapshotOf', () => {
       price_net: '100.00',
       price_gross: '119.00',
     });
+  });
+});
+
+describe('nextQuantity', () => {
+  it('sets an absolute quantity', () => {
+    expect(nextQuantity(1, { quantity: 20 })).toBe(20);
+  });
+
+  it('rejects quantities below 1, fractions and too large values', () => {
+    for (const quantity of [0, -3, 1.5, 100_000]) {
+      expect(codeOf(() => nextQuantity(1, { quantity }))).toBe('validation_failed');
+    }
+  });
+
+  it('increments and decrements', () => {
+    expect(nextQuantity(1, { delta: 1 })).toBe(2);
+    expect(nextQuantity(3, { delta: -1 })).toBe(2);
+  });
+
+  it('does not decrement below 1', () => {
+    expect(nextQuantity(1, { delta: -1 })).toBe(1);
+  });
+
+  it('does not increment above the maximum', () => {
+    expect(nextQuantity(99_999, { delta: 1 })).toBe(99_999);
   });
 });

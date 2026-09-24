@@ -1,9 +1,16 @@
-import type { CreateEntryRequest, CreateEntryResponse, EntryListResponse } from '@inventur/shared';
+import {
+  MAX_QUANTITY,
+  type CreateEntryRequest,
+  type CreateEntryResponse,
+  type Entry,
+  type EntryListResponse,
+  type UpdateEntryRequest,
+} from '@inventur/shared';
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../context.ts';
-import { idParams } from '../http/schemas.ts';
+import { idParams, type IdParams } from '../http/schemas.ts';
 import { authenticateRequest } from '../station/routes.ts';
-import { createEntry, listEntries } from './service.ts';
+import { createEntry, deleteEntry, listEntries, updateEntryQuantity } from './service.ts';
 
 export async function entryRoutes(app: FastifyInstance, context: Context): Promise<void> {
   const { db } = context;
@@ -30,5 +37,46 @@ export async function entryRoutes(app: FastifyInstance, context: Context): Promi
     },
     async (request): Promise<CreateEntryResponse> =>
       createEntry(context, await authenticateRequest(db, request), request.body),
+  );
+
+  app.patch<{ Params: IdParams; Body: UpdateEntryRequest }>(
+    '/api/station/entries/:id',
+    {
+      schema: {
+        params: idParams,
+        body: {
+          oneOf: [
+            {
+              type: 'object',
+              required: ['quantity'],
+              properties: { quantity: { type: 'integer', minimum: 1, maximum: MAX_QUANTITY } },
+              additionalProperties: false,
+            },
+            {
+              type: 'object',
+              required: ['delta'],
+              properties: { delta: { type: 'integer', enum: [-1, 1] } },
+              additionalProperties: false,
+            },
+          ],
+        },
+      },
+    },
+    async (request): Promise<Entry> =>
+      updateEntryQuantity(
+        context,
+        await authenticateRequest(db, request),
+        request.params.id,
+        request.body,
+      ),
+  );
+
+  app.delete<{ Params: IdParams }>(
+    '/api/station/entries/:id',
+    { schema: { params: idParams } },
+    async (request, reply) => {
+      await deleteEntry(context, await authenticateRequest(db, request), request.params.id);
+      return reply.code(204).send();
+    },
   );
 }

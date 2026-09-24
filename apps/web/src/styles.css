@@ -621,3 +621,34 @@ table.entries td {
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
 }
+
+table.entries tr.selected td {
+  background: #e3effc;
+}
+
+table.entries tr.selected td:first-child {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.quantity-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quantity-field {
+  width: 4.5rem;
+  text-align: right;
+  padding: 0.2rem 0.35rem;
+}
+
+.quantity-label {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.capture-input input.quantity-mode {
+  background: #fff;
+  border-color: var(--accent);
+  border-width: 2px;
+}

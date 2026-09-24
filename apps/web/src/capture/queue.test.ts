@@ -92,3 +92,25 @@ describe('SerialQueue', () => {
     expect(changes).toBe(2);
   });
 });
+
+describe('SerialQueue handler', () => {
+  it('waits for a handler and uses the latest one', async () => {
+    const handled: string[] = [];
+    const queue = new SerialQueue<string>();
+    queue.push('a');
+    await tick();
+    expect(queue.pending).toEqual(['a']);
+    queue.setHandler(async (item) => {
+      handled.push(`first:${item}`);
+      return 'done';
+    });
+    await tick();
+    queue.setHandler(async (item) => {
+      handled.push(`second:${item}`);
+      return 'done';
+    });
+    queue.push('b');
+    await tick();
+    expect(handled).toEqual(['first:a', 'second:b']);
+  });
+});
