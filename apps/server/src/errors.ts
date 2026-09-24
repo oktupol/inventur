@@ -11,6 +11,10 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   work_area_has_entries: 409,
   workstation_has_entries: 409,
   no_previous_stocktake: 409,
+  workstation_unknown: 401,
+  no_active_stocktake: 409,
+  employee_busy: 409,
+  employee_not_logged_in: 409,
   internal_error: 500,
 };
 

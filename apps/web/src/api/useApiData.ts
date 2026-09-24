@@ -1,7 +1,7 @@
 import type { Channel, DomainEvent } from '@inventur/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConnectionStatus, useRealtimeEvents } from '../realtime/RealtimeProvider.tsx';
-import { api, ApiRequestError } from './client.ts';
+import { apiRequest, ApiRequestError, type Headers } from './client.ts';
 
 export interface ApiData<T> {
   data: T | undefined;
@@ -15,6 +15,8 @@ export interface ApiDataOptions {
   channels?: readonly Channel[];
   /** Restricts reloads to matching events; by default every event reloads. */
   filter?: (event: DomainEvent) => boolean;
+  /** Extra request headers, e.g. the workstation token. */
+  headers?: Headers;
 }
 
 /** Delay that merges bursts of events, e.g. when a stocktake is finished, into one reload. */
@@ -31,11 +33,12 @@ export function useApiData<T>(url: string | null, options: ApiDataOptions = {}):
   });
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const headersKey = JSON.stringify(options.headers ?? {});
 
   useEffect(() => {
     if (url === null) return;
     let cancelled = false;
-    api.get<T>(url).then(
+    apiRequest<T>('GET', url, undefined, JSON.parse(headersKey) as Headers).then(
       (data) => !cancelled && setState({ url, data }),
       (error: unknown) =>
         !cancelled &&
@@ -50,7 +53,7 @@ export function useApiData<T>(url: string | null, options: ApiDataOptions = {}):
     return () => {
       cancelled = true;
     };
-  }, [url, version]);
+  }, [url, version, headersKey]);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);

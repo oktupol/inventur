@@ -18,12 +18,19 @@ export class ApiRequestError extends Error {
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-export async function apiRequest<T>(method: Method, url: string, body?: unknown): Promise<T> {
+export type Headers = Record<string, string>;
+
+export async function apiRequest<T>(
+  method: Method,
+  url: string,
+  body?: unknown,
+  headers: Headers = {},
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url, {
       method,
-      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      headers: body === undefined ? headers : { ...headers, 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -38,9 +45,16 @@ export async function apiRequest<T>(method: Method, url: string, body?: unknown)
   return data as T;
 }
 
-export const api = {
-  get: <T>(url: string) => apiRequest<T>('GET', url),
-  post: <T>(url: string, body?: unknown) => apiRequest<T>('POST', url, body ?? {}),
-  patch: <T>(url: string, body: unknown) => apiRequest<T>('PATCH', url, body),
-  delete: (url: string) => apiRequest<void>('DELETE', url),
-};
+/** API requests, optionally with extra headers such as the workstation token. */
+export function createApi(headers: Headers = {}) {
+  return {
+    get: <T>(url: string) => apiRequest<T>('GET', url, undefined, headers),
+    post: <T>(url: string, body?: unknown) => apiRequest<T>('POST', url, body ?? {}, headers),
+    patch: <T>(url: string, body: unknown) => apiRequest<T>('PATCH', url, body, headers),
+    delete: (url: string) => apiRequest<void>('DELETE', url, undefined, headers),
+  };
+}
+
+export type Api = ReturnType<typeof createApi>;
+
+export const api = createApi();
