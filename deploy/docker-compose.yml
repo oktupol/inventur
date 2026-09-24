@@ -1,0 +1,51 @@
+name: inventur
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: inventur
+      POSTGRES_USER: inventur
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in .env setzen}
+    ports:
+      # Nur lokal erreichbar, damit der Administrator die Stammdaten befüllen kann.
+      - 127.0.0.1:5432:5432
+    volumes:
+      - db-daten:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U inventur -d inventur]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    image: ghcr.io/oktupol/inventur-app:${APP_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: inventur
+      PGUSER: inventur
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PUBLIC_HOST: ${PUBLIC_HOST:?PUBLIC_HOST in .env setzen}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - 80:80
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-daten:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  db-daten:
+  caddy-daten:
+  caddy-config:

@@ -1,0 +1,9 @@
+# Vorerst nur HTTP für die Arbeitsstationen. HTTPS mit interner CA folgt in
+# Schritt 16, das Admin-Dashboard auf 127.0.0.1:8080 in Schritt 8.
+{
+	auto_https off
+}
+
+:80 {
+	reverse_proxy app:3000
+}
