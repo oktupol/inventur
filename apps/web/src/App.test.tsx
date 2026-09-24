@@ -2,12 +2,16 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.tsx';
+import { RealtimeProvider } from './realtime/RealtimeProvider.tsx';
+import { createFakeRealtime } from './test-utils/fake-realtime.ts';
 
 function renderAt(path: string) {
   render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
+    <RealtimeProvider client={createFakeRealtime().client}>
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>
+    </RealtimeProvider>,
   );
 }
 

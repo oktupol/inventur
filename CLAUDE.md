@@ -47,6 +47,6 @@ pnpm test-sheet # PDF mit Test-Barcodes erzeugen (ab Schritt 4a)
 - **Tests:** Jede Fachlogik bekommt Unit-Tests im selben Schritt. Die Fachlogik (Statusübergänge, Suchauflösung, Mengen, Checkpoints, Tastatursteuerung) liegt in reinen, ohne Datenbank testbaren Modulen.
 - **Git:** Pro Arbeitsschritt ein eigener Branch (`schritt-NN-kurzname`) und ein Pull Request. Nicht direkt auf `main` entwickeln.
 - **Stammdaten** werden von der Anwendung nie geschrieben. Erfassungen speichern eine Momentaufnahme der Stammdaten.
-- **Live-Aktualisierung:** Jede Änderung an Erfassungen, Bereichen, Stationen oder Mitarbeitern löst ein Ereignis über den WebSocket-Event-Bus aus.
+- **Live-Aktualisierung:** Jede Änderung an Erfassungen, Bereichen, Stationen oder Mitarbeitern löst ein Ereignis über den WebSocket-Event-Bus aus. Im Server per `app.events.publish(event)`. Ereignistypen und die Zuordnung zu Kanälen (`channelsForEvent`) stehen in `packages/shared/src/realtime/events.ts`. Im Frontend: `useRealtimeEvents(channels, handler)` und `useConnectionStatus()`.
 - Keine Authentifizierung einbauen. Die Anwendung läuft nur im LAN, das Admin-Dashboard ist nur über `127.0.0.1:8080` erreichbar.
 - Das Repository und die Images sind privat: `ghcr.io/oktupol/inventur-app`.
