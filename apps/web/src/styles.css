@@ -907,3 +907,112 @@ table.entries tr:hover .insert-checkpoint,
   font-size: 1.2rem;
   padding: 0.7rem;
 }
+
+.scanner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.camera {
+  position: relative;
+  background: #111;
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera:not(.running) video {
+  visibility: hidden;
+}
+
+.camera-frame {
+  position: absolute;
+  inset: 25% 10%;
+  border: 3px solid rgb(255 255 255 / 0.85);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.25);
+}
+
+.camera-start {
+  position: relative;
+  font-size: 1.2rem;
+  padding: 0.8rem 1.4rem;
+}
+
+.result {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  background: var(--surface);
+}
+
+.result.unique {
+  background: #d7f5dd;
+  border-color: var(--success);
+}
+
+.result.ambiguous {
+  background: #fff1b8;
+  border-color: #d4a106;
+}
+
+.result.not_found {
+  background: #fdd8d8;
+  border-color: var(--danger);
+}
+
+.result-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.result-price {
+  font-size: 1.1rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.result-quantity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.result-quantity button {
+  font-size: 1.6rem;
+  width: 3.2rem;
+  height: 3.2rem;
+}
+
+.result-quantity span {
+  font-size: 1.6rem;
+  font-weight: 700;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.result .danger {
+  width: 100%;
+  padding: 0.6rem;
+}
+
+.code-form label {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.code-form input {
+  flex: 1;
+}

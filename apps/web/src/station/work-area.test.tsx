@@ -144,6 +144,13 @@ describe('work area selection at the workstation', () => {
     server.setArea(vitrine);
     const realtime = renderStation();
     expect(await screen.findByRole('heading', { name: /Vitrine/ })).toBeTruthy();
+    // The workstation listens on its own channel once it knows its id.
+    await waitFor(() =>
+      expect(realtime.latest().sent).toContainEqual({
+        type: 'subscribe',
+        channels: ['workstation:7'],
+      }),
+    );
 
     vitrine.status = 'closed';
     vitrine.workstations = [];

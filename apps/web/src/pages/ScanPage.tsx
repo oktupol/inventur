@@ -13,6 +13,7 @@ import { ErrorNotice } from '../components/Notice.tsx';
 import { ConnectionIndicator } from '../realtime/ConnectionIndicator.tsx';
 import { clearDeviceToken, loadDeviceToken, saveDeviceToken } from '../scan/deviceToken.ts';
 import { PairForm } from '../scan/PairForm.tsx';
+import { ScannerView } from '../scan/ScannerView.tsx';
 
 function PairedView({
   token,
@@ -61,6 +62,12 @@ function PairedView({
           ) : state.workArea ? (
             <p>
               Bereich: <strong>{state.workArea.name}</strong>
+              {state.employees.length === 0 && (
+                <span className="notice warning" style={{ display: 'block', marginTop: '0.5rem' }}>
+                  An der Station ist kein Mitarbeiter angemeldet. Ohne Mitarbeiter kann nicht
+                  erfasst werden.
+                </span>
+              )}
             </p>
           ) : (
             <p className="notice warning">
@@ -73,6 +80,7 @@ function PairedView({
           </button>
         </div>
       )}
+      {state?.stocktake && state.workArea && <ScannerView api={deviceApi} />}
     </div>
   );
 }
