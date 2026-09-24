@@ -1,4 +1,4 @@
-import type { ArticleMatch, Entry, StationState } from '@inventur/shared';
+import type { ArticleMatch, Checkpoint, Entry, StationState } from '@inventur/shared';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,6 +56,7 @@ function stubServer(options: { employees?: boolean } = {}) {
     workArea: { id: 4, name: 'Vitrine', status: 'in_progress' },
   };
   const entries: Entry[] = [];
+  const checkpoints: Checkpoint[] = [];
   const control = { failures: 0 };
   let nextId = 1;
 
@@ -77,6 +78,7 @@ function stubServer(options: { employees?: boolean } = {}) {
       createdAt: new Date(2026, 0, 1, 10, 0, entries.length).toISOString(),
       updatedAt: new Date().toISOString(),
       duplicateCount: entries.filter((e) => e.articleId === a.id).length,
+      checkpointNumber: null,
     };
     entries.unshift(entry);
     return entry;
@@ -92,6 +94,10 @@ function stubServer(options: { employees?: boolean } = {}) {
         body: {
           workArea: state.workArea,
           entries,
+          checkpoints: [...checkpoints].reverse(),
+          sinceLastCheckpoint: entries
+            .filter((e) => e.checkpointNumber === null)
+            .reduce((sum, e) => sum + e.quantity, 0),
           totals: {
             quantity: entries.length,
             lines: entries.length,
@@ -113,6 +119,23 @@ function stubServer(options: { employees?: boolean } = {}) {
           hasMore: false,
         },
       };
+    }
+    if (method === 'POST' && url === '/api/station/checkpoints') {
+      const number = checkpoints.length + 1;
+      const open = entries.filter((e) => e.checkpointNumber === null);
+      const sinceLast = open.reduce((sum, e) => sum + e.quantity, 0);
+      for (const e of open) e.checkpointNumber = number;
+      const checkpoint: Checkpoint = {
+        id: 100 + number,
+        workAreaId: 4,
+        number,
+        workstation: kasse,
+        createdAt: new Date(2026, 0, 1, 11, 0, number).toISOString(),
+        sinceLast,
+        sinceStart: entries.reduce((sum, e) => sum + e.quantity, 0),
+      };
+      checkpoints.push(checkpoint);
+      return { status: 201, body: checkpoint };
     }
     const row = /^\/api\/station\/entries\/(\d+)$/.exec(url);
     if (row) {
@@ -561,5 +584,56 @@ describe('manual capture', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(/größer als 0/);
     expect(manualPosts(server)).toEqual([]);
     expect(await dialog()).toBeTruthy();
+  });
+});
+
+describe('checkpoints', () => {
+  it('sets a checkpoint with F3 and shows it as a separator with counts', async () => {
+    const server = stubServer();
+    renderStation();
+    await scan('4000000000017');
+    await waitFor(() => expect(server.entries).toHaveLength(1));
+    await scan('4000000000017');
+    await waitFor(() => expect(server.entries).toHaveLength(2));
+
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    expect(await screen.findByText('Checkpoint 1 gesetzt:')).toBeTruthy();
+    const separator = await waitFor(() => {
+      const row = document.querySelector('table.entries tr.checkpoint-row');
+      expect(row).toBeTruthy();
+      return row!;
+    });
+    expect(separator.textContent).toContain('2 Stück seit Beginn');
+
+    await scan('4000000000017');
+    await waitFor(() =>
+      expect(document.querySelector('.since-checkpoint-row')?.textContent).toBe(
+        'Seit Checkpoint 1: 1 Stück',
+      ),
+    );
+    expect(screen.getByLabelText('Summe im Bereich').textContent).toContain(
+      'seit Checkpoint 1: 1 Stück',
+    );
+    // The new line is above the separator, the older ones below it.
+    const rows = [...document.querySelectorAll('table.entries tbody tr')].map((r) => r.className);
+    expect(rows).toEqual(['selected', 'since-checkpoint-row', 'checkpoint-row', '', '']);
+  });
+
+  it('sets a checkpoint with the button', async () => {
+    const server = stubServer();
+    renderStation();
+    fireEvent.click(await screen.findByRole('button', { name: /Checkpoint/ }));
+    await waitFor(() =>
+      expect(server.api.calls.some((c) => c.url === '/api/station/checkpoints')).toBe(true),
+    );
+  });
+
+  it('does not treat F3 as a shortcut while typing', async () => {
+    const server = stubServer();
+    renderStation();
+    fireEvent.change(await input(), { target: { value: '40' } });
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(server.api.calls.some((c) => c.url === '/api/station/checkpoints')).toBe(false);
   });
 });

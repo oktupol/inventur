@@ -1,4 +1,5 @@
 import type { ArticleMatch } from './article.ts';
+import type { Checkpoint } from './checkpoint.ts';
 import type { NamedRef } from './common.ts';
 import type { WorkAreaStatus } from './work-area.ts';
 
@@ -25,6 +26,11 @@ export interface Entry {
    * are single items, so a value above 0 hints at a double scan.
    */
   duplicateCount: number;
+  /**
+   * Number of the checkpoint that follows the line, i.e. whose section it
+   * belongs to; null for lines after the newest checkpoint.
+   */
+  checkpointNumber: number | null;
 }
 
 export interface EntryTotals {
@@ -39,6 +45,10 @@ export interface EntryTotals {
 export interface EntryListResponse {
   workArea: NamedRef & { status: WorkAreaStatus };
   entries: Entry[];
+  /** Newest first. */
+  checkpoints: Checkpoint[];
+  /** Pieces captured after the newest checkpoint (or since the start without one). */
+  sinceLastCheckpoint: number;
   totals: EntryTotals;
 }
 

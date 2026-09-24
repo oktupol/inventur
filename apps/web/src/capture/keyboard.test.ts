@@ -31,6 +31,7 @@ describe('shortcuts with an empty input', () => {
     ['=', 'start_quantity'],
     ['*', 'start_quantity'],
     ['Escape', 'reset_selection'],
+    ['F3', 'checkpoint'],
   ])('%s → %s', (key, type) => {
     expect(interpretKey(empty, key).type).toBe(type);
   });
@@ -66,7 +67,7 @@ describe('typing into a non-empty input', () => {
     expect(commands.every((type) => type === 'none')).toBe(true);
   });
 
-  it.each(['+', '-', '=', '*', 'Delete', 'ArrowUp', 'Escape'])('lets %s through', (key) => {
+  it.each(['+', '-', '=', '*', 'Delete', 'ArrowUp', 'Escape', 'F3'])('lets %s through', (key) => {
     expect(interpretKey({ ...empty, text: 'X' }, key).type).toBe('none');
   });
 
