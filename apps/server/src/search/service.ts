@@ -14,6 +14,7 @@ import {
   normalizeQuery,
   resolve,
   toSearchResponse,
+  usesTrigramIndex,
 } from './rules.ts';
 
 interface Hit {
@@ -109,8 +110,9 @@ async function partialHits(db: Db | Trx, query: string, limit: number): Promise<
       .where((eb) =>
         eb.and(words.map((word) => eb(sql`lower(description)`, 'like', `%${escapeLike(word)}%`))),
       )
-      .orderBy('description')
-      .orderBy('id')
+      // Without the trigram index, sorting would read every match; the scan stops
+      // after `limit` matches instead, which are then ranked like all others.
+      .$if(usesTrigramIndex(words), (q) => q.orderBy('description').orderBy('id'))
       .limit(limit)
       .execute(),
   ]);
