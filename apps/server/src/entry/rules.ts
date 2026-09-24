@@ -1,4 +1,4 @@
-import type { Article, WorkAreaStatus } from '@inventur/shared';
+import { MAX_QUANTITY, type Article, type WorkAreaStatus } from '@inventur/shared';
 import { DomainError } from '../errors.ts';
 import { acceptsEntries } from '../work-area/status.ts';
 
@@ -42,4 +42,25 @@ export function snapshotOf(article: Article) {
     price_net: article.priceNet,
     price_gross: article.priceGross,
   };
+}
+
+/**
+ * The quantity after a change: an absolute value must be between 1 and the
+ * maximum; a relative change stops at 1 (decrementing 1 changes nothing).
+ */
+export function nextQuantity(
+  current: number,
+  change: { quantity: number } | { delta: number },
+): number {
+  if ('quantity' in change) {
+    if (
+      !Number.isInteger(change.quantity) ||
+      change.quantity < 1 ||
+      change.quantity > MAX_QUANTITY
+    ) {
+      throw new DomainError('validation_failed', `Quantity must be between 1 and ${MAX_QUANTITY}`);
+    }
+    return change.quantity;
+  }
+  return Math.min(MAX_QUANTITY, Math.max(1, current + change.delta));
 }

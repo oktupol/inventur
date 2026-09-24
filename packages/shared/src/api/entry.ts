@@ -55,3 +55,12 @@ export type CreateEntryResponse =
   | { result: 'unique'; entry: Entry }
   | { result: 'ambiguous'; articles: ArticleMatch[]; hasMore: boolean }
   | { result: 'not_found' };
+
+/** Largest quantity of a line. */
+export const MAX_QUANTITY = 99_999;
+
+/**
+ * `PATCH /api/station/entries/:id`: set the quantity, or change it by
+ * `delta` (+1/−1). A decrement never goes below 1.
+ */
+export type UpdateEntryRequest = { quantity: number } | { delta: number };

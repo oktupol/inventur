@@ -14,7 +14,8 @@ import { useConnectionStatus } from '../realtime/RealtimeProvider.tsx';
 import { playTone } from '../station/audio.ts';
 import { useStation } from '../station/StationContext.tsx';
 import { completionFor, matchedText, moveSelection } from './completion.ts';
-import { EntryTable } from './EntryTable.tsx';
+import { EntryTable, type RowAction } from './EntryTable.tsx';
+import { effectiveSelection, interpretKey, moveRowSelection } from './keyboard.ts';
 import { SerialQueue, type QueueOutcome } from './queue.ts';
 import { useSuggestions } from './useSuggestions.ts';
 import { randomId } from './uuid.ts';
@@ -25,10 +26,20 @@ interface Scan {
   articleId?: number;
 }
 
+/** A change of a line; without `entryId` it applies to the newest own line at that time. */
+interface RowTask {
+  action: RowAction;
+  entryId: number | null;
+}
+
+type Task = ({ kind: 'scan' } & Scan) | ({ kind: 'row' } & RowTask);
+
 type Feedback =
   | { kind: 'unique'; entry: Entry }
   | { kind: 'not_found'; input: string }
-  | { kind: 'error'; input: string; message: string };
+  | { kind: 'updated'; entry: Entry }
+  | { kind: 'deleted'; description: string }
+  | { kind: 'error'; message: string; input?: string };
 
 interface Choice {
   input: string;
@@ -46,6 +57,10 @@ function isTransient(error: unknown): boolean {
   return (
     !(error instanceof ApiRequestError) || error.code === 'network_error' || error.status >= 502
   );
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 const isEditable = (element: Element | null) =>
@@ -70,40 +85,39 @@ export function CaptureView() {
   });
 
   const [text, setText] = useState('');
+  const [quantityDigits, setQuantityDigits] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [pending, setPending] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestions = useSuggestions(api, choice ? '' : text);
-  const completion = choice ? null : completionFor(text, suggestions);
+  const suggestions = useSuggestions(api, choice || quantityDigits !== null ? '' : text);
+  const completion = choice || quantityDigits !== null ? null : completionFor(text, suggestions);
 
-  // The queue lives as long as the view; its handler always uses the latest render's values.
-  const handle = useRef<(scan: Scan) => Promise<QueueOutcome>>(async () => 'retry');
+  const list = entries.data?.entries ?? [];
+  const selection = effectiveSelection(list, selectedId, state.workstation.id);
+
+  // The queue lives as long as the view; its handler is replaced after every render.
   const [queue] = useState(
-    () =>
-      new SerialQueue<Scan>(
-        (scan) => handle.current(scan),
-        () => setPending(queue.pending.length),
-      ),
+    () => new SerialQueue<Task>(undefined, (q) => setPending(q.pending.length)),
   );
   const reloadEntries = entries.reload;
+  // The newest own line may be newer than the loaded list, e.g. right after a scan.
+  const lastCreatedId = useRef<number | null>(null);
 
   useEffect(() => {
-    handle.current = async function process(scan: Scan): Promise<QueueOutcome> {
+    async function processScan(scan: Scan): Promise<QueueOutcome> {
       let response: CreateEntryResponse;
       try {
         response = await api.post<CreateEntryResponse>('/api/station/entries', scan);
       } catch (error) {
         if (isTransient(error)) return 'retry';
-        setFeedback({
-          kind: 'error',
-          input: scan.input,
-          message: error instanceof Error ? error.message : String(error),
-        });
+        setFeedback({ kind: 'error', input: scan.input, message: messageOf(error) });
         return 'done';
       }
       switch (response.result) {
         case 'unique':
+          lastCreatedId.current = response.entry.id;
           setFeedback({ kind: 'unique', entry: response.entry });
           reloadEntries();
           return 'done';
@@ -118,10 +132,48 @@ export function CaptureView() {
           );
           setChoice(null);
           if (articleId === null) return 'done';
-          return process({ ...scan, articleId });
+          return processScan({ ...scan, articleId });
         }
       }
-    };
+    }
+
+    async function processRow({ action, entryId }: RowTask): Promise<QueueOutcome> {
+      const ownDefault = effectiveSelection(list, null, state.workstation.id);
+      const target =
+        entryId ??
+        (lastCreatedId.current !== null && lastCreatedId.current > (ownDefault ?? 0)
+          ? lastCreatedId.current
+          : ownDefault);
+      if (target === null) {
+        setFeedback({ kind: 'error', message: 'Es ist keine Zeile ausgewählt.' });
+        return 'done';
+      }
+      const url = `/api/station/entries/${target}`;
+      try {
+        if (action.type === 'delete') {
+          await api.delete(url);
+          if (lastCreatedId.current === target) lastCreatedId.current = null;
+          const description = list.find((e) => e.id === target)?.description ?? 'Zeile';
+          setFeedback({ kind: 'deleted', description });
+        } else {
+          const body =
+            action.type === 'set' ? { quantity: action.quantity } : { delta: action.delta };
+          setFeedback({ kind: 'updated', entry: await api.patch<Entry>(url, body) });
+        }
+      } catch (error) {
+        if (isTransient(error)) return 'retry';
+        if (lastCreatedId.current === target) lastCreatedId.current = null;
+        const gone = error instanceof ApiRequestError && error.code === 'not_found';
+        setFeedback({
+          kind: 'error',
+          message: gone ? 'Die Zeile gibt es nicht mehr.' : messageOf(error),
+        });
+      }
+      reloadEntries();
+      return 'done';
+    }
+
+    queue.setHandler((task) => (task.kind === 'scan' ? processScan(task) : processRow(task)));
   });
 
   // Retry scans that failed because the server was unreachable.
@@ -154,12 +206,51 @@ export function CaptureView() {
   }, [enabled]);
 
   function submit(scan: Omit<Scan, 'requestId'>) {
-    queue.push({ ...scan, requestId: randomId() });
+    queue.push({ kind: 'scan', ...scan, requestId: randomId() });
     setText('');
+    // A new scan makes the shortcuts act on the newest own line again.
+    setSelectedId(null);
     inputRef.current?.focus();
   }
 
+  function changeRow(action: RowAction, entryId: number | null = null) {
+    const explicit =
+      entryId ?? (selectedId !== null && selection === selectedId ? selectedId : null);
+    queue.push({ kind: 'row', action, entryId: explicit });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    const command = interpretKey({ text, quantityDigits, choiceOpen: choice !== null }, event.key);
+    if (command.type !== 'none') event.preventDefault();
+    switch (command.type) {
+      case 'delete':
+        return changeRow({ type: 'delete' });
+      case 'increment':
+        return changeRow({ type: 'delta', delta: 1 });
+      case 'decrement':
+        return changeRow({ type: 'delta', delta: -1 });
+      case 'start_quantity':
+        return setQuantityDigits('');
+      case 'quantity_input':
+        return setQuantityDigits(command.digits);
+      case 'set_quantity':
+        setQuantityDigits(null);
+        return changeRow({ type: 'set', quantity: command.quantity });
+      case 'invalid_quantity':
+        return setFeedback({ kind: 'error', message: 'Die Menge muss mindestens 1 sein.' });
+      case 'cancel_quantity':
+        return setQuantityDigits(null);
+      case 'select':
+        return setSelectedId(moveRowSelection(list, selection, command.delta));
+      case 'reset_selection':
+        setSelectedId(null);
+        return setFeedback(null);
+      case 'ignore':
+        return;
+      case 'none':
+        break;
+    }
+
     switch (event.key) {
       case 'Enter': {
         event.preventDefault();
@@ -197,7 +288,14 @@ export function CaptureView() {
     }
   }
 
-  const tone = choice ? 'ambiguous' : feedback?.kind === 'error' ? 'not_found' : feedback?.kind;
+  const tone = choice
+    ? 'ambiguous'
+    : feedback?.kind === 'unique' || feedback?.kind === 'not_found'
+      ? feedback.kind
+      : feedback?.kind === 'error'
+        ? 'not_found'
+        : undefined;
+  const quantityMode = quantityDigits !== null;
   const totals = entries.data?.totals;
 
   return (
@@ -214,20 +312,29 @@ export function CaptureView() {
       )}
       <div className={`capture-panel ${tone ?? ''}`} data-feedback={tone ?? 'none'}>
         <div className="capture-input-row">
+          {quantityMode && <span className="quantity-label">Menge:</span>}
           <div className="capture-input">
-            <div className="ghost" aria-hidden>
-              <span className="typed">{text}</span>
-              {completion?.slice(text.length)}
-            </div>
+            {!quantityMode && (
+              <div className="ghost" aria-hidden>
+                <span className="typed">{text}</span>
+                {completion?.slice(text.length)}
+              </div>
+            )}
             <input
               ref={inputRef}
-              value={text}
+              value={quantityMode ? quantityDigits : text}
               disabled={!enabled}
               aria-label="Eingabe: EAN, Artikelnummer oder Bezeichnung"
-              placeholder="Scannen oder EAN, Artikelnummer, Bezeichnung eingeben"
+              placeholder={
+                quantityMode
+                  ? 'Menge eingeben, Enter übernimmt, Esc bricht ab'
+                  : 'Scannen oder EAN, Artikelnummer, Bezeichnung eingeben'
+              }
+              className={quantityMode ? 'quantity-mode' : undefined}
               autoComplete="off"
               spellCheck={false}
               onChange={(event) => {
+                if (quantityMode) return;
                 if (text === '' && event.target.value !== '') setFeedback(null);
                 setText(event.target.value);
               }}
@@ -288,14 +395,42 @@ export function CaptureView() {
           )}
           {!choice && feedback?.kind === 'error' && (
             <span>
-              <strong>„{feedback.input}“ wurde nicht erfasst:</strong> {feedback.message}
+              {feedback.input !== undefined && (
+                <strong>„{feedback.input}“ wurde nicht erfasst: </strong>
+              )}
+              {feedback.message}
+            </span>
+          )}
+          {!choice && feedback?.kind === 'updated' && (
+            <span>
+              Menge von <strong>{feedback.entry.description}</strong> ist jetzt{' '}
+              <strong>{formatNumber(feedback.entry.quantity)}</strong>.
+            </span>
+          )}
+          {!choice && feedback?.kind === 'deleted' && (
+            <span>
+              <strong>Zeile gelöscht:</strong> {feedback.description}
             </span>
           )}
         </div>
       </div>
 
       <ErrorNotice error={entries.error} />
-      {entries.data && <EntryTable entries={entries.data.entries} />}
+      {entries.data && (
+        <EntryTable
+          entries={list}
+          selectedId={selection}
+          disabled={!enabled}
+          onSelect={(id) => {
+            setSelectedId(id);
+            inputRef.current?.focus();
+          }}
+          onAction={(id, action) => {
+            changeRow(action, id);
+            inputRef.current?.focus();
+          }}
+        />
+      )}
     </section>
   );
 }

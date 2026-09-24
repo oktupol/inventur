@@ -57,10 +57,11 @@ function stubServer(options: { employees?: boolean } = {}) {
   };
   const entries: Entry[] = [];
   const control = { failures: 0 };
+  let nextId = 1;
 
   function createEntry(a: ArticleMatch, input: string): Entry {
     const entry: Entry = {
-      id: entries.length + 1,
+      id: nextId++,
       workAreaId: 4,
       articleId: a.id,
       isManual: false,
@@ -113,6 +114,19 @@ function stubServer(options: { employees?: boolean } = {}) {
         },
       };
     }
+    const row = /^\/api\/station\/entries\/(\d+)$/.exec(url);
+    if (row) {
+      const index = entries.findIndex((e) => e.id === Number(row[1]));
+      if (index === -1) return { status: 404, body: { error: 'x', code: 'not_found' } };
+      if (method === 'DELETE') {
+        entries.splice(index, 1);
+        return { status: 204 };
+      }
+      const change = body as { quantity?: number; delta?: number };
+      const current = entries[index]!;
+      current.quantity = change.quantity ?? Math.max(1, current.quantity + (change.delta ?? 0));
+      return { body: current };
+    }
     if (method === 'POST' && url === '/api/station/entries') {
       if (control.failures > 0) {
         control.failures--;
@@ -129,7 +143,16 @@ function stubServer(options: { employees?: boolean } = {}) {
       return { body: { result: 'not_found' } };
     }
   });
-  return { api, entries, control, entryPosts: () => api.calls.filter((c) => c.method === 'POST') };
+  return {
+    api,
+    entries,
+    control,
+    entryPosts: () => api.calls.filter((c) => c.method === 'POST'),
+    rowCalls: () =>
+      api.calls
+        .filter((c) => c.method === 'PATCH' || c.method === 'DELETE')
+        .map((c) => ({ method: c.method, url: c.url, body: c.body })),
+  };
 }
 
 function renderStation(options: { reconnectDelayMs?: () => number } = {}) {
@@ -301,5 +324,134 @@ describe('capture', () => {
     fireEvent.click(within(suggestions).getByRole('button'));
     await waitFor(() => expect(server.entries).toHaveLength(1));
     expect(server.entryPosts()[0]!.body).toMatchObject({ input: '4000000000', articleId: 1 });
+  });
+});
+
+describe('changing lines', () => {
+  const press = async (...keys: string[]) => {
+    const field = await input();
+    for (const key of keys) fireEvent.keyDown(field, { key });
+  };
+
+  async function scanned(count: number) {
+    const server = stubServer();
+    renderStation();
+    for (let i = 0; i < count; i++) {
+      await scan('4000000000017');
+      await waitFor(() => expect(server.entries).toHaveLength(i + 1));
+    }
+    await waitFor(() =>
+      expect(document.querySelectorAll('table.entries tbody tr')).toHaveLength(count),
+    );
+    return server;
+  }
+
+  const selectedRow = () => document.querySelector('table.entries tr.selected');
+
+  it('applies + right after a scan to the new line', async () => {
+    const server = stubServer();
+    renderStation();
+    await scan('4000000000017');
+    await press('+');
+    await waitFor(() => expect(server.rowCalls()).toHaveLength(1));
+    expect(server.rowCalls()[0]).toEqual({
+      method: 'PATCH',
+      url: '/api/station/entries/1',
+      body: { delta: 1 },
+    });
+    expect(await screen.findByText(/ist jetzt/)).toBeTruthy();
+  });
+
+  it('decrements with - and sets the quantity with = 20 Enter and * 3 Enter', async () => {
+    const server = await scanned(1);
+    await press('-');
+    await press('=');
+    expect(screen.getByText('Menge:')).toBeTruthy();
+    await press('2', '0', 'Enter');
+    await press('*', '3', 'Enter');
+    await waitFor(() => expect(server.rowCalls()).toHaveLength(3));
+    expect(server.rowCalls().map((c) => c.body)).toEqual([
+      { delta: -1 },
+      { quantity: 20 },
+      { quantity: 3 },
+    ]);
+    expect(screen.queryByText('Menge:')).toBeNull();
+  });
+
+  it('requires a quantity of at least 1 and cancels the quantity mode with Esc', async () => {
+    const server = await scanned(1);
+    await press('=', '0', 'Enter');
+    expect(await screen.findByText('Die Menge muss mindestens 1 sein.')).toBeTruthy();
+    expect(screen.getByText('Menge:')).toBeTruthy();
+    await press('Escape');
+    expect(screen.queryByText('Menge:')).toBeNull();
+    expect(server.rowCalls()).toEqual([]);
+  });
+
+  it('types "AB-123" as input instead of treating - as a shortcut', async () => {
+    const server = await scanned(1);
+    const field = await input();
+    let value = '';
+    for (const char of 'AB-123') {
+      fireEvent.keyDown(field, { key: char });
+      value += char;
+      fireEvent.change(field, { target: { value } });
+    }
+    expect(field.value).toBe('AB-123');
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => expect(server.entryPosts()).toHaveLength(2));
+    expect(server.entryPosts()[1]!.body).toMatchObject({ input: 'AB-123' });
+    expect(server.rowCalls()).toEqual([]);
+  });
+
+  it('selects another line with the arrow keys, deletes it with Delete and resets with Esc', async () => {
+    const server = await scanned(3);
+    // The newest own line is selected by default.
+    expect(selectedRow()?.getAttribute('data-entry-id')).toBe('3');
+    await press('ArrowDown', 'ArrowDown');
+    expect(selectedRow()?.getAttribute('data-entry-id')).toBe('1');
+    await press('Escape');
+    expect(selectedRow()?.getAttribute('data-entry-id')).toBe('3');
+    await press('ArrowDown', 'Delete');
+    await waitFor(() => expect(server.rowCalls()).toHaveLength(1));
+    expect(server.rowCalls()[0]).toMatchObject({
+      method: 'DELETE',
+      url: '/api/station/entries/2',
+    });
+    expect(await screen.findByText('Zeile gelöscht:')).toBeTruthy();
+    await waitFor(() =>
+      expect(document.querySelectorAll('table.entries tbody tr')).toHaveLength(2),
+    );
+  });
+
+  it('offers +, −, an editable quantity and Löschen per line for the mouse', async () => {
+    const server = await scanned(1);
+    const row = document.querySelector('table.entries tbody tr') as HTMLElement;
+    const minus = within(row).getByRole<HTMLButtonElement>('button', { name: 'Menge verringern' });
+    expect(minus.disabled).toBe(true);
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Menge erhöhen' }));
+    await waitFor(() => expect(server.rowCalls()).toHaveLength(1));
+
+    const quantity = within(row).getByRole<HTMLInputElement>('spinbutton', { name: 'Menge' });
+    fireEvent.focus(quantity);
+    fireEvent.change(quantity, { target: { value: '12' } });
+    fireEvent.keyDown(quantity, { key: 'Enter' });
+    await waitFor(() => expect(server.rowCalls()).toHaveLength(2));
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Löschen' }));
+    await waitFor(() => expect(server.rowCalls()).toHaveLength(3));
+    expect(server.rowCalls().map((c) => [c.method, c.body])).toEqual([
+      ['PATCH', { delta: 1 }],
+      ['PATCH', { quantity: 12 }],
+      ['DELETE', undefined],
+    ]);
+  });
+
+  it('reports a line that another workstation deleted', async () => {
+    const server = await scanned(1);
+    server.entries.splice(0, 1);
+    await press('+');
+    expect(await screen.findByText('Die Zeile gibt es nicht mehr.')).toBeTruthy();
   });
 });
