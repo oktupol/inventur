@@ -56,6 +56,44 @@ CREATE TABLE stammdaten.artikelnummer (
 - Die Stammdaten dürfen sich während einer Inventur ändern. Jede Erfassung speichert deshalb eine **Momentaufnahme** von Bezeichnung, EAN, Kategorie und Preisen zum Zeitpunkt der Erfassung, damit das Inventurergebnis stabil bleibt. **(Annahme)**
 - Der Postgres-Port wird nur auf `127.0.0.1` des Host-Rechners veröffentlicht, damit der Administrator die Daten mit eigenen Werkzeugen befüllen kann. **(Annahme)**
 
+### Dummy-Daten für Testzwecke
+
+Für Tests, Entwicklung und Vorführungen lassen sich die Stammdaten automatisiert mit Dummy-Daten befüllen.
+
+- Aufruf als Kommandozeilenbefehl im App-Container, z. B. `docker compose run --rm app seed-stammdaten --anzahl 5000`. In der Entwicklung gibt es dafür `pnpm seed`. **(Annahme)**
+- Parameter **(Annahme)**:
+  - `--anzahl <n>`: Anzahl der Artikel, Standard 5.000
+  - `--seed <zahl>`: Startwert für den Zufallsgenerator. Mit demselben Startwert entstehen dieselben Daten, damit Tests reproduzierbar sind.
+  - `--ersetzen`: Leert die Stammdaten vorher. Ohne diesen Parameter bricht der Befehl ab, wenn schon Stammdaten vorhanden sind. So werden echte Stammdaten nicht versehentlich vermischt.
+- Die Daten sollen realistisch sein und alle Fälle der Erfassung abdecken **(Annahme)**:
+  - Bezeichnungen aus Kategorien eines Uhren- und Schmuckgeschäfts (z. B. Armbanduhren, Ringe, Ketten, Ohrschmuck, Armbänder, Zubehör), mit Marke, Material und Variante
+  - Gültige EAN-13 mit korrekter Prüfziffer, damit echte Barcode-Scanner und die Handy-Kamera sie lesen können
+  - Ein Teil der Artikel hat keine EAN.
+  - 0 bis 3 Artikelnummern je Artikel
+  - Nettopreise zwischen 5 € und 15.000 €; Bruttopreis = Netto × 1,19, kaufmännisch gerundet
+  - Einige absichtlich doppelte EANs und Artikelnummern sowie ähnliche Bezeichnungen, damit der Fall „gelb“ (mehrdeutig) testbar ist
+- Die Dummy-Daten werden über dieselben Tabellen eingespielt wie echte Stammdaten. Die Anwendung behandelt sie nicht anders.
+- Die Integrationstests verwenden denselben Generator mit festem Startwert.
+
+### Barcode-Testblatt
+
+Um Barcode-Scanner und die Handy-Kamera ohne echte Ware zu testen, erzeugt ein Befehl ein druckbares PDF mit Barcodes.
+
+- Aufruf, z. B.: `docker compose run --rm -v "$PWD:/out" app barcode-testblatt --ausgabe /out/testblatt.pdf`. In der Entwicklung gibt es dafür `pnpm testblatt`. **(Annahme)**
+- Das Blatt liest die **aktuell vorhandenen Stammdaten** aus der Datenbank. Es funktioniert also mit Dummy-Daten und mit echten Daten.
+- Parameter **(Annahme)**:
+  - `--anzahl <n>`: Anzahl der Etiketten je Abschnitt, Standard 12
+  - `--seed <zahl>`: Startwert für die Auswahl der Artikel, damit das Blatt wiederholbar ist
+  - `--ausgabe <pfad>`: Zieldatei
+- Die Abschnitte decken alle Fälle der Erfassung ab. Zu jedem Etikett steht das erwartete Ergebnis auf dem Blatt **(Annahme)**:
+  1. **Eindeutig per EAN** (EAN-13), erwartet grün
+  2. **Eindeutig per Artikelnummer** (Code 128), für Artikel ohne EAN, erwartet grün
+  3. **Mehrdeutig**: doppelte EAN oder Artikelnummer, erwartet gelb
+  4. **Unbekannt**: gültige EAN-13, die in den Stammdaten nicht vorkommt, erwartet rot
+- Jedes Etikett zeigt den Barcode, den Code im Klartext, die Bezeichnung, den Bruttopreis und das erwartete Ergebnis.
+- Format: A4 als Etikettenraster. Die Barcodes werden groß genug gedruckt, dass Handscanner und Handykameras sie zuverlässig lesen (EAN-13 mindestens in Nenngröße, ca. 37 × 26 mm, mit Ruhezonen). **(Annahme)**
+- Fehlt ein Abschnitt in den Stammdaten (z. B. keine Dubletten bei echten Daten), wird er mit einem Hinweis ausgelassen.
+
 ## Architektur
 
 Die Anwendung soll als docker-compose Projekt laufen. Die Software soll in einem Mono-Repository auf Github liegen. Selbst entwickelte Software-Komponenten werden in der Github Container Registry veröffentlicht, sodass man nur mit dem Docker-Compose-File die Anwendung von jedem Computer aus starten kann. Die Anwendung wird nicht aus dem Internet erreichbar sein. Eine Authentifizierung ist nicht notwendig, auch nicht für den Administrator.

@@ -47,3 +47,15 @@ docker compose up -d
 ```
 
 Die Stammdaten befüllt der Administrator vorab selbst in die Tabellen `stammdaten.artikel` und `stammdaten.artikelnummer`. Das Schema steht in [Anforderung.md](Anforderung.md#stammdaten).
+
+Zum Testen lassen sich die Stammdaten stattdessen mit Dummy-Daten befüllen:
+
+```sh
+docker compose run --rm app seed-stammdaten --anzahl 5000 --seed 42
+```
+
+Ein druckbares PDF mit Test-Barcodes, mit einem Abschnitt je Erfassungsfall (grün, gelb, rot), erzeugt:
+
+```sh
+docker compose run --rm -v "$PWD:/out" app barcode-testblatt --ausgabe /out/testblatt.pdf
+```

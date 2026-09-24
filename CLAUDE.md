@@ -31,6 +31,8 @@ pnpm dev        # Server und Frontend im Entwicklungsmodus
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm seed       # Stammdaten mit Dummy-Daten befüllen (ab Schritt 4)
+pnpm testblatt  # PDF mit Test-Barcodes erzeugen (ab Schritt 4a)
 ```
 
 ## Konventionen

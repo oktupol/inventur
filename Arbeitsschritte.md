@@ -29,8 +29,24 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - Schema `stammdaten` (`artikel`, `artikelnummer`) mit `pg_trgm` und den Suchindizes
 - Schema `inventur` mit allen Tabellen aus dem Datenmodell (inventur, mitarbeiter, arbeitsstation, arbeitsbereich, erfassung, checkpoint, kopplung)
 - Testcontainers-Setup für Integrationstests, das auch in der CI läuft
-- Skript für Beispiel-Stammdaten (einige tausend Artikel) für Entwicklung und Tests
-- **Fertig, wenn:** Die Migrationen auf einer leeren Datenbank laufen und ein Integrationstest das Schema prüft.
+- Dummy-Daten-Generator `seed-stammdaten` (siehe [Anforderung.md](Anforderung.md#dummy-daten-für-testzwecke)):
+  - Parameter `--anzahl`, `--seed` und `--ersetzen`
+  - Gültige EAN-13, bewusste Dubletten für den Fall „gelb“
+  - Aufrufbar mit `pnpm seed` und im Container
+  - Die Integrationstests nutzen ihn mit festem Startwert.
+- **Fertig, wenn:** Die Migrationen auf einer leeren Datenbank laufen und ein Integrationstest das Schema prüft. Außerdem:
+  - Derselbe Startwert erzeugt identische Daten.
+  - Alle erzeugten EANs haben eine korrekte Prüfziffer.
+  - Ohne `--ersetzen` bricht der Befehl ab, wenn schon Stammdaten vorhanden sind.
+  - Im Compose-Setup befüllt `docker compose run --rm app seed-stammdaten` die Datenbank.
+
+### 4a. Barcode-Testblatt
+- Befehl `barcode-testblatt` (siehe [Anforderung.md](Anforderung.md#barcode-testblatt)) mit den Parametern `--anzahl`, `--seed` und `--ausgabe`, aufrufbar mit `pnpm testblatt` und im Container
+- PDF-Erzeugung (z. B. pdfmake) und Barcodes (z. B. bwip-js); die PDF-Bibliothek wird später für die Zählliste wiederverwendet.
+- Abschnitte: eindeutig per EAN, eindeutig per Artikelnummer, mehrdeutig, unbekannt, jeweils mit erwartetem Ergebnis
+- **Fertig, wenn:**
+  - Unit-Tests die Auswahl je Abschnitt abdecken, auch: Unbekannte Codes kommen garantiert nicht in den Stammdaten vor.
+  - Ein ausgedrucktes Blatt sich mit einem Handscanner und einer Handykamera vollständig lesen lässt. Die Kamera-Prüfung erfolgt, sobald Schritt 18 fertig ist.
 
 ### 5. Echtzeit-Infrastruktur
 - WebSocket-Endpunkt mit Kanälen für Admin, Station und Arbeitsbereich
