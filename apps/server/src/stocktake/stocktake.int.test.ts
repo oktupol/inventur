@@ -19,11 +19,11 @@ describe('stocktake API', () => {
   });
 
   const start = (name: string) =>
-    t.app.inject({ method: 'POST', url: '/api/stocktakes', payload: { name } });
+    t.app.inject({ method: 'POST', url: '/api/admin/stocktakes', payload: { name } });
   const finish = (id: number, payload?: object) =>
-    t.app.inject({ method: 'POST', url: `/api/stocktakes/${id}/finish`, payload });
+    t.app.inject({ method: 'POST', url: `/api/admin/stocktakes/${id}/finish`, payload });
   const active = async () =>
-    (await t.app.inject({ method: 'GET', url: '/api/stocktakes/active' })).json().stocktake;
+    (await t.app.inject({ method: 'GET', url: '/api/admin/stocktakes/active' })).json().stocktake;
 
   async function addWorkArea(stocktakeId: number, name: string, status = 'open') {
     return t.db
@@ -50,7 +50,11 @@ describe('stocktake API', () => {
 
   it('rejects an empty or missing name', async () => {
     expect((await start('  ')).json()).toMatchObject({ code: 'validation_failed' });
-    const missing = await t.app.inject({ method: 'POST', url: '/api/stocktakes', payload: {} });
+    const missing = await t.app.inject({
+      method: 'POST',
+      url: '/api/admin/stocktakes',
+      payload: {},
+    });
     expect(missing.statusCode).toBe(400);
     expect(missing.json()).toMatchObject({ code: 'validation_failed' });
   });
@@ -187,11 +191,11 @@ describe('stocktake API', () => {
   });
 
   it('responds with 404 for unknown stocktakes', async () => {
-    const get = await t.app.inject({ method: 'GET', url: '/api/stocktakes/999999' });
+    const get = await t.app.inject({ method: 'GET', url: '/api/admin/stocktakes/999999' });
     expect(get.statusCode).toBe(404);
     expect(get.json()).toMatchObject({ code: 'not_found' });
     expect((await finish(999999)).json()).toMatchObject({ code: 'not_found' });
-    const invalid = await t.app.inject({ method: 'GET', url: '/api/stocktakes/abc' });
+    const invalid = await t.app.inject({ method: 'GET', url: '/api/admin/stocktakes/abc' });
     expect(invalid.statusCode).toBe(400);
   });
 
@@ -202,7 +206,7 @@ describe('stocktake API', () => {
     await finish(first.id, { confirm: true });
     const second = (await start('Inventur 2026')).json();
 
-    const response = await t.app.inject({ method: 'GET', url: '/api/stocktakes' });
+    const response = await t.app.inject({ method: 'GET', url: '/api/admin/stocktakes' });
     const list: StocktakeSummary[] = response.json();
     expect(list.map((s) => s.id)).toEqual([second.id, first.id]);
     expect(list[1]).toMatchObject({

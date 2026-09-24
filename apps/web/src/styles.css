@@ -1,0 +1,371 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --muted: #59636e;
+  --border: #d1d9e0;
+  --accent: #0b5cad;
+  --accent-text: #ffffff;
+  --danger: #c62828;
+  --danger-bg: #fdecec;
+  --warning: #8a5a00;
+  --warning-bg: #fff4d6;
+  --success: #1a7f37;
+  --success-bg: #e6f4ea;
+  --radius: 6px;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input,
+textarea {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+button.small {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.875rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.notice {
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+.notice.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.notice.warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.notice.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+td.number,
+th.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+td.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.actions > * + * {
+  margin-left: 0.4rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge.open {
+  background: #eaeef2;
+  color: var(--muted);
+}
+
+.badge.in_progress,
+.badge.active {
+  background: #ddeefe;
+  color: var(--accent);
+}
+
+.badge.closed,
+.badge.finished {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.stat {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+}
+
+.stat .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat .label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Dialog */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 10;
+}
+
+.dialog {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  width: min(32rem, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.2);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+/* Admin layout */
+.admin {
+  display: grid;
+  grid-template-columns: 14rem 1fr;
+  min-height: 100vh;
+}
+
+.admin-nav {
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-nav .brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.25rem 0.6rem 1rem;
+}
+
+.admin-nav .stocktake-name {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-weight: 400;
+  display: block;
+}
+
+.admin-nav a {
+  color: inherit;
+  text-decoration: none;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius);
+}
+
+.admin-nav a:hover {
+  background: #374151;
+}
+
+.admin-nav a.active {
+  background: #374151;
+  color: #fff;
+  font-weight: 600;
+}
+
+.admin-nav .spacer {
+  flex: 1;
+}
+
+.admin-nav [role='status'] {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.admin-main {
+  padding: 1.5rem 2rem;
+  max-width: 72rem;
+  width: 100%;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+@media (max-width: 48rem) {
+  .admin {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-main {
+    padding: 1rem;
+  }
+}

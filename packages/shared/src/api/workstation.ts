@@ -11,7 +11,7 @@ export interface Workstation {
   entryCount: number;
 }
 
-/** `PATCH /api/workstations/:id` */
+/** `PATCH /api/admin/workstations/:id` */
 export interface RenameWorkstationRequest {
   name: string;
 }

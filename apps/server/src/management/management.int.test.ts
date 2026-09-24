@@ -22,7 +22,7 @@ describe('managing employees, work areas and workstations', () => {
   async function startStocktake(name: string): Promise<number> {
     const response = await t.app.inject({
       method: 'POST',
-      url: '/api/stocktakes',
+      url: '/api/admin/stocktakes',
       payload: { name },
     });
     return response.json().id;
@@ -31,7 +31,7 @@ describe('managing employees, work areas and workstations', () => {
   const finish = (id = stocktakeId) =>
     t.app.inject({
       method: 'POST',
-      url: `/api/stocktakes/${id}/finish`,
+      url: `/api/admin/stocktakes/${id}/finish`,
       payload: { confirm: true },
     });
 
@@ -83,7 +83,7 @@ describe('managing employees, work areas and workstations', () => {
   }
 
   describe('employees', () => {
-    const url = () => `/api/stocktakes/${stocktakeId}/employees`;
+    const url = () => `/api/admin/stocktakes/${stocktakeId}/employees`;
     const add = async (name: string): Promise<Employee> =>
       (await request('POST', url(), { name })).json();
 
@@ -130,7 +130,9 @@ describe('managing employees, work areas and workstations', () => {
     it('cannot be removed with entries', async () => {
       const anna = await add('Anna');
       const area = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/work-areas`, { name: 'Vitrine' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/work-areas`, {
+          name: 'Vitrine',
+        })
       ).json();
       const station = await createWorkstation('Kasse');
       await createEntry(area.id, station.id, [anna.id]);
@@ -169,12 +171,12 @@ describe('managing employees, work areas and workstations', () => {
       const anna = await add('Anna');
       const other = await request(
         'DELETE',
-        `/api/stocktakes/${stocktakeId + 1000}/employees/${anna.id}`,
+        `/api/admin/stocktakes/${stocktakeId + 1000}/employees/${anna.id}`,
       );
       expect(other.statusCode).toBe(404);
       expect((await request('DELETE', `${url()}/${anna.id + 1000}`)).statusCode).toBe(404);
       expect(
-        (await request('GET', `/api/stocktakes/${stocktakeId + 1000}/employees`)).statusCode,
+        (await request('GET', `/api/admin/stocktakes/${stocktakeId + 1000}/employees`)).statusCode,
       ).toBe(404);
     });
 
@@ -206,7 +208,7 @@ describe('managing employees, work areas and workstations', () => {
   });
 
   describe('work areas', () => {
-    const url = () => `/api/stocktakes/${stocktakeId}/work-areas`;
+    const url = () => `/api/admin/stocktakes/${stocktakeId}/work-areas`;
     const add = async (name: string, description?: string): Promise<WorkArea> =>
       (await request('POST', url(), { name, description })).json();
 
@@ -271,7 +273,7 @@ describe('managing employees, work areas and workstations', () => {
       t.takeEvents();
       expect((await request('DELETE', `${url()}/${area.id}`)).statusCode).toBe(204);
       expect((await request('GET', url())).json()).toEqual([]);
-      const workstations: Workstation[] = (await request('GET', '/api/workstations')).json();
+      const workstations: Workstation[] = (await request('GET', '/api/admin/workstations')).json();
       expect(workstations[0]?.workArea).toBeNull();
       expect(t.takeEvents()).toEqual([
         { type: 'work_area.changed', action: 'deleted', stocktakeId, workAreaId: area.id },
@@ -304,17 +306,19 @@ describe('managing employees, work areas and workstations', () => {
   describe('workstations', () => {
     it('are listed with work area, employees and entries', async () => {
       const area = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/work-areas`, { name: 'Vitrine' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/work-areas`, {
+          name: 'Vitrine',
+        })
       ).json();
       const anna = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/employees`, { name: 'Anna' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/employees`, { name: 'Anna' })
       ).json();
       const station = await createWorkstation('Kasse', area.id);
       await createWorkstation('Büro');
       await login(anna.id, station.id);
       await createEntry(area.id, station.id, [anna.id]);
 
-      const list: Workstation[] = (await request('GET', '/api/workstations')).json();
+      const list: Workstation[] = (await request('GET', '/api/admin/workstations')).json();
       expect(list).toEqual([
         {
           id: expect.any(Number),
@@ -339,37 +343,49 @@ describe('managing employees, work areas and workstations', () => {
     it('are renamed with unique names', async () => {
       const kasse = await createWorkstation('Kasse');
       await createWorkstation('Büro');
-      const renamed = await request('PATCH', `/api/workstations/${kasse.id}`, { name: 'Kasse 1' });
+      const renamed = await request('PATCH', `/api/admin/workstations/${kasse.id}`, {
+        name: 'Kasse 1',
+      });
       expect(renamed.statusCode).toBe(200);
       expect(renamed.json().name).toBe('Kasse 1');
       expect(t.takeEvents()).toEqual([
         { type: 'workstation.changed', action: 'updated', workstationId: kasse.id },
       ]);
-      const duplicate = await request('PATCH', `/api/workstations/${kasse.id}`, { name: 'büro' });
+      const duplicate = await request('PATCH', `/api/admin/workstations/${kasse.id}`, {
+        name: 'büro',
+      });
       expect(duplicate.json().code).toBe('name_taken');
-      expect((await request('PATCH', '/api/workstations/999999', { name: 'X' })).statusCode).toBe(
-        404,
-      );
+      expect(
+        (await request('PATCH', '/api/admin/workstations/999999', { name: 'X' })).statusCode,
+      ).toBe(404);
     });
 
     it('are deleted without entries, logging out employees and leaving the work area', async () => {
       const area = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/work-areas`, { name: 'Vitrine' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/work-areas`, {
+          name: 'Vitrine',
+        })
       ).json();
       await t.db.updateTable('inventory.work_area').set({ status: 'in_progress' }).execute();
       const anna = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/employees`, { name: 'Anna' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/employees`, { name: 'Anna' })
       ).json();
       const station = await createWorkstation('Kasse', area.id);
       await login(anna.id, station.id);
       t.takeEvents();
 
-      expect((await request('DELETE', `/api/workstations/${station.id}`)).statusCode).toBe(204);
-      expect((await request('GET', '/api/workstations')).json()).toEqual([]);
-      const [employee] = (await request('GET', `/api/stocktakes/${stocktakeId}/employees`)).json();
+      expect((await request('DELETE', `/api/admin/workstations/${station.id}`)).statusCode).toBe(
+        204,
+      );
+      expect((await request('GET', '/api/admin/workstations')).json()).toEqual([]);
+      const [employee] = (
+        await request('GET', `/api/admin/stocktakes/${stocktakeId}/employees`)
+      ).json();
       expect(employee.workstation).toBeNull();
       // The last workstation left, so the area falls back to open.
-      const [workArea] = (await request('GET', `/api/stocktakes/${stocktakeId}/work-areas`)).json();
+      const [workArea] = (
+        await request('GET', `/api/admin/stocktakes/${stocktakeId}/work-areas`)
+      ).json();
       expect(workArea.status).toBe('open');
       expect(t.takeEvents()).toEqual([
         { type: 'workstation.changed', action: 'deleted', workstationId: station.id },
@@ -380,12 +396,14 @@ describe('managing employees, work areas and workstations', () => {
 
     it('cannot be deleted with entries, even from a finished stocktake', async () => {
       const area = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/work-areas`, { name: 'Vitrine' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/work-areas`, {
+          name: 'Vitrine',
+        })
       ).json();
       const station = await createWorkstation('Kasse');
       await createEntry(area.id, station.id, []);
       await finish();
-      const response = await request('DELETE', `/api/workstations/${station.id}`);
+      const response = await request('DELETE', `/api/admin/workstations/${station.id}`);
       expect(response.statusCode).toBe(409);
       expect(response.json().code).toBe('workstation_has_entries');
     });
@@ -394,7 +412,7 @@ describe('managing employees, work areas and workstations', () => {
       const station = await createWorkstation('Kasse');
       await finish();
       expect(
-        (await request('PATCH', `/api/workstations/${station.id}`, { name: 'K' })).statusCode,
+        (await request('PATCH', `/api/admin/workstations/${station.id}`, { name: 'K' })).statusCode,
       ).toBe(200);
     });
   });
@@ -402,32 +420,38 @@ describe('managing employees, work areas and workstations', () => {
   describe('in a finished stocktake', () => {
     it('reject every write', async () => {
       const anna = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/employees`, { name: 'Anna' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/employees`, { name: 'Anna' })
       ).json();
       const area = (
-        await request('POST', `/api/stocktakes/${stocktakeId}/work-areas`, { name: 'Vitrine' })
+        await request('POST', `/api/admin/stocktakes/${stocktakeId}/work-areas`, {
+          name: 'Vitrine',
+        })
       ).json();
       await finish();
       stocktakeId = await startStocktake('Inventur 2027');
       const old = anna.stocktakeId;
 
       const writes = [
-        request('POST', `/api/stocktakes/${old}/employees`, { name: 'Ben' }),
-        request('POST', `/api/stocktakes/${old}/employees/import`),
-        request('DELETE', `/api/stocktakes/${old}/employees/${anna.id}`),
-        request('POST', `/api/stocktakes/${old}/employees/${anna.id}/logout`),
-        request('POST', `/api/stocktakes/${old}/work-areas`, { name: 'Lager' }),
-        request('POST', `/api/stocktakes/${old}/work-areas/import`),
-        request('PATCH', `/api/stocktakes/${old}/work-areas/${area.id}`, { name: 'X' }),
-        request('DELETE', `/api/stocktakes/${old}/work-areas/${area.id}`),
+        request('POST', `/api/admin/stocktakes/${old}/employees`, { name: 'Ben' }),
+        request('POST', `/api/admin/stocktakes/${old}/employees/import`),
+        request('DELETE', `/api/admin/stocktakes/${old}/employees/${anna.id}`),
+        request('POST', `/api/admin/stocktakes/${old}/employees/${anna.id}/logout`),
+        request('POST', `/api/admin/stocktakes/${old}/work-areas`, { name: 'Lager' }),
+        request('POST', `/api/admin/stocktakes/${old}/work-areas/import`),
+        request('PATCH', `/api/admin/stocktakes/${old}/work-areas/${area.id}`, { name: 'X' }),
+        request('DELETE', `/api/admin/stocktakes/${old}/work-areas/${area.id}`),
       ];
       for (const response of await Promise.all(writes)) {
         expect(response.statusCode).toBe(409);
         expect(response.json().code).toBe('stocktake_finished');
       }
       // Reading stays possible.
-      expect((await request('GET', `/api/stocktakes/${old}/employees`)).json()).toHaveLength(1);
-      expect((await request('GET', `/api/stocktakes/${old}/work-areas`)).json()).toHaveLength(1);
+      expect((await request('GET', `/api/admin/stocktakes/${old}/employees`)).json()).toHaveLength(
+        1,
+      );
+      expect((await request('GET', `/api/admin/stocktakes/${old}/work-areas`)).json()).toHaveLength(
+        1,
+      );
     });
   });
 });

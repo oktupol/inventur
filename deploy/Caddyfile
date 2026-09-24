@@ -1,9 +1,19 @@
-# HTTP only for the workstations for now. HTTPS with an internal CA follows in
-# step 16, the admin dashboard on 127.0.0.1:8080 in step 8.
+# HTTP only for now. HTTPS with an internal CA for the phones follows in step 16.
 {
 	auto_https off
 }
 
+# Workstations in the LAN. The admin dashboard and its API are blocked here.
 :80 {
+	@admin path /admin /admin/* /api/admin /api/admin/*
+	respond @admin "Das Admin-Dashboard ist nur auf dem Server unter http://localhost:8080 erreichbar." 403
+
+	reverse_proxy app:3000
+}
+
+# Admin dashboard; docker-compose.yml publishes this port on 127.0.0.1 only.
+:8080 {
+	redir / /admin
+
 	reverse_proxy app:3000
 }

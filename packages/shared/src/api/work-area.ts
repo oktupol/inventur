@@ -16,13 +16,13 @@ export interface WorkArea {
   workstations: NamedRef[];
 }
 
-/** `POST /api/stocktakes/:id/work-areas` */
+/** `POST /api/admin/stocktakes/:id/work-areas` */
 export interface CreateWorkAreaRequest {
   name: string;
   description?: string | null;
 }
 
-/** `PATCH /api/stocktakes/:id/work-areas/:workAreaId` */
+/** `PATCH /api/admin/stocktakes/:id/work-areas/:workAreaId` */
 export interface UpdateWorkAreaRequest {
   name?: string;
   description?: string | null;

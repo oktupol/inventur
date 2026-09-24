@@ -15,7 +15,7 @@ export async function employeeRoutes(app: FastifyInstance, context: Context): Pr
   const { db } = context;
 
   app.get<{ Params: IdParams }>(
-    '/api/stocktakes/:id/employees',
+    '/api/admin/stocktakes/:id/employees',
     { schema: { params: idParams } },
     async (request): Promise<Employee[]> => {
       await getStocktake(db, request.params.id);
@@ -24,7 +24,7 @@ export async function employeeRoutes(app: FastifyInstance, context: Context): Pr
   );
 
   app.post<{ Params: IdParams; Body: CreateEmployeeRequest }>(
-    '/api/stocktakes/:id/employees',
+    '/api/admin/stocktakes/:id/employees',
     { schema: { params: idParams, body: nameBody } },
     async (request, reply): Promise<Employee> => {
       reply.code(201);
@@ -33,14 +33,14 @@ export async function employeeRoutes(app: FastifyInstance, context: Context): Pr
   );
 
   app.post<{ Params: IdParams }>(
-    '/api/stocktakes/:id/employees/import',
+    '/api/admin/stocktakes/:id/employees/import',
     { schema: { params: idParams } },
     async (request): Promise<ImportResponse<Employee>> =>
       importEmployees(context, request.params.id),
   );
 
   app.delete<{ Params: ItemParams }>(
-    '/api/stocktakes/:id/employees/:itemId',
+    '/api/admin/stocktakes/:id/employees/:itemId',
     { schema: { params: itemParams } },
     async (request, reply) => {
       await deleteEmployee(context, request.params.id, request.params.itemId);
@@ -49,7 +49,7 @@ export async function employeeRoutes(app: FastifyInstance, context: Context): Pr
   );
 
   app.post<{ Params: ItemParams }>(
-    '/api/stocktakes/:id/employees/:itemId/logout',
+    '/api/admin/stocktakes/:id/employees/:itemId/logout',
     { schema: { params: itemParams } },
     async (request): Promise<Employee> =>
       logoutEmployee(context, request.params.id, request.params.itemId),
