@@ -5,7 +5,7 @@ import { migrateToLatest } from './db/migrate.ts';
 
 const config = loadConfig();
 const db = createDb(config.databaseUrl);
-const app = await buildApp(config);
+const app = await buildApp({ ...config, db });
 
 const applied = await migrateToLatest(db);
 app.log.info({ migrations: applied }, `Applied ${applied.length} migration(s)`);
