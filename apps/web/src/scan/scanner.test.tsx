@@ -21,6 +21,7 @@ let detect: (code: string) => void = () => {};
 
 beforeEach(() => {
   localStorage.clear();
+  stop.mockClear();
   saveDeviceToken('device');
   vi.mocked(signal).mockClear();
   vi.mocked(startCamera).mockReset();
@@ -182,9 +183,8 @@ describe('phone scanner', () => {
 
   it('accepts a code typed on the phone', async () => {
     const { entryPosts } = renderScanner();
-    fireEvent.change(await screen.findByLabelText('Code eintippen'), {
-      target: { value: '4000000000017' },
-    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Code eintippen' }));
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '4000000000017' } });
     fireEvent.click(screen.getByRole('button', { name: 'Erfassen' }));
     await waitFor(() => expect(result()?.getAttribute('data-result')).toBe('unique'));
     expect(entryPosts()).toHaveLength(1);
@@ -203,5 +203,52 @@ describe('phone scanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Kamera ausschalten' }));
     expect(stop).toHaveBeenCalled();
     expect(await screen.findByRole('button', { name: 'Kamera starten' })).toBeTruthy();
+  });
+
+  it('closes a result to see the camera picture', async () => {
+    renderScanner();
+    await startScanning();
+    act(() => detect('4099999999994'));
+    await waitFor(() => expect(result()).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Ergebnis schließen' }));
+    expect(result()).toBeNull();
+  });
+});
+
+describe('hold mode', () => {
+  const holdButton = () => screen.getByRole('button', { name: /Zum Scannen halten|Scannt/ });
+
+  it('only scans while the button is held and remembers the mode', async () => {
+    const { entryPosts } = renderScanner();
+    await startScanning();
+    fireEvent.click(screen.getByRole('button', { name: 'Modus: Auto' }));
+    expect(localStorage.getItem('inventur.scanHoldMode')).toBe('true');
+
+    act(() => detect('4000000000017'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(entryPosts()).toHaveLength(0);
+
+    fireEvent.pointerDown(holdButton(), { pointerId: 1 });
+    expect(holdButton().textContent).toBe('Scannt …');
+    act(() => detect('4000000000017'));
+    await waitFor(() => expect(entryPosts()).toHaveLength(1));
+    fireEvent.pointerUp(holdButton(), { pointerId: 1 });
+
+    act(() => detect('4000000000017'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(entryPosts()).toHaveLength(1);
+  });
+
+  it('reads the same code again on the next press', async () => {
+    localStorage.setItem('inventur.scanHoldMode', 'true');
+    const { entryPosts } = renderScanner();
+    await startScanning();
+    expect(screen.getByRole('button', { name: 'Modus: Taste' })).toBeTruthy();
+    for (let press = 1; press <= 2; press++) {
+      fireEvent.pointerDown(holdButton(), { pointerId: press });
+      act(() => detect('4000000000017'));
+      await waitFor(() => expect(entryPosts()).toHaveLength(press));
+      fireEvent.pointerUp(holdButton(), { pointerId: press });
+    }
   });
 });

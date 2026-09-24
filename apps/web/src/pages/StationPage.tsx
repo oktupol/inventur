@@ -71,12 +71,24 @@ function RegisteredStation({ token, onUnknown }: { token: string; onUnknown: () 
         {station && (
           <StationContext.Provider value={station}>
             {station.state.stocktake ? (
-              <>
-                <WorkAreaPanel />
-                <EmployeePanel />
-                <PairingPanel />
-                {station.state.workArea && <CaptureView key={station.state.workArea.id} />}
-              </>
+              // The panels keep their place in the tree, so their state survives; CSS moves
+              // them into the sidebar while capturing, when entry and list take the main column.
+              <div className={`station-layout ${station.state.workArea ? 'in-area' : 'choosing'}`}>
+                <div className="slot-work-area">
+                  <WorkAreaPanel />
+                </div>
+                <div className="slot-employees">
+                  <EmployeePanel />
+                </div>
+                <div className="slot-devices">
+                  <PairingPanel />
+                </div>
+                {station.state.workArea && (
+                  <div className="slot-capture">
+                    <CaptureView key={station.state.workArea.id} />
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="card no-stocktake">
                 <h2>Keine aktive Inventur</h2>

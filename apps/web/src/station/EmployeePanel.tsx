@@ -35,11 +35,9 @@ export function EmployeePanel() {
 
   return (
     <section className="card" aria-labelledby="employees-heading">
-      <h2 id="employees-heading">Angemeldete Mitarbeiter</h2>
+      <h2 id="employees-heading">Mitarbeiter</h2>
       {state.employees.length === 0 ? (
-        <p className="notice warning">
-          Niemand angemeldet. Zum Erfassen muss mindestens ein Mitarbeiter angemeldet sein.
-        </p>
+        <p className="notice warning">Niemand angemeldet. Zum Erfassen bitte anmelden.</p>
       ) : (
         <ul className="chips">
           {state.employees.map((employee) => (
@@ -57,7 +55,7 @@ export function EmployeePanel() {
           ))}
         </ul>
       )}
-      <div className="form-row" style={{ marginTop: '0.75rem' }}>
+      <div className="form-row" style={{ marginTop: '0.5rem' }}>
         <label>
           Mitarbeiter anmelden
           <select value={selected} onChange={(e) => setSelected(e.target.value)}>
@@ -80,12 +78,10 @@ export function EmployeePanel() {
           Anmelden
         </button>
       </div>
-      <p className="muted" style={{ marginBottom: 0 }}>
-        Mitarbeiter, die an einer anderen Station angemeldet sind, müssen sich dort zuerst abmelden.
+      <p className="muted hint">
+        Wer an einer anderen Station angemeldet ist, meldet sich dort zuerst ab.
       </p>
-      <div style={{ marginTop: '0.75rem' }}>
-        <ErrorNotice error={action.error ?? employees.error} />
-      </div>
+      <ErrorNotice error={action.error ?? employees.error} />
     </section>
   );
 }

@@ -158,6 +158,12 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - Anzeige auf dem Handy: grün mit Artikeldaten und `+`, `−`, `Löschen`; gelb mit Auswahlliste; rot mit Hinweis
 - **Fertig, wenn:** Ein Scan mit dem Handy auf der Station erscheint und `+`, `−` und `Löschen` auf dem Handy die richtige Zeile ändern.
 
+### 18a. Layout von Station und Handy
+- Station: Eingabe und Liste als Hauptteil, Einstellungen in einer Seitenleiste, Eingabefeld beim Scrollen sichtbar
+- Handy: Vollbild ohne Scrollen mit Ergebnis über dem Kamerabild; optional Scannen nur bei gedrücktem Button
+- Lange Bezeichnungen in Auswahllisten brechen um
+- **Fertig, wenn:** Die Handy-Ansicht auf einem Smartphone ohne Scrollen bedienbar ist und die Tests den Tastenmodus abdecken.
+
 ## Phase 6 – Auswertung
 
 ### 19. Statistik-Dashboard

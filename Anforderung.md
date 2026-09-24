@@ -252,7 +252,7 @@ offen ──(Station tritt bei)──▶ in Arbeit ──(letzte Station verläs
 
 ## Erfassung
 
-Während der Erfassung sehen die Nutzer ein Eingabefeld und eine Liste der im aktuellen Arbeitsbereich erfassten Artikel. Die Liste aktualisiert sich automatisch, wenn eine andere Arbeitsstation im selben Bereich Artikel erfasst.
+Während der Erfassung sehen die Nutzer ein Eingabefeld und eine Liste der im aktuellen Arbeitsbereich erfassten Artikel. Die Liste aktualisiert sich automatisch, wenn eine andere Arbeitsstation im selben Bereich Artikel erfasst. Eingabefeld und Liste bilden den Hauptteil der Seite; Arbeitsbereich, Mitarbeiter und gekoppelte Handys stehen kompakt in einer Seitenleiste. Beim Scrollen der Liste bleibt das Eingabefeld sichtbar.
 
 - Die Liste ist nach Erfassungszeit sortiert, die neueste Zeile steht oben.
 - Spalten: Zeit, Bezeichnung, EAN oder Artikelnummer, Seriennummer, Menge, Preis brutto, Station und eine Markierung für manuell erfasste Artikel.
@@ -348,6 +348,8 @@ Man soll alternativ auch Smartphones als Barcode-Scanner koppeln. Der Kopplungsp
 
 - Unterstützte Formate: EAN-13, EAN-8, UPC-A/E, Code 128, Code 39 und QR. **(Annahme)**
 - Derselbe Code wird innerhalb von 2 Sekunden nicht doppelt gelesen. Man bekommt Vibration und Ton als Rückmeldung. **(Annahme)**
+- Wahlweise scannt das Handy nur, solange man einen Button gedrückt hält. Die Einstellung wird je Handy gespeichert. Jeder neue Druck darf denselben Code sofort wieder lesen.
+- Die Handy-Ansicht füllt den Bildschirm, ohne dass man scrollen muss: Das Kamerabild nimmt den Platz ein, Ergebnis und Auswahl liegen darüber, die Bedienelemente in einer Leiste am unteren Rand.
 - Der erkannte Code läuft auf der Station durch dieselbe Logik wie eine Tastatureingabe (grün, gelb, rot).
 - Anzeige auf dem Handy:
   - **Grün**: Bezeichnung, EAN, Preis und Menge sowie die Buttons `+`, `−` und `Löschen`. Sie wirken auf die durch diesen Scan erzeugte Zeile.
