@@ -303,10 +303,9 @@ export function CaptureView() {
   /** A line chosen with the arrow keys or a click; without one, the shortcuts use the default. */
   const explicitSelection = selectedId !== null && selection === selectedId ? selectedId : null;
 
-  /** Sets a checkpoint after the chosen line, or at the end without a chosen line. */
-  function addCheckpoint() {
-    queue.push({ kind: 'checkpoint', afterEntryId: explicitSelection });
-    setSelectedId(null);
+  /** Sets a checkpoint after the newest line, or after `afterEntryId` when inserted later. */
+  function addCheckpoint(afterEntryId: number | null = null) {
+    queue.push({ kind: 'checkpoint', afterEntryId });
     inputRef.current?.focus();
   }
 
@@ -467,14 +466,10 @@ export function CaptureView() {
             type="button"
             className="manual-button"
             disabled={!enabled}
-            onClick={addCheckpoint}
-            title={
-              explicitSelection === null
-                ? 'Checkpoint am Ende der Liste setzen'
-                : 'Checkpoint nach der ausgewählten Zeile setzen'
-            }
+            onClick={() => addCheckpoint()}
+            title="Checkpoint nach der neuesten Zeile setzen"
           >
-            {explicitSelection === null ? 'Checkpoint' : 'Checkpoint nach Zeile'}
+            Checkpoint
             <br />
             <span className="muted">F3</span>
           </button>
@@ -583,6 +578,7 @@ export function CaptureView() {
             changeRow(action, id);
             inputRef.current?.focus();
           }}
+          onInsertCheckpoint={(entryId) => addCheckpoint(entryId)}
           onDeleteCheckpoint={(checkpoint) => {
             queue.push({ kind: 'delete_checkpoint', checkpoint });
             inputRef.current?.focus();

@@ -132,7 +132,7 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - **Fertig, wenn:** Die Unit-Tests die Zählung abdecken, auch bei nachträglichem Ändern oder Löschen von Zeilen und nach Abschließen und Wiederöffnen.
 
 ### 15a. Checkpoints nachträglich bearbeiten
-- Checkpoints nachträglich nach einer ausgewählten Zeile anlegen und löschen; Nummern nach Position
+- Checkpoints nachträglich über einen Button an der Zeile (erscheint bei Mouseover) anlegen und löschen; Button und `F3` setzen ihn weiterhin am Anfang der Liste; Nummern nach Position
 - Mindestens eine Zeile je Abschnitt: leere Abschnitte werden beim Anlegen abgelehnt, beim Löschen der letzten Zeile entfällt der Checkpoint automatisch
 - Checkpoints nur mit angemeldetem Mitarbeiter
 - **Fertig, wenn:** Die Unit-Tests Einfügen, Löschen, Nummerierung und die Regel „mindestens eine Zeile je Abschnitt“ abdecken, auch beim Löschen von Zeilen.

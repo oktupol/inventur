@@ -313,7 +313,7 @@ Regeln für die Tastenkürzel:
 ### Checkpoints
 
 - Innerhalb eines Arbeitsbereichs kann jede Station einen Checkpoint erstellen, per Button oder mit dem Tastenkürzel `F3` bei leerem Eingabefeld. **(Annahme für das Kürzel)** Dafür muss mindestens ein Mitarbeiter an der Station angemeldet sein.
-- Ohne ausgewählte Zeile entsteht der Checkpoint am Ende der Liste. Ist eine Zeile ausgewählt (mit `↑`/`↓` oder per Klick), entsteht er nachträglich direkt nach dieser Zeile. So lassen sich Checkpoints zwischen beliebigen Zeilen anlegen.
+- Button und `F3` setzen den Checkpoint immer nach der neuesten Zeile, also am Anfang der Liste. Checkpoints zwischen beliebigen Zeilen lassen sich nachträglich über einen Button anlegen, der erscheint, wenn man mit der Maus über eine Zeile fährt. Der Checkpoint entsteht dann direkt nach dieser Zeile.
 - Zwischen zwei Checkpoints und vor dem ersten Checkpoint muss mindestens eine Zeile liegen. Ein Checkpoint, der einen leeren Abschnitt erzeugen würde, wird abgelehnt.
 - Checkpoints lassen sich löschen; die beiden Abschnitte werden dann zusammengefasst. Wird die letzte Zeile eines Abschnitts gelöscht, entfällt der Checkpoint, der diesen Abschnitt abschließt, automatisch, und die Station zeigt einen Hinweis.
 - Ein Checkpoint wird in der Erfassungsliste als deutlich abgesetzte Trennzeile an seiner Stelle angezeigt. Die Zeile zeigt:

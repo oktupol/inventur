@@ -682,17 +682,15 @@ describe('checkpoints', () => {
     expect(await screen.findByText(/mindestens ein Artikel liegen/)).toBeTruthy();
   });
 
-  it('inserts a checkpoint after the line chosen with the arrow keys', async () => {
+  it('inserts a checkpoint after a line with the button shown on the line', async () => {
     const server = stubServer();
     renderStation();
     await scanTimes(server, 3);
-    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
-    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
-    expect(screen.getByRole('button', { name: /Checkpoint nach Zeile/ })).toBeTruthy();
-    fireEvent.keyDown(await input(), { key: 'F3' });
+    const oldest = document.querySelector('table.entries tr[data-entry-id="1"]') as HTMLElement;
+    fireEvent.click(within(oldest).getByRole('button', { name: /Checkpoint nach Zeile/ }));
     await waitFor(() => expect(checkpointPosts(server)).toHaveLength(1));
     expect(checkpointPosts(server)[0]!.body).toEqual({ afterEntryId: 1 });
-    // Separator between line 2 and line 1.
+    // Separator between line 2 and line 1; the line itself is not selected by the click.
     await waitFor(() =>
       expect(
         [...document.querySelectorAll('table.entries tbody tr')].map(
@@ -700,6 +698,17 @@ describe('checkpoints', () => {
         ),
       ).toEqual(['3', '2', 'since-checkpoint-row', 'checkpoint-row', '1']),
     );
+    expect(document.querySelector('tr.selected')?.getAttribute('data-entry-id')).toBe('3');
+  });
+
+  it('sets F3 checkpoints at the top of the list even with a chosen line', async () => {
+    const server = stubServer();
+    renderStation();
+    await scanTimes(server, 2);
+    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    await waitFor(() => expect(checkpointPosts(server)).toHaveLength(1));
+    expect(checkpointPosts(server)[0]!.body).toEqual({});
   });
 
   it('deletes a checkpoint with its button', async () => {

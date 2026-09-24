@@ -696,3 +696,26 @@ table.entries tr.since-checkpoint-row td {
 .checkpoint-delete {
   float: right;
 }
+
+/* The button sits on the upper edge of a line, where the new separator will appear. */
+table.entries td.time-cell {
+  position: relative;
+}
+
+.insert-checkpoint {
+  position: absolute;
+  top: -0.8rem;
+  left: 0.3rem;
+  z-index: 1;
+  visibility: hidden;
+  font-size: 0.75rem;
+  padding: 0.05rem 0.45rem;
+  background: var(--surface);
+  border-color: var(--text);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+
+table.entries tr:hover .insert-checkpoint,
+.insert-checkpoint:focus-visible {
+  visibility: visible;
+}
