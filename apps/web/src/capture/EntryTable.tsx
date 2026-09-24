@@ -1,7 +1,7 @@
 import type { Checkpoint, Entry } from '@inventur/shared';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { formatEuro, formatNumber, formatTime } from '../format.ts';
-import { buildRows, insertionTargets } from './rows.ts';
+import { buildRows, insertionTargets, type InsertionTargets } from './rows.ts';
 
 export type RowAction =
   { type: 'delta'; delta: 1 | -1 } | { type: 'set'; quantity: number } | { type: 'delete' };
@@ -81,13 +81,20 @@ export function EntryTable({
   onDeleteCheckpoint,
   onInsertCheckpoint,
 }: EntryTableProps) {
-  // Which edge of which line the mouse is near; the insert button appears there.
-  const [hover, setHover] = useState<{ id: number; edge: 'top' | 'bottom' } | null>(null);
+  /**
+   * The gap the mouse is near, named by the line whose upper edge it is.
+   * Each gap has exactly one button, centred on the border between two
+   * lines; the lower half of the line above and the upper half of the line
+   * below show the same button, so it does not jump.
+   */
+  const [hoverGap, setHoverGap] = useState<number | null>(null);
 
-  function trackHover(event: MouseEvent<HTMLTableRowElement>, id: number) {
+  function trackHover(event: MouseEvent<HTMLTableRowElement>, targets: InsertionTargets) {
     const rect = event.currentTarget.getBoundingClientRect();
-    const edge = event.clientY - rect.top < rect.height / 2 ? 'top' : 'bottom';
-    if (hover?.id !== id || hover.edge !== edge) setHover({ id, edge });
+    const gap = event.clientY - rect.top < rect.height / 2 ? targets.top : targets.bottom;
+    // Always set: a leave of the previous line may still be pending, so comparing
+    // with the rendered value could skip the update. React ignores equal values.
+    setHoverGap(gap);
   }
 
   useEffect(() => {
@@ -157,29 +164,22 @@ export function EntryTable({
             }
             const { entry } = row;
             const targets = insertionTargets(rows, index);
-            const insertButton = (edge: 'top' | 'bottom') => {
-              const target = targets[edge];
-              if (!onInsertCheckpoint || target === null) return null;
-              const shown = hover?.id === entry.id && hover.edge === edge;
-              return (
-                <button
-                  type="button"
-                  className={`small insert-checkpoint ${edge} ${shown ? 'shown' : ''}`}
-                  disabled={disabled}
-                  title="Checkpoint an dieser Stelle einfügen"
-                  aria-label={`Checkpoint nach Zeile ${
-                    entries.find((e) => e.id === target)?.description ?? ''
-                  } einfügen`}
-                  data-after-entry={target}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onInsertCheckpoint(target);
-                  }}
-                >
-                  + Checkpoint
-                </button>
-              );
-            };
+            // The button of the gap above this line; the checkpoint follows this line.
+            const insertButton = onInsertCheckpoint && targets.top !== null && (
+              <button
+                type="button"
+                className={`small insert-checkpoint ${hoverGap === entry.id ? 'shown' : ''}`}
+                disabled={disabled}
+                title="Checkpoint an dieser Stelle einfügen"
+                aria-label={`Checkpoint nach Zeile ${entry.description} einfügen`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onInsertCheckpoint(entry.id);
+                }}
+              >
+                + Checkpoint
+              </button>
+            );
             return (
               <tr
                 key={entry.id}
@@ -187,13 +187,12 @@ export function EntryTable({
                 className={entry.id === selectedId ? 'selected' : undefined}
                 aria-selected={entry.id === selectedId}
                 onClick={() => onSelect?.(entry.id)}
-                onMouseMove={(event) => trackHover(event, entry.id)}
-                onMouseLeave={() => setHover(null)}
+                onMouseMove={(event) => trackHover(event, targets)}
+                onMouseLeave={() => setHoverGap(null)}
               >
                 <td className="muted time-cell">
                   {formatTime(entry.createdAt)}
-                  {insertButton('top')}
-                  {insertButton('bottom')}
+                  {insertButton}
                 </td>
                 <td>
                   {entry.description}
