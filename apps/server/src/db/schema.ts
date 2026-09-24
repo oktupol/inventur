@@ -88,7 +88,8 @@ export interface EntryEmployeeTable {
 export interface CheckpointTable {
   id: Generated<number>;
   work_area_id: number;
-  number: number;
+  /** Lines created until this time lie before the checkpoint. */
+  boundary_at: Date | string;
   workstation_id: number | null;
   created_at: Timestamp;
 }

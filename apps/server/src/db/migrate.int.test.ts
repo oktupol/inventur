@@ -1,6 +1,7 @@
-import { sql } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '../../test/database.ts';
+import { removeCheckpointsOfEmptySections } from './migrations/0003_checkpoint_boundary.ts';
 import { migrateToLatest } from './migrate.ts';
 
 const EXPECTED_COLUMNS: Record<string, string[]> = {
@@ -30,7 +31,7 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     'request_id',
   ],
   'inventory.entry_employee': ['entry_id', 'employee_id'],
-  'inventory.checkpoint': ['id', 'work_area_id', 'number', 'workstation_id', 'created_at'],
+  'inventory.checkpoint': ['id', 'work_area_id', 'workstation_id', 'created_at', 'boundary_at'],
   'inventory.pairing': [
     'id',
     'workstation_id',
@@ -53,7 +54,11 @@ describe('migrations', () => {
   afterAll(() => test.drop());
 
   it('run on an empty database', () => {
-    expect(applied).toEqual(['0001_initial_schema', '0002_entry_request_id']);
+    expect(applied).toEqual([
+      '0001_initial_schema',
+      '0002_entry_request_id',
+      '0003_checkpoint_boundary',
+    ]);
   });
 
   it('do nothing when run again', async () => {
@@ -213,5 +218,68 @@ describe('migrations', () => {
       await test.db.deleteFrom('inventory.employee').where('id', '=', employeeId).execute();
       await test.db.deleteFrom('inventory.workstation').where('id', '=', workstationId).execute();
     });
+  });
+});
+
+describe('migration 0003', () => {
+  let test: TestDatabase;
+
+  beforeAll(async () => {
+    test = await createTestDatabase();
+    await migrateToLatest(test.db);
+  });
+  afterAll(() => test.drop());
+
+  it('removes checkpoints whose section is empty', async () => {
+    const { id: stocktakeId } = await test.db
+      .insertInto('inventory.stocktake')
+      .values({ name: 'Inventur' })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const { id: workAreaId } = await test.db
+      .insertInto('inventory.work_area')
+      .values({ stocktake_id: stocktakeId, name: 'Lager' })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const { id: workstationId } = await test.db
+      .insertInto('inventory.workstation')
+      .values({ name: 'Kasse', token: 't' })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    const at = (minute: number) => new Date(Date.UTC(2026, 0, 1, 10, minute));
+    await test.db
+      .insertInto('inventory.entry')
+      .values(
+        [1, 5].map((minute) => ({
+          stocktake_id: stocktakeId,
+          work_area_id: workAreaId,
+          article_id: null,
+          is_manual: true,
+          input: '',
+          description: 'Ring',
+          ean: null,
+          category: null,
+          price_net: null,
+          price_gross: '1.00',
+          serial_number: null,
+          workstation_id: workstationId,
+          created_at: at(minute),
+        })),
+      )
+      .execute();
+    // Sections: [entry 10:01] cp 10:02, [] cp 10:03, [] cp 10:04, [entry 10:05] cp 10:06
+    await test.db
+      .insertInto('inventory.checkpoint')
+      .values([2, 3, 4, 6].map((minute) => ({ work_area_id: workAreaId, boundary_at: at(minute) })))
+      .execute();
+
+    await removeCheckpointsOfEmptySections(test.db as unknown as Kysely<unknown>);
+
+    const remaining = await test.db
+      .selectFrom('inventory.checkpoint')
+      .select('boundary_at')
+      .orderBy('boundary_at')
+      .execute();
+    expect(remaining.map((c) => new Date(c.boundary_at).getUTCMinutes())).toEqual([2, 6]);
   });
 });

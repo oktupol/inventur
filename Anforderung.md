@@ -175,7 +175,7 @@ Die Bezeichner in Datenbank und Code sind englisch. In Klammern steht der Fachbe
 - **work_area** (Arbeitsbereich): id, stocktake_id, name, description, status (`open`, `in_progress` oder `closed`), closed_at
 - **entry** (Erfassung, Zeile): id, stocktake_id, work_area_id, article_id (nullable, ohne Fremdschlüssel, weil die Stammdaten ersetzt werden dürfen), is_manual (bool), input (gescannter oder getippter Code), Momentaufnahme (description, ean, category, price_net, price_gross; bei manuellen Artikeln sind category und price_net leer), serial_number (nullable), quantity (≥ 1), workstation_id, created_at, updated_at, request_id (technisch: eine von der Station vergebene Kennung je Scan, damit eine nach einem Verbindungsabbruch wiederholte Anfrage keine zweite Zeile erzeugt). Gelöschte Zeilen werden endgültig entfernt, es gibt kein Soft-Delete.
 - **entry_employee**: entry_id, employee_id. Die Mitarbeiter, die beim Erfassen an der Station angemeldet waren.
-- **checkpoint**: id, work_area_id, number (fortlaufend je Bereich), workstation_id, created_at
+- **checkpoint**: id, work_area_id, boundary_at (Grenze: alle Zeilen, die bis zu diesem Zeitpunkt erfasst wurden, liegen davor; beim Anlegen am Ende der Zeitpunkt des Anlegens, beim nachträglichen Einfügen der Erfassungszeitpunkt der gewählten Zeile), workstation_id, created_at. Die Nummer wird aus der Reihenfolge der Grenzen berechnet.
 - **pairing** (Kopplung): id, workstation_id, one_time_code, qr_token, valid_until, device_token, paired_at
 
 ## Administrations-Dashboard
@@ -312,15 +312,19 @@ Regeln für die Tastenkürzel:
 
 ### Checkpoints
 
-- Innerhalb eines Arbeitsbereichs kann jede Station jederzeit einen Checkpoint erstellen, per Button oder mit dem Tastenkürzel `F3` bei leerem Eingabefeld. **(Annahme für das Kürzel)**
-- Ein Checkpoint wird in der Erfassungsliste als deutlich abgesetzte Trennzeile an der Stelle angezeigt, an der er erstellt wurde. Die Zeile zeigt:
-  - die fortlaufende Nummer, den Zeitpunkt und die Station
+- Innerhalb eines Arbeitsbereichs kann jede Station einen Checkpoint erstellen, per Button oder mit dem Tastenkürzel `F3` bei leerem Eingabefeld. **(Annahme für das Kürzel)** Dafür muss mindestens ein Mitarbeiter an der Station angemeldet sein.
+- Ohne ausgewählte Zeile entsteht der Checkpoint am Ende der Liste. Ist eine Zeile ausgewählt (mit `↑`/`↓` oder per Klick), entsteht er nachträglich direkt nach dieser Zeile. So lassen sich Checkpoints zwischen beliebigen Zeilen anlegen.
+- Zwischen zwei Checkpoints und vor dem ersten Checkpoint muss mindestens eine Zeile liegen. Ein Checkpoint, der einen leeren Abschnitt erzeugen würde, wird abgelehnt.
+- Checkpoints lassen sich löschen; die beiden Abschnitte werden dann zusammengefasst. Wird die letzte Zeile eines Abschnitts gelöscht, entfällt der Checkpoint, der diesen Abschnitt abschließt, automatisch, und die Station zeigt einen Hinweis.
+- Ein Checkpoint wird in der Erfassungsliste als deutlich abgesetzte Trennzeile an seiner Stelle angezeigt. Die Zeile zeigt:
+  - die Nummer, den Zeitpunkt und die Station
   - die Anzahl der Artikel **seit dem letzten Checkpoint**, beim ersten Checkpoint seit Beginn des Bereichs
   - die Anzahl der Artikel **seit Beginn des Bereichs**
+- Die Nummern ergeben sich aus der Reihenfolge in der Liste (1, 2, 3 … ohne Lücken). Wird ein Checkpoint gelöscht oder nachträglich eingefügt, ändern sich die Nummern der späteren.
 - Oberhalb des neuesten Checkpoints wird zusätzlich live angezeigt, wie viele Artikel seit dem letzten Checkpoint erfasst wurden.
 - „Anzahl Artikel“ meint wie bei der Gesamtanzahl die Stückzahl, also die Summe der Mengen. **(Annahme)**
 - Eine Zeile gehört zu dem Abschnitt, in dem sie erfasst wurde (nach Erfassungszeitpunkt). Wird eine Zeile später geändert oder gelöscht, werden die Zahlen des betroffenen Checkpoints neu berechnet. **(Annahme)**
-- Checkpoints sind für alle Stationen im Bereich live sichtbar. Sie bleiben beim Abschließen und Wiedereröffnen erhalten und können nicht gelöscht werden. **(Annahme)**
+- Checkpoints sind für alle Stationen im Bereich live sichtbar. Sie bleiben beim Abschließen und Wiedereröffnen erhalten. **(Annahme)**
 
 ## Barcode-Scanner
 

@@ -19,6 +19,7 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   not_in_work_area: 409,
   no_work_area: 409,
   no_employee_logged_in: 409,
+  checkpoint_empty_section: 409,
   internal_error: 500,
 };
 

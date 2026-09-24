@@ -82,7 +82,10 @@ describe('checkpoints', () => {
     };
   };
 
-  it('numbers checkpoints per work area and counts pieces since the last one and the start', async () => {
+  const del = (url: string) =>
+    t.app.inject({ method: 'DELETE', url, headers: { 'x-workstation-token': token } });
+
+  it('numbers checkpoints by position and counts pieces since the last one and the start', async () => {
     await capture(2);
     const first = await checkpoint();
     expect(first).toMatchObject({
@@ -112,6 +115,16 @@ describe('checkpoints', () => {
     });
   });
 
+  it('requires at least one line before a new checkpoint', async () => {
+    let response = await post('/api/station/checkpoints', {}, token);
+    expect(response.json().code).toBe('checkpoint_empty_section');
+    await capture(1);
+    await checkpoint();
+    response = await post('/api/station/checkpoints', {}, token);
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe('checkpoint_empty_section');
+  });
+
   it('assigns every line to its section', async () => {
     const [a] = await capture(1);
     await checkpoint();
@@ -123,20 +136,101 @@ describe('checkpoints', () => {
     ]);
   });
 
-  it('recounts when lines change or are deleted later', async () => {
+  it('inserts a checkpoint after any line and renumbers the later ones', async () => {
+    const [a, b, c] = await capture(3);
+    const end = await checkpoint();
+    const inserted = await post('/api/station/checkpoints', { afterEntryId: a }, token);
+    expect(inserted.statusCode).toBe(201);
+    expect(inserted.json()).toMatchObject({ number: 1, sinceLast: 1, sinceStart: 1 });
+
+    const { checkpoints, entries } = await list();
+    expect(checkpoints.map((cp) => [cp.id, cp.number, cp.sinceLast, cp.sinceStart])).toEqual([
+      [end.id, 2, 2, 3],
+      [inserted.json().id, 1, 1, 1],
+    ]);
+    expect(entries.map((e) => [e.id, e.checkpointNumber])).toEqual([
+      [c, 2],
+      [b, 2],
+      [a, 1],
+    ]);
+  });
+
+  it('rejects inserting a checkpoint that would leave a section empty', async () => {
     const [a, b] = await capture(2);
+    await post('/api/station/checkpoints', { afterEntryId: a }, token);
+    // Directly after the existing checkpoint: the section before would be empty.
+    let response = await post('/api/station/checkpoints', { afterEntryId: a }, token);
+    expect(response.json().code).toBe('checkpoint_empty_section');
+    // After line b the section after line a holds b, and the open section may be empty.
+    response = await post('/api/station/checkpoints', { afterEntryId: b }, token);
+    expect(response.statusCode).toBe(201);
+    expect(
+      (await post('/api/station/checkpoints', { afterEntryId: 999999 }, token)).statusCode,
+    ).toBe(404);
+  });
+
+  it('deletes a checkpoint and merges its sections', async () => {
+    await capture(1);
+    const first = await checkpoint();
+    await capture(2);
     await checkpoint();
     await capture(1);
-    const headers = { 'x-workstation-token': token };
+    t.takeEvents();
+    expect((await del(`/api/station/checkpoints/${first.id}`)).statusCode).toBe(204);
+    expect(await counts()).toEqual({ checkpoints: [[1, 3, 3]], sinceLastCheckpoint: 1 });
+    expect(t.takeEvents()).toEqual([
+      {
+        type: 'checkpoint.changed',
+        action: 'deleted',
+        stocktakeId,
+        workAreaId,
+        checkpointId: first.id,
+      },
+    ]);
+    expect((await del(`/api/station/checkpoints/${first.id}`)).statusCode).toBe(404);
+  });
+
+  it('removes a checkpoint when the last line of its section is deleted', async () => {
+    const [a] = await capture(1);
+    await checkpoint();
+    const [b, c] = await capture(2);
+    const second = await checkpoint();
+    await capture(1);
+    t.takeEvents();
+
+    // Deleting b keeps c in the section of checkpoint 2.
+    let response = await del(`/api/station/entries/${b}`);
+    expect(response.json()).toEqual({ removedCheckpoints: [] });
+
+    // Deleting c empties the section, so checkpoint 2 is removed.
+    response = await del(`/api/station/entries/${c}`);
+    expect(response.json()).toEqual({ removedCheckpoints: [2] });
+    expect(t.takeEvents()).toContainEqual({
+      type: 'checkpoint.changed',
+      action: 'deleted',
+      stocktakeId,
+      workAreaId,
+      checkpointId: second.id,
+    });
+    expect(await counts()).toEqual({ checkpoints: [[1, 1, 1]], sinceLastCheckpoint: 1 });
+
+    // Deleting a, the only line before checkpoint 1, removes that one too.
+    response = await del(`/api/station/entries/${a}`);
+    expect(response.json()).toEqual({ removedCheckpoints: [1] });
+    expect(await counts()).toEqual({ checkpoints: [], sinceLastCheckpoint: 1 });
+  });
+
+  it('recounts when lines change later', async () => {
+    const [a] = await capture(2);
+    await checkpoint();
+    await capture(1);
     await t.app.inject({
       method: 'PATCH',
       url: `/api/station/entries/${a}`,
       payload: { quantity: 10 },
-      headers,
+      headers: { 'x-workstation-token': token },
     });
     expect(await counts()).toEqual({ checkpoints: [[1, 11, 11]], sinceLastCheckpoint: 1 });
-    await t.app.inject({ method: 'DELETE', url: `/api/station/entries/${b}`, headers });
-    expect(await counts()).toEqual({ checkpoints: [[1, 10, 10]], sinceLastCheckpoint: 1 });
   });
 
   it('keeps checkpoints when the area is closed and reopened', async () => {
@@ -156,17 +250,27 @@ describe('checkpoints', () => {
     });
   });
 
-  it('gives concurrent checkpoints consecutive numbers', async () => {
-    const created = await Promise.all(Array.from({ length: 5 }, () => checkpoint()));
-    expect(created.map((c) => c.number).sort()).toEqual([1, 2, 3, 4, 5]);
+  it('accepts only one of several concurrent checkpoints at the end', async () => {
+    await capture(1);
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () => post('/api/station/checkpoints', {}, token)),
+    );
+    expect(responses.map((r) => r.statusCode).sort()).toEqual([201, 409, 409, 409, 409]);
   });
 
-  it('can be set without a logged-in employee but not outside a work area', async () => {
+  it('requires a logged-in employee and a work area', async () => {
+    await capture(1);
+    const cp = await checkpoint();
+    await capture(1);
     await post(`/api/station/employees/${anna}/logout`, {}, token);
-    expect((await post('/api/station/checkpoints', {}, token)).statusCode).toBe(201);
+    expect((await post('/api/station/checkpoints', {}, token)).json().code).toBe(
+      'no_employee_logged_in',
+    );
+    expect((await del(`/api/station/checkpoints/${cp.id}`)).json().code).toBe(
+      'no_employee_logged_in',
+    );
     await post('/api/station/work-area/leave', {}, token);
-    const response = await post('/api/station/checkpoints', {}, token);
-    expect(response.json().code).toBe('no_work_area');
+    expect((await post('/api/station/checkpoints', {}, token)).json().code).toBe('no_work_area');
   });
 
   it('counts everything since the start without checkpoints', async () => {

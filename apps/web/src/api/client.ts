@@ -51,7 +51,7 @@ export function createApi(headers: Headers = {}) {
     get: <T>(url: string) => apiRequest<T>('GET', url, undefined, headers),
     post: <T>(url: string, body?: unknown) => apiRequest<T>('POST', url, body ?? {}, headers),
     patch: <T>(url: string, body: unknown) => apiRequest<T>('PATCH', url, body, headers),
-    delete: (url: string) => apiRequest<void>('DELETE', url, undefined, headers),
+    delete: <T = void>(url: string) => apiRequest<T>('DELETE', url, undefined, headers),
   };
 }
 

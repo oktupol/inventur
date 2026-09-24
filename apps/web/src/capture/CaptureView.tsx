@@ -4,6 +4,7 @@ import {
   type Checkpoint,
   type CreateEntryResponse,
   type CreateManualEntryRequest,
+  type DeleteEntryResponse,
   type Entry,
   type EntryListResponse,
 } from '@inventur/shared';
@@ -39,13 +40,15 @@ type Task =
   | ({ kind: 'scan' } & Scan)
   | ({ kind: 'row' } & RowTask)
   | ({ kind: 'manual' } & CreateManualEntryRequest)
-  | { kind: 'checkpoint' };
+  | { kind: 'checkpoint'; afterEntryId: number | null }
+  | { kind: 'delete_checkpoint'; checkpoint: Checkpoint };
 
 type Feedback =
   | { kind: 'unique'; entry: Entry }
   | { kind: 'not_found'; input: string }
   | { kind: 'updated'; entry: Entry }
-  | { kind: 'deleted'; description: string }
+  | { kind: 'deleted'; description: string; removedCheckpoints: number[] }
+  | { kind: 'info'; message: string }
   | { kind: 'checkpoint'; checkpoint: Checkpoint }
   | { kind: 'error'; message: string; input?: string };
 
@@ -161,10 +164,10 @@ export function CaptureView() {
       const url = `/api/station/entries/${target}`;
       try {
         if (action.type === 'delete') {
-          await api.delete(url);
+          const { removedCheckpoints } = await api.delete<DeleteEntryResponse>(url);
           if (lastCreatedId.current === target) lastCreatedId.current = null;
           const description = list.find((e) => e.id === target)?.description ?? 'Zeile';
-          setFeedback({ kind: 'deleted', description });
+          setFeedback({ kind: 'deleted', description, removedCheckpoints });
         } else {
           const body =
             action.type === 'set' ? { quantity: action.quantity } : { delta: action.delta };
@@ -204,10 +207,25 @@ export function CaptureView() {
       return 'done';
     }
 
-    async function processCheckpoint(): Promise<QueueOutcome> {
+    async function processCheckpoint(afterEntryId: number | null): Promise<QueueOutcome> {
       try {
-        const checkpoint = await api.post<Checkpoint>('/api/station/checkpoints');
+        const checkpoint = await api.post<Checkpoint>(
+          '/api/station/checkpoints',
+          afterEntryId === null ? {} : { afterEntryId },
+        );
         setFeedback({ kind: 'checkpoint', checkpoint });
+        reloadEntries();
+      } catch (error) {
+        if (isTransient(error)) return 'retry';
+        setFeedback({ kind: 'error', message: messageOf(error) });
+      }
+      return 'done';
+    }
+
+    async function processDeleteCheckpoint(checkpoint: Checkpoint): Promise<QueueOutcome> {
+      try {
+        await api.delete(`/api/station/checkpoints/${checkpoint.id}`);
+        setFeedback({ kind: 'info', message: `Checkpoint ${checkpoint.number} gelöscht.` });
         reloadEntries();
       } catch (error) {
         if (isTransient(error)) return 'retry';
@@ -225,7 +243,9 @@ export function CaptureView() {
         case 'manual':
           return processManual(task);
         case 'checkpoint':
-          return processCheckpoint();
+          return processCheckpoint(task.afterEntryId);
+        case 'delete_checkpoint':
+          return processDeleteCheckpoint(task.checkpoint);
       }
     });
   });
@@ -280,15 +300,18 @@ export function CaptureView() {
     setSelectedId(null);
   }
 
+  /** A line chosen with the arrow keys or a click; without one, the shortcuts use the default. */
+  const explicitSelection = selectedId !== null && selection === selectedId ? selectedId : null;
+
+  /** Sets a checkpoint after the chosen line, or at the end without a chosen line. */
   function addCheckpoint() {
-    queue.push({ kind: 'checkpoint' });
+    queue.push({ kind: 'checkpoint', afterEntryId: explicitSelection });
+    setSelectedId(null);
     inputRef.current?.focus();
   }
 
   function changeRow(action: RowAction, entryId: number | null = null) {
-    const explicit =
-      entryId ?? (selectedId !== null && selection === selectedId ? selectedId : null);
-    queue.push({ kind: 'row', action, entryId: explicit });
+    queue.push({ kind: 'row', action, entryId: entryId ?? explicitSelection });
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -443,10 +466,15 @@ export function CaptureView() {
           <button
             type="button"
             className="manual-button"
-            disabled={!connected}
+            disabled={!enabled}
             onClick={addCheckpoint}
+            title={
+              explicitSelection === null
+                ? 'Checkpoint am Ende der Liste setzen'
+                : 'Checkpoint nach der ausgewählten Zeile setzen'
+            }
           >
-            Checkpoint
+            {explicitSelection === null ? 'Checkpoint' : 'Checkpoint nach Zeile'}
             <br />
             <span className="muted">F3</span>
           </button>
@@ -509,6 +537,7 @@ export function CaptureView() {
               <strong>{formatNumber(feedback.entry.quantity)}</strong>.
             </span>
           )}
+          {!choice && feedback?.kind === 'info' && <span>{feedback.message}</span>}
           {!choice && feedback?.kind === 'checkpoint' && (
             <span>
               <strong>Checkpoint {feedback.checkpoint.number} gesetzt:</strong>{' '}
@@ -520,6 +549,12 @@ export function CaptureView() {
           {!choice && feedback?.kind === 'deleted' && (
             <span>
               <strong>Zeile gelöscht:</strong> {feedback.description}
+              {feedback.removedCheckpoints.map((number) => (
+                <span key={number} className="duplicate-hint">
+                  {' '}
+                  – Checkpoint {number} wurde entfernt, weil sein Abschnitt leer war.
+                </span>
+              ))}
             </span>
           )}
         </div>
@@ -546,6 +581,10 @@ export function CaptureView() {
           }}
           onAction={(id, action) => {
             changeRow(action, id);
+            inputRef.current?.focus();
+          }}
+          onDeleteCheckpoint={(checkpoint) => {
+            queue.push({ kind: 'delete_checkpoint', checkpoint });
             inputRef.current?.focus();
           }}
         />

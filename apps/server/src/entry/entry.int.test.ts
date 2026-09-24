@@ -316,7 +316,9 @@ describe('capturing entries', () => {
 
     it('deletes a line permanently', async () => {
       const id = await captured();
-      expect((await remove(id)).statusCode).toBe(204);
+      const deleted = await remove(id);
+      expect(deleted.statusCode).toBe(200);
+      expect(deleted.json()).toEqual({ removedCheckpoints: [] });
       expect((await list()).entries).toEqual([]);
       expect(t.takeEvents()).toEqual([
         { type: 'entry.changed', action: 'deleted', stocktakeId, workAreaId, entryId: id },
