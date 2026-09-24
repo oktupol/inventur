@@ -7,7 +7,10 @@ import { registerErrorHandler } from './http/error-handler.ts';
 import { EventBus } from './realtime/event-bus.ts';
 import type { RealtimeHub } from './realtime/hub.ts';
 import { registerRealtime } from './realtime/plugin.ts';
+import { employeeRoutes } from './employee/routes.ts';
 import { stocktakeRoutes } from './stocktake/routes.ts';
+import { workAreaRoutes } from './work-area/routes.ts';
+import { workstationRoutes } from './workstation/routes.ts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -40,6 +43,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   if (options.db) {
     const context = { db: options.db, events };
     await stocktakeRoutes(app, context);
+    await employeeRoutes(app, context);
+    await workAreaRoutes(app, context);
+    await workstationRoutes(app, context);
   }
 
   if (options.staticDir) {

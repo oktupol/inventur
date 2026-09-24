@@ -7,7 +7,7 @@ import type {
 } from '@inventur/shared';
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../context.ts';
-import { idParams, type IdParams } from '../http/schemas.ts';
+import { idParams, nameBody, type IdParams } from '../http/schemas.ts';
 import {
   finishStocktake,
   getActiveStocktake,
@@ -34,14 +34,7 @@ export async function stocktakeRoutes(app: FastifyInstance, context: Context): P
   app.post<{ Body: StartStocktakeRequest }>(
     '/api/stocktakes',
     {
-      schema: {
-        body: {
-          type: 'object',
-          required: ['name'],
-          properties: { name: { type: 'string' } },
-          additionalProperties: false,
-        },
-      },
+      schema: { body: nameBody },
     },
     async (request, reply): Promise<Stocktake> => {
       reply.code(201);

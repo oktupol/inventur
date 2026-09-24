@@ -195,6 +195,7 @@ Der Administrator kann
   - Name (eindeutig innerhalb der Inventur) und optionale Beschreibung
   - Anlegen, umbenennen, löschen (nur ohne Erfassungen), abschließen und wieder öffnen
   - Arbeitsbereiche lassen sich aus der letzten Inventur übernehmen. **(Annahme)**
+- Namen von Mitarbeitern, Arbeitsbereichen und Arbeitsstationen sind ohne Beachtung der Groß- und Kleinschreibung eindeutig („Anna“ und „anna“ gelten als gleich). Bei der Übernahme aus der letzten Inventur werden bereits vorhandene Namen übersprungen. **(Annahme)**
 - Arbeitsstationen verwalten: umbenennen und löschen. Stationen bleiben über Inventuren hinweg bestehen. Löschen ist nur möglich, solange die Station in keiner Inventur Artikel erfasst hat. Angemeldete Mitarbeiter werden beim Löschen abgemeldet.
 - Die Inventur beenden
   - Sind noch Arbeitsbereiche nicht abgeschlossen, erscheint eine Warnung mit Liste. Der Administrator kann trotzdem beenden.
