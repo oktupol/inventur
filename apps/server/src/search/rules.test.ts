@@ -7,6 +7,7 @@ import {
   rankMatches,
   resolve,
   toSearchResponse,
+  usesTrigramIndex,
 } from './rules.ts';
 
 function match(id: number, description: string, matchedBy: MatchField): ArticleMatch {
@@ -31,6 +32,12 @@ describe('query parsing', () => {
   it('splits the description search into distinct lower-case words', () => {
     expect(descriptionWords(' Ring gold RING ')).toEqual(['ring', 'gold']);
     expect(descriptionWords('   ')).toEqual([]);
+  });
+
+  it('knows when the trigram index can be used', () => {
+    expect(usesTrigramIndex(['ri'])).toBe(false);
+    expect(usesTrigramIndex(['ri', 'go'])).toBe(false);
+    expect(usesTrigramIndex(['ri', 'gold'])).toBe(true);
   });
 
   it('escapes LIKE wildcards', () => {

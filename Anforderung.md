@@ -348,7 +348,7 @@ Man soll alternativ auch Smartphones als Barcode-Scanner koppeln. Der Kopplungsp
 
 - Unterstützte Formate: EAN-13, EAN-8, UPC-A/E, Code 128, Code 39 und QR. **(Annahme)**
 - Derselbe Code wird innerhalb von 2 Sekunden nicht doppelt gelesen. Man bekommt Vibration und Ton als Rückmeldung. **(Annahme)**
-- Wahlweise scannt das Handy nur, solange man einen Button gedrückt hält. Die Einstellung wird je Handy gespeichert. Jeder neue Druck darf denselben Code sofort wieder lesen.
+- Standardmäßig scannt das Handy nur, solange man einen Button gedrückt hält. Jeder neue Druck darf denselben Code sofort wieder lesen. Alternativ lässt sich dauerhaftes Scannen einstellen; die Einstellung wird je Handy gespeichert.
 - Die Handy-Ansicht füllt den Bildschirm, ohne dass man scrollen muss: Das Kamerabild nimmt den Platz ein, Ergebnis und Auswahl liegen darüber, die Bedienelemente in einer Leiste am unteren Rand.
 - Der erkannte Code läuft auf der Station durch dieselbe Logik wie eine Tastatureingabe (grün, gelb, rot).
 - Anzeige auf dem Handy:

@@ -24,6 +24,14 @@ export function descriptionWords(query: string): string[] {
   return normalized === '' ? [] : [...new Set(normalized.split(' '))];
 }
 
+/**
+ * The trigram index helps only with words of at least three characters. For
+ * shorter words the description search scans the table.
+ */
+export function usesTrigramIndex(words: readonly string[]): boolean {
+  return words.some((word) => word.length >= 3);
+}
+
 /** Escapes `%`, `_` and `\` for use in a LIKE pattern. */
 export function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);

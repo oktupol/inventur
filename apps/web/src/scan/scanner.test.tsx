@@ -21,6 +21,8 @@ let detect: (code: string) => void = () => {};
 
 beforeEach(() => {
   localStorage.clear();
+  // Most tests scan continuously; the hold mode tests below use the default.
+  localStorage.setItem('inventur.scanHoldMode', 'false');
   stop.mockClear();
   saveDeviceToken('device');
   vi.mocked(signal).mockClear();
@@ -218,11 +220,11 @@ describe('phone scanner', () => {
 describe('hold mode', () => {
   const holdButton = () => screen.getByRole('button', { name: /Zum Scannen halten|Scannt/ });
 
-  it('only scans while the button is held and remembers the mode', async () => {
+  it('scans only while the button is held by default', async () => {
+    localStorage.removeItem('inventur.scanHoldMode');
     const { entryPosts } = renderScanner();
     await startScanning();
-    fireEvent.click(screen.getByRole('button', { name: 'Modus: Auto' }));
-    expect(localStorage.getItem('inventur.scanHoldMode')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Modus: Taste' })).toBeTruthy();
 
     act(() => detect('4000000000017'));
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -239,8 +241,19 @@ describe('hold mode', () => {
     expect(entryPosts()).toHaveLength(1);
   });
 
+  it('switches to continuous scanning and remembers it', async () => {
+    localStorage.removeItem('inventur.scanHoldMode');
+    const { entryPosts } = renderScanner();
+    await startScanning();
+    fireEvent.click(screen.getByRole('button', { name: 'Modus: Taste' }));
+    expect(localStorage.getItem('inventur.scanHoldMode')).toBe('false');
+    expect(screen.getByText('Scannt automatisch')).toBeTruthy();
+    act(() => detect('4000000000017'));
+    await waitFor(() => expect(entryPosts()).toHaveLength(1));
+  });
+
   it('reads the same code again on the next press', async () => {
-    localStorage.setItem('inventur.scanHoldMode', 'true');
+    localStorage.removeItem('inventur.scanHoldMode');
     const { entryPosts } = renderScanner();
     await startScanning();
     expect(screen.getByRole('button', { name: 'Modus: Taste' })).toBeTruthy();

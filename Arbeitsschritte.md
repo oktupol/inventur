@@ -160,7 +160,7 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 
 ### 18a. Layout von Station und Handy
 - Station: Eingabe und Liste als Hauptteil, Einstellungen in einer Seitenleiste, Eingabefeld beim Scrollen sichtbar
-- Handy: Vollbild ohne Scrollen mit Ergebnis über dem Kamerabild; optional Scannen nur bei gedrücktem Button
+- Handy: Vollbild ohne Scrollen mit Ergebnis über dem Kamerabild; standardmäßig Scannen nur bei gedrücktem Button, dauerhaftes Scannen einstellbar
 - Lange Bezeichnungen in Auswahllisten brechen um
 - **Fertig, wenn:** Die Handy-Ansicht auf einem Smartphone ohne Scrollen bedienbar ist und die Tests den Tastenmodus abdecken.
 
