@@ -22,6 +22,8 @@ const MESSAGES: Record<ErrorCode | 'network_error', string> = {
   employee_not_logged_in: 'Der Mitarbeiter ist an dieser Station nicht angemeldet.',
   work_area_closed: 'Der Arbeitsbereich ist abgeschlossen. Er muss erst wieder geöffnet werden.',
   not_in_work_area: 'Diese Station arbeitet nicht in diesem Arbeitsbereich.',
+  no_work_area: 'Die Station ist keinem Arbeitsbereich beigetreten.',
+  no_employee_logged_in: 'Zum Erfassen muss mindestens ein Mitarbeiter angemeldet sein.',
   internal_error: 'Auf dem Server ist ein Fehler aufgetreten.',
   network_error: 'Der Server ist nicht erreichbar.',
 };

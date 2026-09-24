@@ -21,3 +21,15 @@ export function formatDateTime(iso: string | null): string {
 export function formatNumber(value: number): string {
   return number.format(value);
 }
+
+const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const time = new Intl.DateTimeFormat('de-DE', { timeStyle: 'medium' });
+
+/** Formats a decimal string in EUR, e.g. "1234.5" as "1.234,50 €". */
+export function formatEuro(amount: string | number): string {
+  return euro.format(Number(amount));
+}
+
+export function formatTime(iso: string): string {
+  return time.format(new Date(iso));
+}

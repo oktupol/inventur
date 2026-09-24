@@ -443,3 +443,181 @@ select {
   font-size: 1.5rem;
   margin: 0.5rem 0;
 }
+
+/* Capture */
+.capture-blocked {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.capture-panel {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: background-color 0.15s;
+}
+
+.capture-panel.unique {
+  background: #d7f5dd;
+  border-color: var(--success);
+}
+
+.capture-panel.ambiguous {
+  background: #fff1b8;
+  border-color: #d4a106;
+}
+
+.capture-panel.not_found {
+  background: #fdd8d8;
+  border-color: var(--danger);
+}
+
+.capture-input-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.capture-input {
+  position: relative;
+  flex: 1;
+}
+
+.capture-input input,
+.capture-input .ghost {
+  font-size: 1.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid transparent;
+  font-family: inherit;
+  width: 100%;
+  white-space: pre;
+}
+
+.capture-input input {
+  position: relative;
+  background: transparent;
+  border-color: var(--border);
+}
+
+.capture-input input:disabled {
+  background: #eaeef2;
+}
+
+.capture-input .ghost {
+  position: absolute;
+  inset: 0;
+  color: #9aa4ae;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.capture-input .ghost .typed {
+  color: transparent;
+}
+
+.suggestions,
+.choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.suggestions {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.12);
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.suggestions button,
+.choices button {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.45rem 0.8rem;
+}
+
+.suggestions button:hover,
+.choices button:hover {
+  background: #eef3f8;
+}
+
+.choices {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.choices [aria-selected='true'] button {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.price {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals {
+  text-align: right;
+  min-width: 12rem;
+}
+
+.totals-quantity {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals-quantity span {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.capture-feedback {
+  margin-top: 0.75rem;
+  min-height: 1.5rem;
+}
+
+.duplicate-hint {
+  color: var(--warning);
+}
+
+.badge.manual {
+  background: #ede7fb;
+  color: #5a32a3;
+  margin-left: 0.5rem;
+}
+
+.badge.duplicate {
+  background: var(--warning-bg);
+  color: var(--warning);
+  margin-left: 0.5rem;
+}
+
+table.entries td {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}

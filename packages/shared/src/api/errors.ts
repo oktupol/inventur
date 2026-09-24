@@ -19,6 +19,8 @@ export type ErrorCode =
   | 'employee_not_logged_in'
   | 'work_area_closed'
   | 'not_in_work_area'
+  | 'no_work_area'
+  | 'no_employee_logged_in'
   | 'internal_error';
 
 /** Body of every error response. */

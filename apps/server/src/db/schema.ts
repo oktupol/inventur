@@ -77,6 +77,7 @@ export interface EntryTable {
   workstation_id: number;
   created_at: Timestamp;
   updated_at: Timestamp;
+  request_id: string | null;
 }
 
 export interface EntryEmployeeTable {
