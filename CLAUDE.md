@@ -19,18 +19,20 @@ Webanwendung zur Inventurerfassung für ein Uhren- und Schmuckgeschäft, betrieb
 - PostgreSQL 16 mit `pg_trgm`. Das Schema `stammdaten` wird nur gelesen, das Schema `inventur` gehört der Anwendung.
 - Caddy als Reverse-Proxy mit interner CA (HTTPS für die Smartphone-Kamera)
 - Vitest für Unit-Tests, Testcontainers für Datenbank-Integrationstests
+- Der Server läuft ohne Build direkt als TypeScript (Node.js Type Stripping). Deshalb: relative Importe mit Endung `.ts`, nur löschbare Syntax (`erasableSyntaxOnly`, keine `enum`s oder Parameter-Properties). `packages/shared` wird als Quellcode importiert.
 - `deploy/` enthält `docker-compose.yml`, `Caddyfile` und `.env.example`.
 
 ## Befehle
 
-Die Befehle entstehen in Schritt 1 und werden hier nachgetragen, sobald sie existieren:
+Node.js ≥ 24, pnpm. Befehle (die mit späterem Schritt markierten existieren noch nicht):
 
 ```sh
 pnpm install
 pnpm dev        # Server und Frontend im Entwicklungsmodus
-pnpm lint
-pnpm typecheck
-pnpm test
+pnpm lint       # ESLint und Prettier --check
+pnpm format     # Prettier --write
+pnpm typecheck  # tsc in allen Paketen
+pnpm test       # Vitest in allen Paketen
 pnpm seed       # Stammdaten mit Dummy-Daten befüllen (ab Schritt 4)
 pnpm testblatt  # PDF mit Test-Barcodes erzeugen (ab Schritt 4a)
 ```

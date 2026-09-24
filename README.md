@@ -2,7 +2,7 @@
 
 Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere Arbeitsstationen im lokalen Netzwerk erfassen Artikel parallel in Arbeitsbereichen, per Barcode-Scanner, Tastatur oder Smartphone-Kamera. Ein Administrations-Dashboard steuert die Inventur, zeigt Statistiken und exportiert die Ergebnisse.
 
-> **Status:** In Planung. Die Anforderungen sind abgestimmt, die Umsetzung hat noch nicht begonnen.
+> **Status:** In Umsetzung (siehe [Arbeitsschritte.md](Arbeitsschritte.md)).
 
 ## Dokumentation
 
@@ -31,6 +31,27 @@ Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere
 | Arbeitsstationen | `http://<server>/` |
 | Smartphones | `https://<server>/scan` |
 | Admin-Dashboard (nur auf dem Server) | `http://localhost:8080` |
+
+## Entwicklung
+
+Voraussetzungen: Node.js 24 oder neuer und pnpm (z. B. per `npm install -g pnpm` oder `corepack enable`).
+
+```sh
+pnpm install
+pnpm dev        # Server (Port 3000) und Frontend (http://localhost:5173) im Entwicklungsmodus
+pnpm lint       # ESLint und Prettier-Prüfung
+pnpm format     # Formatierung mit Prettier anwenden
+pnpm typecheck  # TypeScript-Prüfung aller Pakete
+pnpm test       # Unit-Tests aller Pakete
+```
+
+Das Frontend leitet `/api` im Entwicklungsmodus an den Server weiter. Die Routen sind `/` (Arbeitsstation), `/admin` (Dashboard) und `/scan` (Handy).
+
+| Paket | Inhalt |
+|---|---|
+| `apps/server` | Fastify-Server; läuft direkt als TypeScript (Node.js Type Stripping), ohne Build-Schritt |
+| `apps/web` | React-Frontend mit Vite |
+| `packages/shared` | Gemeinsame Typen und Nachrichtenformate |
 
 ## Installation
 
