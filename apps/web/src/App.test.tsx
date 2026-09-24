@@ -23,7 +23,7 @@ describe('app routes', () => {
   });
 
   it.each([
-    ['Arbeitsstation', '/'],
+    ['Arbeitsstation einrichten', '/'],
     ['Inventur', '/admin'],
     ['Arbeitsstationen', '/admin/stationen'],
     ['Handy-Scanner', '/scan'],

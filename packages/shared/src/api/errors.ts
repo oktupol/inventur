@@ -13,6 +13,10 @@ export type ErrorCode =
   | 'work_area_has_entries'
   | 'workstation_has_entries'
   | 'no_previous_stocktake'
+  | 'workstation_unknown'
+  | 'no_active_stocktake'
+  | 'employee_busy'
+  | 'employee_not_logged_in'
   | 'internal_error';
 
 /** Body of every error response. */
