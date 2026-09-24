@@ -8,6 +8,11 @@ export type ErrorCode =
   | 'stocktake_already_active'
   | 'stocktake_finished'
   | 'unclosed_work_areas'
+  | 'name_taken'
+  | 'employee_has_entries'
+  | 'work_area_has_entries'
+  | 'workstation_has_entries'
+  | 'no_previous_stocktake'
   | 'internal_error';
 
 /** Body of every error response. */

@@ -107,6 +107,25 @@ export async function startStocktake({ db, events }: Context, name: string): Pro
   return stocktake;
 }
 
+/** The stocktake started most recently before the given one, the source for imports. */
+export async function getPreviousStocktake(
+  db: Db | Trx,
+  stocktakeId: number,
+): Promise<{ id: number; name: string }> {
+  const previous = await db
+    .selectFrom('inventory.stocktake as s')
+    .select(['s.id', 's.name'])
+    .where('s.id', '!=', stocktakeId)
+    .where('s.started_at', '<=', (eb) =>
+      eb.selectFrom('inventory.stocktake').select('started_at').where('id', '=', stocktakeId),
+    )
+    .orderBy('s.started_at', 'desc')
+    .orderBy('s.id', 'desc')
+    .executeTakeFirst();
+  if (!previous) throw new DomainError('no_previous_stocktake', 'There is no previous stocktake');
+  return previous;
+}
+
 /**
  * Runs a write within a transaction while the stocktake is locked against
  * being finished concurrently. Rejects writes to finished stocktakes.

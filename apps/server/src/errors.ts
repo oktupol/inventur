@@ -6,6 +6,11 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   stocktake_already_active: 409,
   stocktake_finished: 409,
   unclosed_work_areas: 409,
+  name_taken: 409,
+  employee_has_entries: 409,
+  work_area_has_entries: 409,
+  workstation_has_entries: 409,
+  no_previous_stocktake: 409,
   internal_error: 500,
 };
 
