@@ -10,6 +10,7 @@ import { sql } from 'kysely';
 import type { Context } from '../context.ts';
 import type { Db } from '../db/connection.ts';
 import { isUniqueViolation } from '../db/errors.ts';
+import { loadCheckpoints } from '../checkpoint/service.ts';
 import { DomainError } from '../errors.ts';
 import { getArticle, resolveArticle } from '../search/service.ts';
 import { requireActiveStocktake } from '../station/rules.ts';
@@ -60,6 +61,7 @@ export function toEntry(row: EntryRow): Entry {
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     duplicateCount: Number(row.duplicate_count ?? 0),
+    checkpointNumber: null,
   };
 }
 
@@ -206,8 +208,14 @@ export async function listWorkAreaEntries(db: Db | Trx, workAreaId: number) {
     ])
     .where('work_area_id', '=', workAreaId)
     .executeTakeFirstOrThrow();
+  const { checkpoints, counting } = await loadCheckpoints(db, workAreaId);
   return {
-    entries: rows.map(toEntry),
+    entries: rows.map((row) => ({
+      ...toEntry(row),
+      checkpointNumber: counting.sectionOf.get(row.id) ?? null,
+    })),
+    checkpoints,
+    sinceLastCheckpoint: counting.sinceLastCheckpoint,
     totals: {
       quantity: Number(totals.quantity),
       lines: Number(totals.lines),

@@ -31,7 +31,8 @@ export type KeyCommand =
   | { type: 'cancel_quantity' }
   | { type: 'select'; delta: -1 | 1 }
   | { type: 'reset_selection' }
-  | { type: 'manual' };
+  | { type: 'manual' }
+  | { type: 'checkpoint' };
 
 const MAX_DIGITS = String(MAX_QUANTITY).length;
 
@@ -80,6 +81,8 @@ export function interpretKey(state: KeyState, key: string): KeyCommand {
       return { type: 'select', delta: 1 };
     case 'Escape':
       return { type: 'reset_selection' };
+    case 'F3':
+      return { type: 'checkpoint' };
     default:
       return { type: 'none' };
   }

@@ -674,3 +674,21 @@ table.entries tr.selected td:first-child {
 .manual-form input {
   font-size: 1.1rem;
 }
+
+table.entries tr.checkpoint-row td {
+  background: #eef1f5;
+  border-top: 2px solid var(--text);
+  border-bottom: 2px solid var(--text);
+  font-size: 0.95rem;
+}
+
+table.entries tr.since-checkpoint-row td {
+  color: var(--accent);
+  border-bottom: none;
+  text-align: right;
+}
+
+.since-checkpoint {
+  font-size: 0.9rem;
+  color: var(--accent);
+}

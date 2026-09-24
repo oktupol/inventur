@@ -1,6 +1,7 @@
 import {
   workAreaChannel,
   type ArticleMatch,
+  type Checkpoint,
   type CreateEntryResponse,
   type CreateManualEntryRequest,
   type Entry,
@@ -37,13 +38,15 @@ interface RowTask {
 type Task =
   | ({ kind: 'scan' } & Scan)
   | ({ kind: 'row' } & RowTask)
-  | ({ kind: 'manual' } & CreateManualEntryRequest);
+  | ({ kind: 'manual' } & CreateManualEntryRequest)
+  | { kind: 'checkpoint' };
 
 type Feedback =
   | { kind: 'unique'; entry: Entry }
   | { kind: 'not_found'; input: string }
   | { kind: 'updated'; entry: Entry }
   | { kind: 'deleted'; description: string }
+  | { kind: 'checkpoint'; checkpoint: Checkpoint }
   | { kind: 'error'; message: string; input?: string };
 
 interface Choice {
@@ -201,6 +204,18 @@ export function CaptureView() {
       return 'done';
     }
 
+    async function processCheckpoint(): Promise<QueueOutcome> {
+      try {
+        const checkpoint = await api.post<Checkpoint>('/api/station/checkpoints');
+        setFeedback({ kind: 'checkpoint', checkpoint });
+        reloadEntries();
+      } catch (error) {
+        if (isTransient(error)) return 'retry';
+        setFeedback({ kind: 'error', message: messageOf(error) });
+      }
+      return 'done';
+    }
+
     queue.setHandler((task) => {
       switch (task.kind) {
         case 'scan':
@@ -209,6 +224,8 @@ export function CaptureView() {
           return processRow(task);
         case 'manual':
           return processManual(task);
+        case 'checkpoint':
+          return processCheckpoint();
       }
     });
   });
@@ -263,6 +280,11 @@ export function CaptureView() {
     setSelectedId(null);
   }
 
+  function addCheckpoint() {
+    queue.push({ kind: 'checkpoint' });
+    inputRef.current?.focus();
+  }
+
   function changeRow(action: RowAction, entryId: number | null = null) {
     const explicit =
       entryId ?? (selectedId !== null && selection === selectedId ? selectedId : null);
@@ -297,6 +319,8 @@ export function CaptureView() {
         return setFeedback(null);
       case 'manual':
         return openManual();
+      case 'checkpoint':
+        return addCheckpoint();
       case 'ignore':
         return;
       case 'none':
@@ -348,6 +372,7 @@ export function CaptureView() {
         ? 'not_found'
         : undefined;
   const quantityMode = quantityDigits !== null;
+  const latestCheckpoint = entries.data?.checkpoints[0];
   const totals = entries.data?.totals;
 
   return (
@@ -415,6 +440,16 @@ export function CaptureView() {
             <br />
             <span className="muted">F2</span>
           </button>
+          <button
+            type="button"
+            className="manual-button"
+            disabled={!connected}
+            onClick={addCheckpoint}
+          >
+            Checkpoint
+            <br />
+            <span className="muted">F3</span>
+          </button>
           <div className="totals" aria-label="Summe im Bereich">
             <div className="totals-quantity">
               {totals ? formatNumber(totals.quantity) : '–'} <span>Stück</span>
@@ -423,6 +458,12 @@ export function CaptureView() {
               {totals ? formatNumber(totals.lines) : '–'} Zeilen ·{' '}
               {totals ? formatEuro(totals.grossValue) : '–'}
             </div>
+            {latestCheckpoint && (
+              <div className="since-checkpoint">
+                seit Checkpoint {latestCheckpoint.number}:{' '}
+                <strong>{formatNumber(entries.data!.sinceLastCheckpoint)} Stück</strong>
+              </div>
+            )}
           </div>
         </div>
 
@@ -468,6 +509,14 @@ export function CaptureView() {
               <strong>{formatNumber(feedback.entry.quantity)}</strong>.
             </span>
           )}
+          {!choice && feedback?.kind === 'checkpoint' && (
+            <span>
+              <strong>Checkpoint {feedback.checkpoint.number} gesetzt:</strong>{' '}
+              {feedback.checkpoint.number > 1 &&
+                `${formatNumber(feedback.checkpoint.sinceLast)} Stück seit Checkpoint ${feedback.checkpoint.number - 1}, `}
+              {formatNumber(feedback.checkpoint.sinceStart)} Stück seit Beginn.
+            </span>
+          )}
           {!choice && feedback?.kind === 'deleted' && (
             <span>
               <strong>Zeile gelöscht:</strong> {feedback.description}
@@ -487,6 +536,8 @@ export function CaptureView() {
       {entries.data && (
         <EntryTable
           entries={list}
+          checkpoints={entries.data.checkpoints}
+          sinceLastCheckpoint={entries.data.sinceLastCheckpoint}
           selectedId={selection}
           disabled={!enabled}
           onSelect={(id) => {
