@@ -147,15 +147,12 @@ describe('work area selection at the workstation', () => {
     vitrine.status = 'closed';
     vitrine.workstations = [];
     server.setArea(undefined);
-    vi.useFakeTimers();
     act(() =>
       realtime.latest().receive({
         type: 'event',
         event: { type: 'workstation.changed', action: 'updated', workstationId: kasse.id },
       }),
     );
-    await act(() => vi.advanceTimersByTimeAsync(100));
-    vi.useRealTimers();
 
     expect(await screen.findByText(/„Vitrine“ wurde von einer anderen Station/)).toBeTruthy();
   });

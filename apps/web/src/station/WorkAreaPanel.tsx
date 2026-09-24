@@ -1,4 +1,4 @@
-import type { WorkArea } from '@inventur/shared';
+import { workAreaChannel, type WorkArea } from '@inventur/shared';
 import { useState } from 'react';
 import { useAction } from '../api/useAction.ts';
 import { useApiData } from '../api/useApiData.ts';
@@ -10,9 +10,15 @@ import { useStation } from './StationContext.tsx';
 /** Choose the work area of the workstation, leave it, close it or reopen closed ones. */
 export function WorkAreaPanel() {
   const { api, headers, state, reload } = useStation();
+  // Entries of the own area change its quantity, shown here and in the close dialog.
   const workAreas = useApiData<WorkArea[]>('/api/station/work-areas', {
-    channels: ['workstations'],
-    filter: (event) => event.type === 'work_area.changed' || event.type === 'workstation.changed',
+    channels: state.workArea
+      ? ['workstations', workAreaChannel(state.workArea.id)]
+      : ['workstations'],
+    filter: (event) =>
+      event.type === 'work_area.changed' ||
+      event.type === 'workstation.changed' ||
+      event.type === 'entry.changed',
     headers,
   });
   const action = useAction();
@@ -75,7 +81,11 @@ export function WorkAreaPanel() {
               type="button"
               className="primary"
               disabled={action.busy || !current}
-              onClick={() => setClosing(true)}
+              onClick={() => {
+                // Show the current quantity in the safety question.
+                workAreas.reload();
+                setClosing(true);
+              }}
             >
               Abschließen
             </button>

@@ -6,6 +6,7 @@ import {
 } from '@inventur/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { createApi } from '../api/client.ts';
+import { CaptureView } from '../capture/CaptureView.tsx';
 import { useApiData } from '../api/useApiData.ts';
 import { ErrorNotice } from '../components/Notice.tsx';
 import { ConnectionIndicator } from '../realtime/ConnectionIndicator.tsx';
@@ -72,6 +73,7 @@ function RegisteredStation({ token, onUnknown }: { token: string; onUnknown: () 
               <>
                 <WorkAreaPanel />
                 <EmployeePanel />
+                {station.state.workArea && <CaptureView key={station.state.workArea.id} />}
               </>
             ) : (
               <div className="card no-stocktake">

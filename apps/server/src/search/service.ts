@@ -150,3 +150,9 @@ export async function searchArticles(
 export async function resolveArticle(db: Db | Trx, query: string): Promise<ArticleResolution> {
   return resolve(await searchArticles(db, query));
 }
+
+/** Loads one article by id, e.g. the one chosen from an ambiguous result. */
+export async function getArticle(db: Db | Trx, id: number): Promise<ArticleMatch | undefined> {
+  const [article] = await loadMatches(db, [{ id, matchedBy: 'ean', matchedNumber: null }]);
+  return article;
+}

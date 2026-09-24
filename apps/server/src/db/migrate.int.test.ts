@@ -27,6 +27,7 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     'workstation_id',
     'created_at',
     'updated_at',
+    'request_id',
   ],
   'inventory.entry_employee': ['entry_id', 'employee_id'],
   'inventory.checkpoint': ['id', 'work_area_id', 'number', 'workstation_id', 'created_at'],
@@ -52,7 +53,7 @@ describe('migrations', () => {
   afterAll(() => test.drop());
 
   it('run on an empty database', () => {
-    expect(applied).toEqual(['0001_initial_schema']);
+    expect(applied).toEqual(['0001_initial_schema', '0002_entry_request_id']);
   });
 
   it('do nothing when run again', async () => {
