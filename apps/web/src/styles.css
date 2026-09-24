@@ -719,3 +719,106 @@ table.entries tr:hover .insert-checkpoint,
 .insert-checkpoint:focus-visible {
   visibility: visible;
 }
+
+/* Certificate instructions */
+.certificate-page {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.download-button {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 0.8rem 1.4rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.steps {
+  padding-left: 1.25rem;
+}
+
+.steps li + li {
+  margin-top: 1.25rem;
+}
+
+.phone-mock {
+  display: inline-block;
+  margin: 0.25rem 1rem 0.5rem 0;
+  vertical-align: top;
+  width: 13rem;
+}
+
+.phone-frame {
+  border: 3px solid #1f2328;
+  border-radius: 1.2rem;
+  padding: 0.8rem 0.5rem 1.2rem;
+  background: #f2f2f7;
+  font-size: 0.8rem;
+}
+
+.phone-title {
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.phone-frame ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  border-radius: 0.5rem;
+}
+
+.phone-frame li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #e5e5ea;
+}
+
+.phone-frame li:last-child {
+  border-bottom: none;
+}
+
+.phone-frame li.highlight {
+  outline: 3px solid #e3a008;
+  outline-offset: -3px;
+  font-weight: 600;
+  border-radius: 0.4rem;
+}
+
+.phone-tap {
+  color: var(--muted);
+}
+
+.phone-toggle {
+  width: 2rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: #34c759;
+  position: relative;
+}
+
+.phone-toggle::after {
+  content: '';
+  position: absolute;
+  right: 0.1rem;
+  top: 0.1rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.phone-mock figcaption {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}

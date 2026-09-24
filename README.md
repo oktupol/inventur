@@ -29,7 +29,7 @@ Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere
 | Zugang | Adresse |
 |---|---|
 | Arbeitsstationen | `http://<server>/` |
-| Smartphones | `https://<server>/scan` |
+| Smartphones | `https://<server>/scan` (vorher einmalig das Zertifikat installieren: `http://<server>/zertifikat`) |
 | Admin-Dashboard (nur auf dem Server) | `http://localhost:8080` |
 
 ## Entwicklung

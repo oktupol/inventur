@@ -39,10 +39,15 @@ services:
     ports:
       # Workstations
       - 80:80
+      # Smartphones (HTTPS with the internal CA)
+      - 443:443
       # Admin dashboard: reachable only on the server itself.
       - 127.0.0.1:8080:8080
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Holds the internal CA; phones trust it once, so keep this volume.
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
