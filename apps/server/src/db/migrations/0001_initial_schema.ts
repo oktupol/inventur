@@ -104,7 +104,6 @@ export const initialSchema: Migration = {
         workstation_id  BIGINT        NOT NULL REFERENCES inventory.workstation(id) ON DELETE RESTRICT,
         created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
         updated_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
-        deleted_at      TIMESTAMPTZ   NULL,
         CHECK (is_manual = (article_id IS NULL)),
         CHECK (NOT is_manual OR (category IS NULL AND price_net IS NULL))
       )`.execute(db);

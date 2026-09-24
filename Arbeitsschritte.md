@@ -114,7 +114,7 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - **Fertig, wenn:** Die Erfassung mit einem echten Barcode-Scanner funktioniert, 20 schnelle Scans vollständig ankommen und eine zweite Station die Einträge live sieht.
 
 ### 13. Zeilen bearbeiten
-- Server: Menge ändern (mindestens 1) und Soft-Delete, jeweils mit Live-Ereignissen
+- Server: Menge ändern (mindestens 1) und Zeile endgültig löschen, jeweils mit Live-Ereignissen
 - UI pro Zeile: `+`, `−`, editierbares Mengenfeld und `Löschen`
 - Tastenkürzel nur bei leerem Eingabefeld: `Delete`, `+`, `-`, `=` bzw. `*` mit Mengenmodus, Nummernblock gleichwertig
 - Zeilenauswahl: standardmäßig die letzte eigene Zeile, `↑`/`↓` wählen eine andere, `Esc` setzt zurück.

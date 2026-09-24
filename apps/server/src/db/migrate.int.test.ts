@@ -27,7 +27,6 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     'workstation_id',
     'created_at',
     'updated_at',
-    'deleted_at',
   ],
   'inventory.entry_employee': ['entry_id', 'employee_id'],
   'inventory.checkpoint': ['id', 'work_area_id', 'number', 'workstation_id', 'created_at'],
@@ -190,15 +189,10 @@ describe('migrations', () => {
       await test.db.deleteFrom('inventory.employee').where('id', '=', employeeId).execute();
     });
 
-    it('is rejected once they have created entries, even soft-deleted ones', async () => {
+    it('is rejected while they have entries and allowed once the entries are deleted', async () => {
       const workstationId = await createWorkstation('Lager');
       const employeeId = await createEmployee('Cem', workstationId);
       const entryId = await createEntry(workstationId, [employeeId]);
-      await test.db
-        .updateTable('inventory.entry')
-        .set({ deleted_at: new Date() })
-        .where('id', '=', entryId)
-        .execute();
 
       await expect(
         test.db.deleteFrom('inventory.employee').where('id', '=', employeeId).execute(),
@@ -206,6 +200,17 @@ describe('migrations', () => {
       await expect(
         test.db.deleteFrom('inventory.workstation').where('id', '=', workstationId).execute(),
       ).rejects.toThrow(/entry_workstation_id_fkey/);
+
+      // Deleting an entry is permanent and also removes its employee links.
+      await test.db.deleteFrom('inventory.entry').where('id', '=', entryId).execute();
+      const links = await test.db
+        .selectFrom('inventory.entry_employee')
+        .selectAll()
+        .where('entry_id', '=', entryId)
+        .execute();
+      expect(links).toEqual([]);
+      await test.db.deleteFrom('inventory.employee').where('id', '=', employeeId).execute();
+      await test.db.deleteFrom('inventory.workstation').where('id', '=', workstationId).execute();
     });
   });
 });
