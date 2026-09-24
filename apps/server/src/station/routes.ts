@@ -10,6 +10,7 @@ import {
 } from '@inventur/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Context } from '../context.ts';
+import type { Db } from '../db/connection.ts';
 import { idParams, nameBody, type IdParams } from '../http/schemas.ts';
 import { getActiveStocktake } from '../stocktake/service.ts';
 import { listWorkAreas } from '../work-area/service.ts';
@@ -32,14 +33,16 @@ import {
   type StationIdentity,
 } from './service.ts';
 
+/** Authenticates a request of a workstation by its token header. */
+export function authenticateRequest(db: Db, request: FastifyRequest): Promise<StationIdentity> {
+  const token = request.headers[WORKSTATION_TOKEN_HEADER];
+  return authenticate(db, typeof token === 'string' ? token : undefined);
+}
+
 /** API for the workstations; all but registration require the workstation token. */
 export async function stationRoutes(app: FastifyInstance, context: Context): Promise<void> {
   const { db } = context;
-
-  const station = (request: FastifyRequest): Promise<StationIdentity> => {
-    const token = request.headers[WORKSTATION_TOKEN_HEADER];
-    return authenticate(db, typeof token === 'string' ? token : undefined);
-  };
+  const station = (request: FastifyRequest) => authenticateRequest(db, request);
 
   app.post<{ Body: RegisterWorkstationRequest }>(
     '/api/station/register',

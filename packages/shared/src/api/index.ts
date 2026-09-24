@@ -1,3 +1,4 @@
+export * from './article.ts';
 export * from './common.ts';
 export * from './employee.ts';
 export * from './errors.ts';
