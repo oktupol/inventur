@@ -16,6 +16,7 @@ import {
   selectForImport,
 } from '../management/rules.ts';
 import { getPreviousStocktake, withWritableStocktake, type Trx } from '../stocktake/service.ts';
+import { lockWorkAreaTransitions } from './transitions.ts';
 
 async function loadWorkAreas(
   db: Db | Trx,
@@ -71,7 +72,7 @@ async function loadWorkAreas(
   }));
 }
 
-export function listWorkAreas(db: Db, stocktakeId: number): Promise<WorkArea[]> {
+export function listWorkAreas(db: Db | Trx, stocktakeId: number): Promise<WorkArea[]> {
   return loadWorkAreas(db, stocktakeId);
 }
 
@@ -159,6 +160,7 @@ export async function deleteWorkArea(
   id: number,
 ): Promise<void> {
   const workArea = await withWritableStocktake(db, stocktakeId, async (trx) => {
+    await lockWorkAreaTransitions(trx, stocktakeId);
     const current = await getWorkArea(trx, stocktakeId, id);
     assertDeletable(current.entryCount, 'Work area');
     await trx.deleteFrom('inventory.work_area').where('id', '=', id).execute();

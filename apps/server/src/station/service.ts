@@ -97,10 +97,17 @@ export async function getStationState(db: Db, station: StationIdentity): Promise
         .orderBy('name')
         .execute()
     : [];
+  const workArea = await db
+    .selectFrom('inventory.workstation as w')
+    .innerJoin('inventory.work_area as a', 'a.id', 'w.work_area_id')
+    .select(['a.id', 'a.name', 'a.status'])
+    .where('w.id', '=', station.id)
+    .executeTakeFirst();
   return {
     workstation: station,
     stocktake: stocktake && { id: stocktake.id, name: stocktake.name },
     employees,
+    workArea: workArea ?? null,
   };
 }
 

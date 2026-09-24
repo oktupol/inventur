@@ -20,6 +20,8 @@ const MESSAGES: Record<ErrorCode | 'network_error', string> = {
   employee_busy:
     'Der Mitarbeiter ist an einer anderen Station angemeldet und muss sich dort zuerst abmelden.',
   employee_not_logged_in: 'Der Mitarbeiter ist an dieser Station nicht angemeldet.',
+  work_area_closed: 'Der Arbeitsbereich ist abgeschlossen. Er muss erst wieder geöffnet werden.',
+  not_in_work_area: 'Diese Station arbeitet nicht in diesem Arbeitsbereich.',
   internal_error: 'Auf dem Server ist ein Fehler aufgetreten.',
   network_error: 'Der Server ist nicht erreichbar.',
 };

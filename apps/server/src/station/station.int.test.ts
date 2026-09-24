@@ -66,7 +66,12 @@ describe('station API', () => {
       expect(t.takeEvents()).toEqual([
         { type: 'workstation.changed', action: 'created', workstationId: workstation.id },
       ]);
-      expect(await me(token)).toEqual({ workstation, stocktake: null, employees: [] });
+      expect(await me(token)).toEqual({
+        workstation,
+        stocktake: null,
+        employees: [],
+        workArea: null,
+      });
     });
 
     it('requires a unique name', async () => {

@@ -1,4 +1,5 @@
 import type { NamedRef } from './common.ts';
+import type { WorkAreaStatus } from './work-area.ts';
 
 /** Header with which a workstation authenticates its requests to `/api/station/*`. */
 export const WORKSTATION_TOKEN_HEADER = 'x-workstation-token';
@@ -27,6 +28,8 @@ export interface StationState {
   stocktake: NamedRef | null;
   /** Employees logged in to this workstation. */
   employees: NamedRef[];
+  /** The work area the workstation is working in. */
+  workArea: (NamedRef & { status: WorkAreaStatus }) | null;
 }
 
 /** Employee of the active stocktake as seen by a workstation. */

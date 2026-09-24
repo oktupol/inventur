@@ -438,3 +438,8 @@ select {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.close-count {
+  font-size: 1.5rem;
+  margin: 0.5rem 0;
+}

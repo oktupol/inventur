@@ -5,21 +5,26 @@ import { useAction } from '../api/useAction.ts';
 import { useApiData } from '../api/useApiData.ts';
 import { ConfirmDialog, Dialog } from '../components/Dialog.tsx';
 import { ErrorNotice } from '../components/Notice.tsx';
-import { formatNumber, WORK_AREA_STATUS_LABELS } from '../format.ts';
+import { CloseWorkAreaDialog, WorkAreaStatusBadge } from '../components/WorkArea.tsx';
+import { formatNumber } from '../format.ts';
 import { NoActiveStocktake, useActiveStocktake } from './ActiveStocktake.tsx';
 import { ImportButton } from './ImportButton.tsx';
-
-export function WorkAreaStatusBadge({ status }: { status: WorkArea['status'] }) {
-  return <span className={`badge ${status}`}>{WORK_AREA_STATUS_LABELS[status]}</span>;
-}
 
 export interface WorkAreaTableProps {
   workAreas: readonly WorkArea[];
   onEdit?: (workArea: WorkArea) => void;
   onDelete?: (workArea: WorkArea) => void;
+  onClose?: (workArea: WorkArea) => void;
+  onReopen?: (workArea: WorkArea) => void;
 }
 
-export function WorkAreaTable({ workAreas, onEdit, onDelete }: WorkAreaTableProps) {
+export function WorkAreaTable({
+  workAreas,
+  onEdit,
+  onDelete,
+  onClose,
+  onReopen,
+}: WorkAreaTableProps) {
   if (workAreas.length === 0) return <p className="muted">Noch keine Arbeitsbereiche.</p>;
   const editable = onEdit !== undefined || onDelete !== undefined;
   return (
@@ -49,6 +54,16 @@ export function WorkAreaTable({ workAreas, onEdit, onDelete }: WorkAreaTableProp
               <td className="number">{formatNumber(area.quantity)}</td>
               {editable && (
                 <td className="actions">
+                  {onClose && area.status !== 'closed' && (
+                    <button type="button" className="small" onClick={() => onClose(area)}>
+                      Abschließen
+                    </button>
+                  )}
+                  {onReopen && area.status === 'closed' && (
+                    <button type="button" className="small" onClick={() => onReopen(area)}>
+                      Wieder öffnen
+                    </button>
+                  )}
                   {onEdit && (
                     <button type="button" className="small" onClick={() => onEdit(area)}>
                       Bearbeiten
@@ -146,6 +161,14 @@ function ManageWorkAreas({ stocktakeId }: { stocktakeId: number }) {
   const remove = useAction();
   const [editing, setEditing] = useState<WorkArea>();
   const [deleting, setDeleting] = useState<WorkArea>();
+  const [closing, setClosing] = useState<WorkArea>();
+  const transition = useAction();
+
+  async function runTransition(workArea: WorkArea, action: 'close' | 'reopen') {
+    await transition.run(() => api.post(`${url}/${workArea.id}/${action}`));
+    setClosing(undefined);
+    workAreas.reload();
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -197,9 +220,15 @@ function ManageWorkAreas({ stocktakeId }: { stocktakeId: number }) {
         <ImportButton url={`${url}/import`} noun={['Arbeitsbereich', 'Arbeitsbereiche']} />
       </div>
       <div className="card">
-        <ErrorNotice error={workAreas.error ?? remove.error} />
+        <ErrorNotice error={workAreas.error ?? remove.error ?? transition.error} />
         {workAreas.data && (
-          <WorkAreaTable workAreas={workAreas.data} onEdit={setEditing} onDelete={setDeleting} />
+          <WorkAreaTable
+            workAreas={workAreas.data}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+            onClose={setClosing}
+            onReopen={(area) => void runTransition(area, 'reopen')}
+          />
         )}
       </div>
       {editing && (
@@ -210,6 +239,14 @@ function ManageWorkAreas({ stocktakeId }: { stocktakeId: number }) {
             setEditing(undefined);
             if (saved) workAreas.reload();
           }}
+        />
+      )}
+      {closing && (
+        <CloseWorkAreaDialog
+          workArea={closing}
+          busy={transition.busy}
+          onConfirm={() => void runTransition(closing, 'close')}
+          onCancel={() => setClosing(undefined)}
         />
       )}
       {deleting && (
