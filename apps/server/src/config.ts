@@ -2,6 +2,8 @@ export interface Config {
   host: string;
   port: number;
   version: string;
+  /** Verzeichnis mit dem gebauten Frontend. Ohne Angabe liefert der Server kein Frontend aus. */
+  staticDir: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -13,5 +15,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     host: env.HOST ?? '0.0.0.0',
     port,
     version: env.APP_VERSION ?? 'dev',
+    staticDir: env.STATIC_DIR || undefined,
   };
 }

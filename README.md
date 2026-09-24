@@ -53,6 +53,8 @@ Das Frontend leitet `/api` im Entwicklungsmodus an den Server weiter. Die Routen
 | `apps/web` | React-Frontend mit Vite |
 | `packages/shared` | Gemeinsame Typen und Nachrichtenformate |
 
+Das Image lässt sich lokal mit `docker build -t inventur-app .` bauen. Der Server liefert darin das gebaute Frontend aus (`STATIC_DIR`). Der Workflow `release.yml` veröffentlicht es bei jedem Push auf `main` (Tags `latest` und `sha-<kurz>`) und bei Tags `v*` für `linux/amd64` und `linux/arm64`.
+
 ## Installation
 
 Folgt mit Schritt 22 des [Umsetzungsplans](Arbeitsschritte.md). Kurzfassung des geplanten Ablaufs auf einem Linux-Server:
@@ -61,7 +63,8 @@ Folgt mit Schritt 22 des [Umsetzungsplans](Arbeitsschritte.md). Kurzfassung des 
 # einmalig: Zugriff auf die private Container Registry (Token mit Scope read:packages)
 docker login ghcr.io
 
-# Konfiguration anlegen (PUBLIC_HOST, POSTGRES_PASSWORD)
+# docker-compose.yml, Caddyfile und .env.example aus dem Ordner deploy/ auf den Server kopieren
+# Konfiguration anlegen (PUBLIC_HOST, POSTGRES_PASSWORD, APP_VERSION)
 cp .env.example .env
 
 docker compose up -d
