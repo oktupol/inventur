@@ -68,7 +68,7 @@ describe('phone pairing', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Koppeln' }));
     expect((await screen.findAllByText('Kasse', { selector: 'strong' })).length).toBeGreaterThan(0);
-    expect(screen.getByText('Vitrine')).toBeTruthy();
+    expect(screen.getByText(/· Vitrine/)).toBeTruthy();
     expect(loadDeviceToken()).toBe('device');
     expect(api.writes()[0]!.body).toEqual({ code: '123456' });
   });
@@ -85,21 +85,21 @@ describe('phone pairing', () => {
 
   it('pairs right away when opened from the QR code', async () => {
     const { api } = renderScan('/scan?t=qr-token');
-    expect(await screen.findByText('Kasse', { selector: '.scan-header strong' })).toBeTruthy();
+    expect(await screen.findByText('Kasse', { selector: '.scan-bar strong' })).toBeTruthy();
     expect(api.writes()[0]!.body).toEqual({ qrToken: 'qr-token' });
   });
 
   it('stays paired after a reload', async () => {
     saveDeviceToken('device');
     const { api } = renderScan('/scan', { paired: true });
-    expect(await screen.findByText('Kasse', { selector: '.scan-header strong' })).toBeTruthy();
+    expect(await screen.findByText('Kasse', { selector: '.scan-bar strong' })).toBeTruthy();
     expect(api.writes()).toEqual([]);
   });
 
   it('returns to the code entry when the workstation disconnects', async () => {
     saveDeviceToken('device');
     const { realtime, unpair } = renderScan('/scan', { paired: true });
-    await screen.findByText('Kasse', { selector: '.scan-header strong' });
+    await screen.findByText('Kasse', { selector: '.scan-bar strong' });
     // The phone listens on the channel of its workstation once it knows it.
     await waitFor(() =>
       expect(realtime.latest().sent).toContainEqual({

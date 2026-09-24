@@ -44,43 +44,35 @@ function PairedView({
   }
 
   const state = me.data;
+  const notice = !state
+    ? undefined
+    : !state.stocktake
+      ? 'Es läuft keine Inventur.'
+      : !state.workArea
+        ? 'Die Station ist keinem Arbeitsbereich beigetreten.'
+        : state.employees.length === 0
+          ? 'An der Station ist kein Mitarbeiter angemeldet.'
+          : undefined;
   return (
-    <div className="scan-page">
-      <header className="scan-header">
-        <strong>{state ? state.workstation.name : 'Handy-Scanner'}</strong>
+    <div className="scan-screen">
+      <header className="scan-bar">
+        <div className="scan-bar-title">
+          <strong>{state ? state.workstation.name : 'Handy-Scanner'}</strong>
+          {state?.workArea && <span className="muted"> · {state.workArea.name}</span>}
+        </div>
         <ConnectionIndicator />
+        <button
+          type="button"
+          className="small"
+          disabled={disconnect.busy}
+          onClick={() => void unpair()}
+        >
+          Trennen
+        </button>
       </header>
       <h1 className="visually-hidden">Handy-Scanner</h1>
       {!unknown && <ErrorNotice error={me.error ?? disconnect.error} />}
-      {state && (
-        <div className="card">
-          <p style={{ marginTop: 0 }}>
-            Gekoppelt mit <strong>{state.workstation.name}</strong>.
-          </p>
-          {!state.stocktake ? (
-            <p className="notice warning">Es läuft keine Inventur.</p>
-          ) : state.workArea ? (
-            <p>
-              Bereich: <strong>{state.workArea.name}</strong>
-              {state.employees.length === 0 && (
-                <span className="notice warning" style={{ display: 'block', marginTop: '0.5rem' }}>
-                  An der Station ist kein Mitarbeiter angemeldet. Ohne Mitarbeiter kann nicht
-                  erfasst werden.
-                </span>
-              )}
-            </p>
-          ) : (
-            <p className="notice warning">
-              Die Station ist keinem Arbeitsbereich beigetreten. Bitte an der Station einen Bereich
-              wählen.
-            </p>
-          )}
-          <button type="button" disabled={disconnect.busy} onClick={() => void unpair()}>
-            Trennen
-          </button>
-        </div>
-      )}
-      {state?.stocktake && state.workArea && <ScannerView api={deviceApi} />}
+      {state && <ScannerView api={deviceApi} notice={notice} />}
     </div>
   );
 }

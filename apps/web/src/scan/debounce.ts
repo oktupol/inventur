@@ -15,6 +15,12 @@ export class ScanDebouncer {
     this.windowMs = windowMs;
   }
 
+  /** Forgets the last code, e.g. when the scan button is pressed again. */
+  reset(): void {
+    this.lastCode = null;
+    this.lastSeen = -Infinity;
+  }
+
   /** Returns whether a detection at time `now` (ms) is a new scan. */
   accept(code: string, now: number): boolean {
     const repeated = code === this.lastCode && now - this.lastSeen < this.windowMs;

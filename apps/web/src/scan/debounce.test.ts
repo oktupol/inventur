@@ -31,4 +31,11 @@ describe('ScanDebouncer', () => {
     expect(debouncer.accept('B', 100)).toBe(true);
     expect(debouncer.accept('A', 200)).toBe(true);
   });
+
+  it('accepts the same code right away after a reset', () => {
+    const debouncer = new ScanDebouncer();
+    debouncer.accept('A', 0);
+    debouncer.reset();
+    expect(debouncer.accept('A', 100)).toBe(true);
+  });
 });
