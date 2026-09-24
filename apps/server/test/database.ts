@@ -31,7 +31,18 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     url: url.toString(),
     async drop() {
       await db.destroy();
-      await adminQuery(`DROP DATABASE ${name} WITH (FORCE)`);
+      // The pool may still be closing its connections. Dropping WITH (FORCE)
+      // would terminate them and cause unhandled errors, so wait instead.
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await adminQuery(`DROP DATABASE ${name}`);
+          return;
+        } catch (error) {
+          const inUse = (error as { code?: string }).code === '55006';
+          if (!inUse || attempt >= 50) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
     },
   };
 }
