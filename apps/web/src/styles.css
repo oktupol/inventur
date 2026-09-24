@@ -692,3 +692,7 @@ table.entries tr.since-checkpoint-row td {
   font-size: 0.9rem;
   color: var(--accent);
 }
+
+.checkpoint-delete {
+  float: right;
+}

@@ -2,6 +2,7 @@ import type {
   CreateEntryRequest,
   CreateEntryResponse,
   CreateManualEntryRequest,
+  DeleteEntryResponse,
   Entry,
   EntryListResponse,
   UpdateEntryRequest,
@@ -10,7 +11,7 @@ import { sql } from 'kysely';
 import type { Context } from '../context.ts';
 import type { Db } from '../db/connection.ts';
 import { isUniqueViolation } from '../db/errors.ts';
-import { loadCheckpoints } from '../checkpoint/service.ts';
+import { loadCheckpoints, lockCheckpoints, removeEmptyCheckpoints } from '../checkpoint/service.ts';
 import { DomainError } from '../errors.ts';
 import { getArticle, resolveArticle } from '../search/service.ts';
 import { requireActiveStocktake } from '../station/rules.ts';
@@ -274,19 +275,33 @@ export async function updateEntryQuantity(
   return entry;
 }
 
-/** Deletes a line permanently; there is no undo. */
+/**
+ * Deletes a line permanently; there is no undo. A checkpoint whose section
+ * becomes empty is removed as well.
+ */
 export async function deleteEntry(
   { db, events }: Context,
   station: StationIdentity,
   entryId: number,
-): Promise<void> {
+): Promise<DeleteEntryResponse> {
   const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
-  const workAreaId = await withWritableStocktake(db, stocktakeId, async (trx) => {
+  const { workAreaId, removed } = await withWritableStocktake(db, stocktakeId, async (trx) => {
     const { workArea } = await lockOwnAreaEntry(trx, station, entryId);
+    await lockCheckpoints(trx, workArea.id);
     await trx.deleteFrom('inventory.entry').where('id', '=', entryId).execute();
-    return workArea.id;
+    return { workAreaId: workArea.id, removed: await removeEmptyCheckpoints(trx, workArea.id) };
   });
   events.publish({ type: 'entry.changed', action: 'deleted', stocktakeId, workAreaId, entryId });
+  for (const { id } of removed) {
+    events.publish({
+      type: 'checkpoint.changed',
+      action: 'deleted',
+      stocktakeId,
+      workAreaId,
+      checkpointId: id,
+    });
+  }
+  return { removedCheckpoints: removed.map((c) => c.number) };
 }
 
 /** Captures an article that is not in the master data; the line is marked as manual. */

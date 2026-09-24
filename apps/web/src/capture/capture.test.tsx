@@ -56,7 +56,36 @@ function stubServer(options: { employees?: boolean } = {}) {
     workArea: { id: 4, name: 'Vitrine', status: 'in_progress' },
   };
   const entries: Entry[] = [];
-  const checkpoints: Checkpoint[] = [];
+  /** Checkpoints as boundaries: all lines up to the entry id `after` lie before them. */
+  const boundaries: { id: number; after: number }[] = [];
+  let nextCheckpointId = 100;
+
+  /** Numbers checkpoints by position, counts them and assigns lines to sections. */
+  function listCheckpoints(): Checkpoint[] {
+    const sorted = [...boundaries].sort((a, b) => a.after - b.after);
+    let previous = 0;
+    let sinceStart = 0;
+    const list = sorted.map((boundary, index) => {
+      const section = entries.filter((e) => e.id > previous && e.id <= boundary.after);
+      for (const e of section) e.checkpointNumber = index + 1;
+      const sinceLast = section.reduce((sum, e) => sum + e.quantity, 0);
+      sinceStart += sinceLast;
+      previous = boundary.after;
+      return {
+        id: boundary.id,
+        workAreaId: 4,
+        number: index + 1,
+        workstation: kasse,
+        createdAt: new Date(2026, 0, 1, 11, 0, 0).toISOString(),
+        sinceLast,
+        sinceStart,
+      };
+    });
+    for (const e of entries.filter((e) => e.id > previous)) e.checkpointNumber = null;
+    return list;
+  }
+
+  const emptySection = { status: 409, body: { error: 'x', code: 'checkpoint_empty_section' } };
   const control = { failures: 0 };
   let nextId = 1;
 
@@ -94,7 +123,7 @@ function stubServer(options: { employees?: boolean } = {}) {
         body: {
           workArea: state.workArea,
           entries,
-          checkpoints: [...checkpoints].reverse(),
+          checkpoints: listCheckpoints().reverse(),
           sinceLastCheckpoint: entries
             .filter((e) => e.checkpointNumber === null)
             .reduce((sum, e) => sum + e.quantity, 0),
@@ -121,21 +150,27 @@ function stubServer(options: { employees?: boolean } = {}) {
       };
     }
     if (method === 'POST' && url === '/api/station/checkpoints') {
-      const number = checkpoints.length + 1;
-      const open = entries.filter((e) => e.checkpointNumber === null);
-      const sinceLast = open.reduce((sum, e) => sum + e.quantity, 0);
-      for (const e of open) e.checkpointNumber = number;
-      const checkpoint: Checkpoint = {
-        id: 100 + number,
-        workAreaId: 4,
-        number,
-        workstation: kasse,
-        createdAt: new Date(2026, 0, 1, 11, 0, number).toISOString(),
-        sinceLast,
-        sinceStart: entries.reduce((sum, e) => sum + e.quantity, 0),
-      };
-      checkpoints.push(checkpoint);
-      return { status: 201, body: checkpoint };
+      const after =
+        (body as { afterEntryId?: number }).afterEntryId ??
+        entries.reduce((max, e) => Math.max(max, e.id), 0);
+      const sorted = [...boundaries].sort((a, b) => a.after - b.after);
+      const previous = sorted.filter((b) => b.after <= after).at(-1)?.after ?? 0;
+      const next = sorted.find((b) => b.after > after)?.after;
+      const has = (from: number, to: number) => entries.some((e) => e.id > from && e.id <= to);
+      if (previous === after || !has(previous, after) || (next && !has(after, next))) {
+        return emptySection;
+      }
+      const id = nextCheckpointId++;
+      boundaries.push({ id, after });
+      return { status: 201, body: listCheckpoints().find((c) => c.id === id) };
+    }
+    const checkpointUrl = /^\/api\/station\/checkpoints\/(\d+)$/.exec(url);
+    if (method === 'DELETE' && checkpointUrl) {
+      boundaries.splice(
+        boundaries.findIndex((b) => b.id === Number(checkpointUrl[1])),
+        1,
+      );
+      return { status: 204 };
     }
     const row = /^\/api\/station\/entries\/(\d+)$/.exec(url);
     if (row) {
@@ -143,7 +178,14 @@ function stubServer(options: { employees?: boolean } = {}) {
       if (index === -1) return { status: 404, body: { error: 'x', code: 'not_found' } };
       if (method === 'DELETE') {
         entries.splice(index, 1);
-        return { status: 204 };
+        const removed = listCheckpoints().filter((c) => c.sinceLast === 0);
+        for (const c of removed) {
+          boundaries.splice(
+            boundaries.findIndex((b) => b.id === c.id),
+            1,
+          );
+        }
+        return { body: { removedCheckpoints: removed.map((c) => c.number) } };
       }
       const change = body as { quantity?: number; delta?: number };
       const current = entries[index]!;
@@ -588,13 +630,26 @@ describe('manual capture', () => {
 });
 
 describe('checkpoints', () => {
+  const checkpointPosts = (server: ReturnType<typeof stubServer>) =>
+    server.api.calls.filter((c) => c.method === 'POST' && c.url === '/api/station/checkpoints');
+
+  async function scanTimes(server: ReturnType<typeof stubServer>, times: number) {
+    for (let i = 0; i < times; i++) {
+      const count = server.entries.length;
+      await scan('4000000000017');
+      await waitFor(() => expect(server.entries).toHaveLength(count + 1));
+    }
+    await waitFor(() =>
+      expect(document.querySelectorAll('table.entries tbody tr[data-entry-id]')).toHaveLength(
+        server.entries.length,
+      ),
+    );
+  }
+
   it('sets a checkpoint with F3 and shows it as a separator with counts', async () => {
     const server = stubServer();
     renderStation();
-    await scan('4000000000017');
-    await waitFor(() => expect(server.entries).toHaveLength(1));
-    await scan('4000000000017');
-    await waitFor(() => expect(server.entries).toHaveLength(2));
+    await scanTimes(server, 2);
 
     fireEvent.keyDown(await input(), { key: 'F3' });
     expect(await screen.findByText('Checkpoint 1 gesetzt:')).toBeTruthy();
@@ -604,8 +659,9 @@ describe('checkpoints', () => {
       return row!;
     });
     expect(separator.textContent).toContain('2 Stück seit Beginn');
+    expect(checkpointPosts(server)[0]!.body).toEqual({});
 
-    await scan('4000000000017');
+    await scanTimes(server, 1);
     await waitFor(() =>
       expect(document.querySelector('.since-checkpoint-row')?.textContent).toBe(
         'Seit Checkpoint 1: 1 Stück',
@@ -619,13 +675,68 @@ describe('checkpoints', () => {
     expect(rows).toEqual(['selected', 'since-checkpoint-row', 'checkpoint-row', '', '']);
   });
 
-  it('sets a checkpoint with the button', async () => {
+  it('rejects a checkpoint without a line since the last one', async () => {
+    stubServer();
+    renderStation();
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    expect(await screen.findByText(/mindestens ein Artikel liegen/)).toBeTruthy();
+  });
+
+  it('inserts a checkpoint after the line chosen with the arrow keys', async () => {
     const server = stubServer();
     renderStation();
-    fireEvent.click(await screen.findByRole('button', { name: /Checkpoint/ }));
+    await scanTimes(server, 3);
+    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
+    expect(screen.getByRole('button', { name: /Checkpoint nach Zeile/ })).toBeTruthy();
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    await waitFor(() => expect(checkpointPosts(server)).toHaveLength(1));
+    expect(checkpointPosts(server)[0]!.body).toEqual({ afterEntryId: 1 });
+    // Separator between line 2 and line 1.
     await waitFor(() =>
-      expect(server.api.calls.some((c) => c.url === '/api/station/checkpoints')).toBe(true),
+      expect(
+        [...document.querySelectorAll('table.entries tbody tr')].map(
+          (r) => r.getAttribute('data-entry-id') ?? r.className,
+        ),
+      ).toEqual(['3', '2', 'since-checkpoint-row', 'checkpoint-row', '1']),
     );
+  });
+
+  it('deletes a checkpoint with its button', async () => {
+    const server = stubServer();
+    renderStation();
+    await scanTimes(server, 1);
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Checkpoint 1 löschen' }));
+    expect(await screen.findByText('Checkpoint 1 gelöscht.')).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('tr.checkpoint-row')).toBeNull());
+    expect(
+      server.api.calls.some(
+        (c) => c.method === 'DELETE' && c.url === '/api/station/checkpoints/100',
+      ),
+    ).toBe(true);
+  });
+
+  it('reports a checkpoint removed together with the last line of its section', async () => {
+    const server = stubServer();
+    renderStation();
+    await scanTimes(server, 1);
+    fireEvent.keyDown(await input(), { key: 'F3' });
+    await screen.findByText('Checkpoint 1 gesetzt:');
+    await scanTimes(server, 1);
+    // Select the older line (below the separator) and delete it.
+    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(await input(), { key: 'Delete' });
+    expect(
+      await screen.findByText(/Checkpoint 1 wurde entfernt, weil sein Abschnitt leer war/),
+    ).toBeTruthy();
+  });
+
+  it('requires a logged-in employee', async () => {
+    stubServer({ employees: false });
+    renderStation();
+    const button = await screen.findByRole<HTMLButtonElement>('button', { name: /Checkpoint/ });
+    expect(button.disabled).toBe(true);
   });
 
   it('does not treat F3 as a shortcut while typing', async () => {
@@ -634,6 +745,6 @@ describe('checkpoints', () => {
     fireEvent.change(await input(), { target: { value: '40' } });
     fireEvent.keyDown(await input(), { key: 'F3' });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(server.api.calls.some((c) => c.url === '/api/station/checkpoints')).toBe(false);
+    expect(checkpointPosts(server)).toEqual([]);
   });
 });

@@ -1,7 +1,13 @@
+import { DomainError } from '../errors.ts';
+
 /**
- * Counting of checkpoints, independent of the database. Times are
- * microseconds since the epoch, so lines and checkpoints created within the
- * same millisecond are still ordered correctly.
+ * Checkpoints of a work area, independent of the database. Times are
+ * microseconds since the epoch, so lines and checkpoints within the same
+ * millisecond are still ordered correctly.
+ *
+ * A checkpoint has a boundary: lines created until then lie before it. The
+ * checkpoints are numbered 1, 2, 3 … in the order of their boundaries, and
+ * every section before a checkpoint holds at least one line.
  */
 
 export interface TimedEntry {
@@ -13,14 +19,16 @@ export interface TimedEntry {
 
 export interface TimedCheckpoint {
   id: number;
-  number: number;
-  /** Creation time in microseconds. */
+  /** Boundary in microseconds. */
   at: number;
 }
 
 export interface CheckpointCount {
   id: number;
+  /** Position in the list, starting at 1. */
   number: number;
+  /** Lines in the section before the checkpoint. */
+  lines: number;
   sinceLast: number;
   sinceStart: number;
 }
@@ -35,31 +43,38 @@ export interface CheckpointCounting {
   sectionOf: Map<number, number | null>;
 }
 
+function ordered(checkpoints: readonly TimedCheckpoint[]): TimedCheckpoint[] {
+  return [...checkpoints].sort((a, b) => a.at - b.at || a.id - b.id);
+}
+
 /**
- * A line belongs to the section in which it was created: before the first
- * checkpoint created at or after it. Counts are sums of quantities, so later
- * changes and deletions of lines change the counts of their section.
+ * Counts pieces per section. A line belongs to the section in which it was
+ * created, so later changes and deletions change the counts of its section.
  */
 export function countCheckpoints(
   entries: readonly TimedEntry[],
   checkpoints: readonly TimedCheckpoint[],
 ): CheckpointCounting {
-  const ordered = [...checkpoints].sort((a, b) => a.number - b.number);
-  const sums = new Map<number | null, number>();
+  const sorted = ordered(checkpoints);
+  const pieces = new Map<number | null, number>();
+  const lines = new Map<number | null, number>();
   const sectionOf = new Map<number, number | null>();
   for (const entry of entries) {
-    const section = ordered.find((checkpoint) => entry.at <= checkpoint.at)?.number ?? null;
+    const index = sorted.findIndex((checkpoint) => entry.at <= checkpoint.at);
+    const section = index === -1 ? null : index + 1;
     sectionOf.set(entry.id, section);
-    sums.set(section, (sums.get(section) ?? 0) + entry.quantity);
+    pieces.set(section, (pieces.get(section) ?? 0) + entry.quantity);
+    lines.set(section, (lines.get(section) ?? 0) + 1);
   }
 
   let sinceStart = 0;
-  const counts = ordered.map(({ id, number }) => {
-    const sinceLast = sums.get(number) ?? 0;
+  const counts = sorted.map(({ id }, index) => {
+    const number = index + 1;
+    const sinceLast = pieces.get(number) ?? 0;
     sinceStart += sinceLast;
-    return { id, number, sinceLast, sinceStart };
+    return { id, number, lines: lines.get(number) ?? 0, sinceLast, sinceStart };
   });
-  const sinceLastCheckpoint = sums.get(null) ?? 0;
+  const sinceLastCheckpoint = pieces.get(null) ?? 0;
   return {
     checkpoints: counts,
     sinceLastCheckpoint,
@@ -68,7 +83,36 @@ export function countCheckpoints(
   };
 }
 
-/** The next consecutive checkpoint number of a work area. */
-export function nextCheckpointNumber(existingNumbers: readonly number[]): number {
-  return existingNumbers.reduce((max, n) => Math.max(max, n), 0) + 1;
+/** Checkpoints whose section has no line, e.g. after its last line was deleted. */
+export function emptyCheckpoints(
+  entries: readonly TimedEntry[],
+  checkpoints: readonly TimedCheckpoint[],
+): CheckpointCount[] {
+  return countCheckpoints(entries, checkpoints).checkpoints.filter((c) => c.lines === 0);
+}
+
+/**
+ * Checks a new checkpoint at the boundary `at`: the section before it and,
+ * if a later checkpoint exists, the section after it must each hold at least
+ * one line. Returns the number the new checkpoint gets.
+ */
+export function planCheckpoint(
+  entries: readonly TimedEntry[],
+  checkpoints: readonly TimedCheckpoint[],
+  at: number,
+): number {
+  const sorted = ordered(checkpoints);
+  const index = sorted.findIndex((checkpoint) => at < checkpoint.at);
+  const previous = index === -1 ? sorted.at(-1) : sorted[index - 1];
+  const next = index === -1 ? undefined : sorted[index];
+  const inRange = (from: number, to: number) => entries.some((e) => e.at > from && e.at <= to);
+  const start = previous?.at ?? -Infinity;
+  const sameBoundary = previous !== undefined && previous.at === at;
+  if (sameBoundary || !inRange(start, at) || (next && !inRange(at, next.at))) {
+    throw new DomainError(
+      'checkpoint_empty_section',
+      'Every section between checkpoints must contain at least one line',
+    );
+  }
+  return (index === -1 ? sorted.length : index) + 1;
 }

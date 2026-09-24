@@ -3,6 +3,7 @@ import {
   type CreateEntryRequest,
   type CreateEntryResponse,
   type CreateManualEntryRequest,
+  type DeleteEntryResponse,
   type Entry,
   type EntryListResponse,
   type UpdateEntryRequest,
@@ -81,10 +82,8 @@ export async function entryRoutes(app: FastifyInstance, context: Context): Promi
   app.delete<{ Params: IdParams }>(
     '/api/station/entries/:id',
     { schema: { params: idParams } },
-    async (request, reply) => {
-      await deleteEntry(context, await authenticateRequest(db, request), request.params.id);
-      return reply.code(204).send();
-    },
+    async (request): Promise<DeleteEntryResponse> =>
+      deleteEntry(context, await authenticateRequest(db, request), request.params.id),
   );
 
   app.post<{ Body: CreateManualEntryRequest }>(

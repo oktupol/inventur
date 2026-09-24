@@ -107,3 +107,12 @@ export function parsePrice(text: string): string | null {
   const price = `${BigInt(match[1]!)}.${(match[2] ?? '').padEnd(2, '0')}`;
   return Number(price) > 0 ? price : null;
 }
+
+/** `DELETE /api/station/entries/:id` */
+export interface DeleteEntryResponse {
+  /**
+   * Numbers of checkpoints removed because the deleted line was the last one
+   * of their section (numbers before the removal).
+   */
+  removedCheckpoints: number[];
+}

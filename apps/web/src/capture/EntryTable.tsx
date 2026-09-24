@@ -17,6 +17,7 @@ export interface EntryTableProps {
   disabled?: boolean;
   onSelect?: (id: number) => void;
   onAction?: (id: number, action: RowAction) => void;
+  onDeleteCheckpoint?: (checkpoint: Checkpoint) => void;
 }
 
 /** Quantity that can be edited directly; Enter or leaving the field applies it. */
@@ -75,6 +76,7 @@ export function EntryTable({
   disabled = false,
   onSelect,
   onAction,
+  onDeleteCheckpoint,
 }: EntryTableProps) {
   useEffect(() => {
     if (selectedId === null) return;
@@ -125,6 +127,17 @@ export function EntryTable({
                     {checkpoint.number > 1 &&
                       `${formatNumber(checkpoint.sinceLast)} Stück seit Checkpoint ${checkpoint.number - 1} · `}
                     {formatNumber(checkpoint.sinceStart)} Stück seit Beginn
+                    {onDeleteCheckpoint && (
+                      <button
+                        type="button"
+                        className="small checkpoint-delete"
+                        disabled={disabled}
+                        aria-label={`Checkpoint ${checkpoint.number} löschen`}
+                        onClick={() => onDeleteCheckpoint(checkpoint)}
+                      >
+                        Löschen
+                      </button>
+                    )}
                   </td>
                 </tr>
               );
