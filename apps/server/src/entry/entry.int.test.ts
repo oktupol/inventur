@@ -345,4 +345,66 @@ describe('capturing entries', () => {
       expect((await patch(id, { delta: 1 })).json().code).toBe('no_work_area');
     });
   });
+
+  describe('manual entries', () => {
+    const manual = (payload: object, token = kasse.token) =>
+      post('/api/station/entries/manual', payload, token);
+
+    it('stores the original input and marks the line as manual', async () => {
+      const response = await manual({
+        input: '4099999999994',
+        description: 'Ring Silber',
+        priceGross: '49,90',
+        serialNumber: 'SN-7',
+      });
+      expect(response.statusCode).toBe(201);
+      expect(response.json()).toMatchObject({
+        articleId: null,
+        isManual: true,
+        input: '4099999999994',
+        description: 'Ring Silber',
+        ean: null,
+        category: null,
+        priceNet: null,
+        priceGross: '49.90',
+        serialNumber: 'SN-7',
+        quantity: 1,
+        duplicateCount: 0,
+      });
+      const { entries, totals } = await list();
+      expect(entries[0]!.isManual).toBe(true);
+      expect(totals.grossValue).toBe('49.90');
+      expect(t.takeEvents()).toEqual([
+        expect.objectContaining({ type: 'entry.changed', action: 'created' }),
+      ]);
+    });
+
+    it('works without a previous scan', async () => {
+      const response = await manual({ input: '', description: 'Armband', priceGross: '20' });
+      expect(response.json()).toMatchObject({ input: '', serialNumber: null });
+    });
+
+    it('validates description and price', async () => {
+      expect((await manual({ input: '', description: ' ', priceGross: '1' })).json().code).toBe(
+        'validation_failed',
+      );
+      expect((await manual({ input: '', description: 'Ring', priceGross: '0' })).json().code).toBe(
+        'validation_failed',
+      );
+      expect((await manual({ input: '', description: 'Ring' })).statusCode).toBe(400);
+    });
+
+    it('requires a logged-in employee and is idempotent per request id', async () => {
+      const requestId = randomUUID();
+      const payload = { input: 'x', description: 'Ring', priceGross: '5', requestId };
+      const [a, b] = await Promise.all([manual(payload), manual(payload)]);
+      expect(a.json().id).toBe(b.json().id);
+      expect((await list()).entries).toHaveLength(1);
+
+      await post(`/api/station/employees/${anna}/logout`, {}, kasse.token);
+      expect((await manual({ input: '', description: 'Ring', priceGross: '5' })).json().code).toBe(
+        'no_employee_logged_in',
+      );
+    });
+  });
 });

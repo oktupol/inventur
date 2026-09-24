@@ -1,6 +1,7 @@
 import type {
   CreateEntryRequest,
   CreateEntryResponse,
+  CreateManualEntryRequest,
   Entry,
   EntryListResponse,
   UpdateEntryRequest,
@@ -14,7 +15,13 @@ import { getArticle, resolveArticle } from '../search/service.ts';
 import { requireActiveStocktake } from '../station/rules.ts';
 import type { StationIdentity } from '../station/service.ts';
 import { getActiveStocktake, withWritableStocktake, type Trx } from '../stocktake/service.ts';
-import { assertCanCapture, nextQuantity, parseInput, snapshotOf } from './rules.ts';
+import {
+  assertCanCapture,
+  manualEntryValues,
+  nextQuantity,
+  parseInput,
+  snapshotOf,
+} from './rules.ts';
 
 function entryQuery(db: Db | Trx) {
   return db
@@ -272,4 +279,63 @@ export async function deleteEntry(
     return workArea.id;
   });
   events.publish({ type: 'entry.changed', action: 'deleted', stocktakeId, workAreaId, entryId });
+}
+
+/** Captures an article that is not in the master data; the line is marked as manual. */
+export async function createManualEntry(
+  { db, events }: Context,
+  station: StationIdentity,
+  request: CreateManualEntryRequest,
+): Promise<Entry> {
+  const values = manualEntryValues(request);
+  const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
+  const findByRequestId = async (executor: Db | Trx) => {
+    if (!request.requestId) return undefined;
+    const existing = await executor
+      .selectFrom('inventory.entry')
+      .select('id')
+      .where('request_id', '=', request.requestId)
+      .executeTakeFirst();
+    return existing && getEntry(executor, existing.id);
+  };
+
+  const outcome = await withWritableStocktake(db, stocktakeId, async (trx) => {
+    const { workArea, employeeIds } = await lockCaptureContext(trx, station);
+    const existing = await findByRequestId(trx);
+    if (existing) return { entry: existing, created: false };
+    const { id } = await trx
+      .insertInto('inventory.entry')
+      .values({
+        ...values,
+        stocktake_id: stocktakeId,
+        work_area_id: workArea.id,
+        workstation_id: station.id,
+        request_id: request.requestId ?? null,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    await trx
+      .insertInto('inventory.entry_employee')
+      .values(employeeIds.map((employee_id) => ({ entry_id: id, employee_id })))
+      .execute();
+    return { entry: await getEntry(trx, id), created: true };
+  }).catch(async (error: unknown) => {
+    // A concurrent retry with the same request id created the line first.
+    const existing = isUniqueViolation(error, 'entry_request_id_key')
+      ? await findByRequestId(db)
+      : undefined;
+    if (!existing) throw error;
+    return { entry: existing, created: false };
+  });
+
+  if (outcome.created) {
+    events.publish({
+      type: 'entry.changed',
+      action: 'created',
+      stocktakeId,
+      workAreaId: outcome.entry.workAreaId,
+      entryId: outcome.entry.id,
+    });
+  }
+  return outcome.entry;
 }

@@ -2,6 +2,7 @@ import {
   workAreaChannel,
   type ArticleMatch,
   type CreateEntryResponse,
+  type CreateManualEntryRequest,
   type Entry,
   type EntryListResponse,
 } from '@inventur/shared';
@@ -16,6 +17,7 @@ import { useStation } from '../station/StationContext.tsx';
 import { completionFor, matchedText, moveSelection } from './completion.ts';
 import { EntryTable, type RowAction } from './EntryTable.tsx';
 import { effectiveSelection, interpretKey, moveRowSelection } from './keyboard.ts';
+import { ManualEntryDialog, type ManualEntryValues } from './ManualEntryDialog.tsx';
 import { SerialQueue, type QueueOutcome } from './queue.ts';
 import { useSuggestions } from './useSuggestions.ts';
 import { randomId } from './uuid.ts';
@@ -32,7 +34,10 @@ interface RowTask {
   entryId: number | null;
 }
 
-type Task = ({ kind: 'scan' } & Scan) | ({ kind: 'row' } & RowTask);
+type Task =
+  | ({ kind: 'scan' } & Scan)
+  | ({ kind: 'row' } & RowTask)
+  | ({ kind: 'manual' } & CreateManualEntryRequest);
 
 type Feedback =
   | { kind: 'unique'; entry: Entry }
@@ -87,6 +92,8 @@ export function CaptureView() {
   const [text, setText] = useState('');
   const [quantityDigits, setQuantityDigits] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  /** Original input of the open manual capture dialog, or null while it is closed. */
+  const [manualInput, setManualInput] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [pending, setPending] = useState(0);
@@ -173,7 +180,37 @@ export function CaptureView() {
       return 'done';
     }
 
-    queue.setHandler((task) => (task.kind === 'scan' ? processScan(task) : processRow(task)));
+    async function processManual(task: Task & { kind: 'manual' }): Promise<QueueOutcome> {
+      const { input, description, priceGross, serialNumber, requestId } = task;
+      const request: CreateManualEntryRequest = {
+        input,
+        description,
+        priceGross,
+        serialNumber,
+        requestId,
+      };
+      try {
+        const entry = await api.post<Entry>('/api/station/entries/manual', request);
+        lastCreatedId.current = entry.id;
+        setFeedback({ kind: 'unique', entry });
+        reloadEntries();
+      } catch (error) {
+        if (isTransient(error)) return 'retry';
+        setFeedback({ kind: 'error', input: request.description, message: messageOf(error) });
+      }
+      return 'done';
+    }
+
+    queue.setHandler((task) => {
+      switch (task.kind) {
+        case 'scan':
+          return processScan(task);
+        case 'row':
+          return processRow(task);
+        case 'manual':
+          return processManual(task);
+      }
+    });
   });
 
   // Retry scans that failed because the server was unreachable.
@@ -213,6 +250,19 @@ export function CaptureView() {
     inputRef.current?.focus();
   }
 
+  /** Opens the manual capture with the typed text or the last unknown input. */
+  function openManual() {
+    setQuantityDigits(null);
+    setManualInput(text.trim() || (feedback?.kind === 'not_found' ? feedback.input : ''));
+  }
+
+  function submitManual(input: string, values: ManualEntryValues) {
+    queue.push({ kind: 'manual', input, ...values, requestId: randomId() });
+    setManualInput(null);
+    setText('');
+    setSelectedId(null);
+  }
+
   function changeRow(action: RowAction, entryId: number | null = null) {
     const explicit =
       entryId ?? (selectedId !== null && selection === selectedId ? selectedId : null);
@@ -245,6 +295,8 @@ export function CaptureView() {
       case 'reset_selection':
         setSelectedId(null);
         return setFeedback(null);
+      case 'manual':
+        return openManual();
       case 'ignore':
         return;
       case 'none':
@@ -358,6 +410,11 @@ export function CaptureView() {
               </ul>
             )}
           </div>
+          <button type="button" className="manual-button" disabled={!enabled} onClick={openManual}>
+            Manuell erfassen
+            <br />
+            <span className="muted">F2</span>
+          </button>
           <div className="totals" aria-label="Summe im Bereich">
             <div className="totals-quantity">
               {totals ? formatNumber(totals.quantity) : '–'} <span>Stück</span>
@@ -375,7 +432,8 @@ export function CaptureView() {
           {!choice && feedback?.kind === 'unique' && (
             <span>
               <strong>{feedback.entry.description}</strong> ·{' '}
-              {formatEuro(feedback.entry.priceGross)} erfasst
+              {formatEuro(feedback.entry.priceGross)}{' '}
+              {feedback.entry.isManual ? 'manuell erfasst' : 'erfasst'}
               {feedback.entry.duplicateCount > 0 && (
                 <span className="duplicate-hint">
                   {' '}
@@ -390,7 +448,10 @@ export function CaptureView() {
           )}
           {!choice && feedback?.kind === 'not_found' && (
             <span>
-              <strong>Kein Artikel gefunden</strong> für „{feedback.input}“.
+              <strong>Kein Artikel gefunden</strong> für „{feedback.input}“.{' '}
+              <button type="button" className="small primary" onClick={openManual}>
+                Manuell erfassen (F2)
+              </button>
             </span>
           )}
           {!choice && feedback?.kind === 'error' && (
@@ -415,6 +476,13 @@ export function CaptureView() {
         </div>
       </div>
 
+      {manualInput !== null && (
+        <ManualEntryDialog
+          input={manualInput}
+          onSubmit={(values) => submitManual(manualInput, values)}
+          onCancel={() => setManualInput(null)}
+        />
+      )}
       <ErrorNotice error={entries.error} />
       {entries.data && (
         <EntryTable

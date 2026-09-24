@@ -47,6 +47,18 @@ describe('shortcuts with an empty input', () => {
   });
 });
 
+describe('manual capture', () => {
+  it('opens with F2, with or without text and in quantity mode', () => {
+    expect(interpretKey(empty, 'F2').type).toBe('manual');
+    expect(interpretKey({ ...empty, text: '4099' }, 'F2').type).toBe('manual');
+    expect(interpretKey({ ...empty, quantityDigits: '2' }, 'F2').type).toBe('manual');
+  });
+
+  it('waits while a choice is open', () => {
+    expect(interpretKey({ ...empty, choiceOpen: true }, 'F2').type).toBe('none');
+  });
+});
+
 describe('typing into a non-empty input', () => {
   it('treats "AB-123" as input, not as a decrement', () => {
     const { state, commands } = typeKeys(['A', 'B', '-', '1', '2', '3']);

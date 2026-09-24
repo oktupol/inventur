@@ -1,7 +1,13 @@
 import type { Article } from '@inventur/shared';
 import { describe, expect, it } from 'vitest';
 import { DomainError } from '../errors.ts';
-import { assertCanCapture, nextQuantity, parseInput, snapshotOf } from './rules.ts';
+import {
+  assertCanCapture,
+  manualEntryValues,
+  nextQuantity,
+  parseInput,
+  snapshotOf,
+} from './rules.ts';
 
 function codeOf(action: () => unknown): string | undefined {
   try {
@@ -96,5 +102,44 @@ describe('nextQuantity', () => {
 
   it('does not increment above the maximum', () => {
     expect(nextQuantity(99_999, { delta: 1 })).toBe(99_999);
+  });
+});
+
+describe('manualEntryValues', () => {
+  it('stores a manual line without net price and category', () => {
+    expect(
+      manualEntryValues({
+        input: ' 4099999999994 ',
+        description: '  Ring   Silber ',
+        priceGross: '49,90',
+        serialNumber: ' SN-1 ',
+      }),
+    ).toEqual({
+      article_id: null,
+      is_manual: true,
+      input: '4099999999994',
+      description: 'Ring Silber',
+      ean: null,
+      category: null,
+      price_net: null,
+      price_gross: '49.90',
+      serial_number: 'SN-1',
+    });
+  });
+
+  it('allows an empty input and serial number', () => {
+    const values = manualEntryValues({ input: '', description: 'Ring', priceGross: '10' });
+    expect(values).toMatchObject({ input: '', serial_number: null, price_gross: '10.00' });
+  });
+
+  it('requires a description and a positive gross price', () => {
+    expect(codeOf(() => manualEntryValues({ input: '', description: ' ', priceGross: '1' }))).toBe(
+      'validation_failed',
+    );
+    for (const priceGross of ['0', '', '-3', 'x']) {
+      expect(codeOf(() => manualEntryValues({ input: '', description: 'Ring', priceGross }))).toBe(
+        'validation_failed',
+      );
+    }
   });
 });

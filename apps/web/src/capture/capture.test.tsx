@@ -127,6 +127,28 @@ function stubServer(options: { employees?: boolean } = {}) {
       current.quantity = change.quantity ?? Math.max(1, current.quantity + (change.delta ?? 0));
       return { body: current };
     }
+    if (method === 'POST' && url === '/api/station/entries/manual') {
+      const request = body as {
+        input: string;
+        description: string;
+        priceGross: string;
+        serialNumber: string | null;
+      };
+      const entry: Entry = {
+        ...createEntry(ring, request.input),
+        articleId: null,
+        isManual: true,
+        description: request.description,
+        ean: null,
+        category: null,
+        priceNet: null,
+        priceGross: request.priceGross,
+        serialNumber: request.serialNumber,
+        duplicateCount: 0,
+      };
+      entries[0] = entry;
+      return { status: 201, body: entry };
+    }
     if (method === 'POST' && url === '/api/station/entries') {
       if (control.failures > 0) {
         control.failures--;
@@ -453,5 +475,91 @@ describe('changing lines', () => {
     server.entries.splice(0, 1);
     await press('+');
     expect(await screen.findByText('Die Zeile gibt es nicht mehr.')).toBeTruthy();
+  });
+});
+
+describe('manual capture', () => {
+  const dialog = () => screen.findByRole('dialog', { name: 'Manuell erfassen' });
+
+  async function fill(description: string, price: string, serialNumber = '') {
+    const form = await dialog();
+    fireEvent.change(within(form).getByLabelText('Bezeichnung'), {
+      target: { value: description },
+    });
+    fireEvent.change(within(form).getByLabelText('Bruttopreis in €'), { target: { value: price } });
+    if (serialNumber) {
+      fireEvent.change(within(form).getByLabelText('Seriennummer (optional)'), {
+        target: { value: serialNumber },
+      });
+    }
+    fireEvent.submit(form.querySelector('form')!);
+  }
+
+  const manualPosts = (server: ReturnType<typeof stubServer>) =>
+    server.api.calls.filter((c) => c.url === '/api/station/entries/manual');
+
+  it('captures an unknown scan with F2 in a few keystrokes and marks it in the list', async () => {
+    const server = stubServer();
+    renderStation();
+    await scan('4099999999994');
+    await waitFor(() => expect(panel().getAttribute('data-feedback')).toBe('not_found'));
+
+    fireEvent.keyDown(await input(), { key: 'F2' });
+    const form = await dialog();
+    expect(form.textContent).toContain('4099999999994');
+    // The description field has the focus right away.
+    expect(document.activeElement).toBe(within(form).getByLabelText('Bezeichnung'));
+    await fill('Ring Silber', '129,90', 'SN-7');
+
+    await waitFor(() => expect(manualPosts(server)).toHaveLength(1));
+    expect(manualPosts(server)[0]!.body).toMatchObject({
+      input: '4099999999994',
+      description: 'Ring Silber',
+      priceGross: '129.90',
+      serialNumber: 'SN-7',
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(panel().getAttribute('data-feedback')).toBe('unique'));
+    expect(screen.getByText(/manuell erfasst/)).toBeTruthy();
+    await waitFor(() =>
+      expect(document.querySelector('table.entries .badge.manual')?.textContent).toBe('manuell'),
+    );
+  });
+
+  it('opens from the button next to the red notice', async () => {
+    stubServer();
+    renderStation();
+    await scan('4099999999994');
+    const notice = await screen.findByText(/Kein Artikel gefunden/);
+    fireEvent.click(
+      within(notice.parentElement!).getByRole('button', { name: /Manuell erfassen/ }),
+    );
+    expect((await dialog()).textContent).toContain('4099999999994');
+  });
+
+  it('works without a previous scan and is cancelled with Esc', async () => {
+    const server = stubServer();
+    renderStation();
+    fireEvent.keyDown(await input(), { key: 'F2' });
+    expect((await dialog()).textContent).not.toContain('Eingabe:');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: /Manuell erfassen/ }));
+    await fill('Armband', '20');
+    await waitFor(() => expect(manualPosts(server)).toHaveLength(1));
+    expect(manualPosts(server)[0]!.body).toMatchObject({ input: '', serialNumber: null });
+  });
+
+  it('requires a description and a positive price', async () => {
+    const server = stubServer();
+    renderStation();
+    fireEvent.keyDown(await input(), { key: 'F2' });
+    await fill('', '10');
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Bezeichnung/);
+    await fill('Ring', '0');
+    expect((await screen.findByRole('alert')).textContent).toMatch(/größer als 0/);
+    expect(manualPosts(server)).toEqual([]);
+    expect(await dialog()).toBeTruthy();
   });
 });
