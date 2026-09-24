@@ -822,3 +822,88 @@ table.entries tr:hover .insert-checkpoint,
   color: var(--muted);
   margin-top: 0.3rem;
 }
+
+/* Pairing */
+.pairing {
+  text-align: center;
+}
+
+.qr svg {
+  width: 14rem;
+  height: 14rem;
+}
+
+.qr.small svg {
+  width: 8rem;
+  height: 8rem;
+}
+
+.qr.expired {
+  opacity: 0.2;
+}
+
+.pairing-code {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  margin: 0.25rem 0;
+}
+
+.pairing-success {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pairing-certificate {
+  text-align: left;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.pairing-certificate summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pairing-certificate-body {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+}
+
+/* Phone scanner */
+.scan-page {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.scan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.pair-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.pair-form input {
+  font-size: 2rem;
+  text-align: center;
+  letter-spacing: 0.15em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-form button {
+  font-size: 1.2rem;
+  padding: 0.7rem;
+}

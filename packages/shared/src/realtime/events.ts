@@ -11,7 +11,7 @@ export type ChangeAction = 'created' | 'updated' | 'deleted';
 /**
  * Domain events sent to clients. They only carry ids; clients reload the
  * affected data. Every change to stocktakes, work areas, workstations,
- * employees, entries or checkpoints publishes one of these events.
+ * employees, entries, checkpoints or pairings publishes one of these events.
  */
 export type DomainEvent =
   | { type: 'stocktake.changed'; action: ChangeAction; stocktakeId: number }
@@ -25,6 +25,7 @@ export type DomainEvent =
       workAreaId: number;
       entryId: number;
     }
+  | { type: 'pairing.changed'; action: ChangeAction; workstationId: number; pairingId: number }
   | {
       type: 'checkpoint.changed';
       action: ChangeAction;
@@ -45,6 +46,8 @@ export function channelsForEvent(event: DomainEvent): Channel[] {
       // Work area status is visible on all workstations.
       return [adminChannel, workstationsChannel, workAreaChannel(event.workAreaId)];
     case 'workstation.changed':
+    case 'pairing.changed':
+      // Paired phones listen on the channel of their workstation.
       return [adminChannel, workstationChannel(event.workstationId)];
     case 'employee.changed':
       // Workstations list the employees that are still free.

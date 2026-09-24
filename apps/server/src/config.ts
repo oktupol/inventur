@@ -6,6 +6,11 @@ export interface Config {
   staticDir: string | undefined;
   /** Postgres connection URL. If unset, the standard variables `PGHOST`, `PGUSER`, … apply. */
   databaseUrl: string | undefined;
+  /**
+   * IP address or host name of the server in the LAN, used in the QR codes
+   * for phones. If unset, the host of the request is used.
+   */
+  publicHost: string | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -19,5 +24,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     version: env.APP_VERSION ?? 'dev',
     staticDir: env.STATIC_DIR || undefined,
     databaseUrl: env.DATABASE_URL || undefined,
+    publicHost: env.PUBLIC_HOST || undefined,
   };
 }

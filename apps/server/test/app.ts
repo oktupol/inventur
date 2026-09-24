@@ -13,13 +13,13 @@ export interface TestApp extends TestDatabase {
 }
 
 /** An app on its own migrated test database that records published events. */
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(options: { publicHost?: string } = {}): Promise<TestApp> {
   const database = await createTestDatabase();
   await migrateToLatest(database.db);
   const events = new EventBus();
   let recorded: DomainEvent[] = [];
   events.subscribe((event) => recorded.push(event));
-  const app = await buildApp({ version: 'test', db: database.db, events });
+  const app = await buildApp({ version: 'test', db: database.db, events, ...options });
   return {
     ...database,
     app,

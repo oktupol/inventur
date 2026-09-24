@@ -22,6 +22,10 @@ export type ErrorCode =
   | 'no_work_area'
   | 'no_employee_logged_in'
   | 'checkpoint_empty_section'
+  | 'pairing_invalid'
+  | 'pairing_expired'
+  | 'pairing_used'
+  | 'device_unknown'
   | 'internal_error';
 
 /** Body of every error response. */

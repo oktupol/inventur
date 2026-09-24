@@ -116,6 +116,7 @@ function stubServer(options: { employees?: boolean } = {}) {
   const api = stubApi((call: ApiCall) => {
     const { method, url, body } = call;
     if (url === '/api/station/me') return { body: state };
+    if (url === '/api/station/pairings') return { body: [] };
     if (url === '/api/station/employees') return { body: [] };
     if (url === '/api/station/work-areas') return { body: [] };
     if (method === 'GET' && url === '/api/station/entries') {
