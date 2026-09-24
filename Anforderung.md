@@ -137,7 +137,7 @@ Es gibt keine Vorgaben bezüglich Programmiersprachen und Frameworks.
 Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gilt:
 
 - Caddy stellt mit einer lokalen CA ein Zertifikat für `PUBLIC_HOST` aus.
-- Das CA-Zertifikat ist unter `http://<PUBLIC_HOST>/ca.crt` abrufbar und wird beim Koppeln per QR-Code angeboten, mit einer bebilderten Anleitung für Android und iOS. Unter iOS muss man das Vertrauen zusätzlich unter *Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen* aktivieren.
+- Das CA-Zertifikat ist unter `http://<PUBLIC_HOST>/ca.crt` abrufbar und wird beim Koppeln per QR-Code angeboten, mit einer bebilderten Anleitung für Android und iOS unter `http://<PUBLIC_HOST>/zertifikat`. Die Bilder zeigen schematisch die Menüs, in denen man tippen muss. **(Annahme)** Unter iOS muss man das Vertrauen zusätzlich unter *Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen* aktivieren.
 - Alternativ kann man die Browserwarnung einmalig bestätigen.
 - Arbeitsstationen nutzen HTTP auf Port 80, damit dort keine Zertifikatswarnung erscheint. **(Annahme)**
 

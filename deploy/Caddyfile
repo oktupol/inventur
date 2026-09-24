@@ -1,12 +1,38 @@
-# HTTP only for now. HTTPS with an internal CA for the phones follows in step 16.
+# Workstations use plain HTTP on port 80, smartphones HTTPS on port 443 with a
+# certificate from Caddy's internal CA (browsers only allow the camera over
+# HTTPS). The CA lives in the caddy-data volume and survives restarts.
 {
-	auto_https off
+	# Port 80 must not redirect to HTTPS: workstations stay on HTTP.
+	auto_https disable_redirects
+	# Browsers send no SNI when connecting to an IP address; without this,
+	# Caddy would not know which certificate to present.
+	default_sni {$PUBLIC_HOST}
 }
 
-# Workstations in the LAN. The admin dashboard and its API are blocked here.
-:80 {
+(block_admin) {
 	@admin path /admin /admin/* /api/admin /api/admin/*
 	respond @admin "Das Admin-Dashboard ist nur auf dem Server unter http://localhost:8080 erreichbar." 403
+}
+
+# Workstations in the LAN, plus the root certificate for the smartphones.
+:80 {
+	import block_admin
+
+	handle /ca.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		header Content-Disposition "attachment; filename=\"inventur-ca.crt\""
+		file_server
+	}
+
+	reverse_proxy app:3000
+}
+
+# Smartphones: HTTPS with a certificate for the server's IP or host name.
+https://{$PUBLIC_HOST} {
+	tls internal
+	import block_admin
 
 	reverse_proxy app:3000
 }

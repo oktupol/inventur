@@ -27,6 +27,7 @@ describe('app routes', () => {
     ['Inventur', '/admin'],
     ['Arbeitsstationen', '/admin/stationen'],
     ['Handy-Scanner', '/scan'],
+    ['Handy vorbereiten', '/zertifikat'],
     ['Seite nicht gefunden', '/does-not-exist'],
   ])('shows the heading "%s" at %s', (heading, path) => {
     stubApi(() => ({ status: 503, body: { error: 'x', code: 'internal_error' } }));
