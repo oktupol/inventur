@@ -18,6 +18,8 @@ export interface EntryTableProps {
   onSelect?: (id: number) => void;
   onAction?: (id: number, action: RowAction) => void;
   onDeleteCheckpoint?: (checkpoint: Checkpoint) => void;
+  /** Inserts a checkpoint after a line; offered by a button that appears on mouseover. */
+  onInsertCheckpoint?: (entryId: number) => void;
 }
 
 /** Quantity that can be edited directly; Enter or leaving the field applies it. */
@@ -77,6 +79,7 @@ export function EntryTable({
   onSelect,
   onAction,
   onDeleteCheckpoint,
+  onInsertCheckpoint,
 }: EntryTableProps) {
   useEffect(() => {
     if (selectedId === null) return;
@@ -151,7 +154,24 @@ export function EntryTable({
                 aria-selected={entry.id === selectedId}
                 onClick={() => onSelect?.(entry.id)}
               >
-                <td className="muted">{formatTime(entry.createdAt)}</td>
+                <td className="muted time-cell">
+                  {formatTime(entry.createdAt)}
+                  {onInsertCheckpoint && (
+                    <button
+                      type="button"
+                      className="small insert-checkpoint"
+                      disabled={disabled}
+                      title="Checkpoint nach dieser Zeile einfügen"
+                      aria-label={`Checkpoint nach Zeile ${entry.description} einfügen`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onInsertCheckpoint(entry.id);
+                      }}
+                    >
+                      + Checkpoint
+                    </button>
+                  )}
+                </td>
                 <td>
                   {entry.description}
                   {entry.isManual && <span className="badge manual">manuell</span>}
