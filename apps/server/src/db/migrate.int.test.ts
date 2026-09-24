@@ -7,7 +7,7 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
   'master_data.article': ['id', 'description', 'ean', 'price_net', 'price_gross', 'category'],
   'master_data.article_number': ['article_id', 'number'],
   'inventory.stocktake': ['id', 'name', 'status', 'started_at', 'finished_at'],
-  'inventory.employee': ['id', 'stocktake_id', 'name', 'workstation_id', 'removed_at'],
+  'inventory.employee': ['id', 'stocktake_id', 'name', 'workstation_id'],
   'inventory.workstation': ['id', 'name', 'token', 'work_area_id', 'last_seen_at'],
   'inventory.work_area': ['id', 'stocktake_id', 'name', 'description', 'status', 'closed_at'],
   'inventory.entry': [
@@ -25,11 +25,11 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     'serial_number',
     'quantity',
     'workstation_id',
-    'employee_ids',
     'created_at',
     'updated_at',
     'deleted_at',
   ],
+  'inventory.entry_employee': ['entry_id', 'employee_id'],
   'inventory.checkpoint': ['id', 'work_area_id', 'number', 'workstation_id', 'created_at'],
   'inventory.pairing': [
     'id',
@@ -99,7 +99,7 @@ describe('migrations', () => {
     await test.db.deleteFrom('inventory.stocktake').execute();
   });
 
-  it('keep employee names unique among employees that were not removed', async () => {
+  it('keep employee names unique within a stocktake', async () => {
     const { id } = await test.db
       .insertInto('inventory.stocktake')
       .values({ name: 'Inventur' })
@@ -107,51 +107,105 @@ describe('migrations', () => {
       .executeTakeFirstOrThrow();
     await test.db
       .insertInto('inventory.employee')
-      .values({ stocktake_id: id, name: 'Anna', removed_at: new Date() })
-      .execute();
-    await test.db
-      .insertInto('inventory.employee')
       .values({ stocktake_id: id, name: 'Anna' })
       .execute();
     await expect(
       test.db.insertInto('inventory.employee').values({ stocktake_id: id, name: 'Anna' }).execute(),
-    ).rejects.toThrow(/employee_name_idx/);
+    ).rejects.toThrow(/employee_stocktake_id_name_key/);
+    await test.db.deleteFrom('inventory.employee').execute();
     await test.db.deleteFrom('inventory.stocktake').execute();
   });
 
-  it('round-trip employee ids of an entry as numbers', async () => {
-    const { id: stocktakeId } = await test.db
-      .insertInto('inventory.stocktake')
-      .values({ name: 'Inventur' })
-      .returning('id')
-      .executeTakeFirstOrThrow();
-    const { id: workAreaId } = await test.db
-      .insertInto('inventory.work_area')
-      .values({ stocktake_id: stocktakeId, name: 'Vitrine 1' })
-      .returning('id')
-      .executeTakeFirstOrThrow();
-    const entry = await test.db
-      .insertInto('inventory.entry')
-      .values({
-        stocktake_id: stocktakeId,
-        work_area_id: workAreaId,
-        article_id: null,
-        is_manual: true,
-        input: 'XYZ',
-        description: 'Unbekannter Ring',
-        ean: null,
-        category: null,
-        price_net: null,
-        price_gross: '99.90',
-        serial_number: null,
-        workstation_id: null,
-        employee_ids: [3, 12],
-      })
-      .returning(['id', 'employee_ids', 'quantity', 'price_gross'])
-      .executeTakeFirstOrThrow();
-    expect(entry).toMatchObject({ employee_ids: [3, 12], quantity: 1, price_gross: '99.90' });
-    expect(typeof entry.id).toBe('number');
-    await test.db.deleteFrom('inventory.entry').execute();
-    await test.db.deleteFrom('inventory.stocktake').execute();
+  describe('deleting employees and workstations', () => {
+    let stocktakeId: number;
+    let workAreaId: number;
+
+    beforeAll(async () => {
+      ({ id: stocktakeId } = await test.db
+        .insertInto('inventory.stocktake')
+        .values({ name: 'Inventur' })
+        .returning('id')
+        .executeTakeFirstOrThrow());
+      ({ id: workAreaId } = await test.db
+        .insertInto('inventory.work_area')
+        .values({ stocktake_id: stocktakeId, name: 'Vitrine 1' })
+        .returning('id')
+        .executeTakeFirstOrThrow());
+    });
+
+    async function createWorkstation(name: string): Promise<number> {
+      const { id } = await test.db
+        .insertInto('inventory.workstation')
+        .values({ name, token: `token-${name}` })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      return id;
+    }
+
+    async function createEmployee(name: string, workstationId: number | null): Promise<number> {
+      const { id } = await test.db
+        .insertInto('inventory.employee')
+        .values({ stocktake_id: stocktakeId, name, workstation_id: workstationId })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      return id;
+    }
+
+    async function createEntry(workstationId: number, employeeIds: number[]): Promise<number> {
+      const { id } = await test.db
+        .insertInto('inventory.entry')
+        .values({
+          stocktake_id: stocktakeId,
+          work_area_id: workAreaId,
+          article_id: null,
+          is_manual: true,
+          input: 'XYZ',
+          description: 'Unbekannter Ring',
+          ean: null,
+          category: null,
+          price_net: null,
+          price_gross: '99.90',
+          serial_number: null,
+          workstation_id: workstationId,
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+      await test.db
+        .insertInto('inventory.entry_employee')
+        .values(employeeIds.map((employee_id) => ({ entry_id: id, employee_id })))
+        .execute();
+      return id;
+    }
+
+    it('succeeds without entries and logs employees out of a deleted workstation', async () => {
+      const workstationId = await createWorkstation('Kasse');
+      const employeeId = await createEmployee('Ben', workstationId);
+      await test.db.deleteFrom('inventory.workstation').where('id', '=', workstationId).execute();
+      const employee = await test.db
+        .selectFrom('inventory.employee')
+        .select('workstation_id')
+        .where('id', '=', employeeId)
+        .executeTakeFirstOrThrow();
+      expect(employee.workstation_id).toBeNull();
+      await test.db.deleteFrom('inventory.employee').where('id', '=', employeeId).execute();
+    });
+
+    it('is rejected once they have created entries, even soft-deleted ones', async () => {
+      const workstationId = await createWorkstation('Lager');
+      const employeeId = await createEmployee('Cem', workstationId);
+      const entryId = await createEntry(workstationId, [employeeId]);
+      await test.db
+        .updateTable('inventory.entry')
+        .set({ deleted_at: new Date() })
+        .where('id', '=', entryId)
+        .execute();
+
+      await expect(
+        test.db.deleteFrom('inventory.employee').where('id', '=', employeeId).execute(),
+      ).rejects.toThrow(/entry_employee_employee_id_fkey/);
+      await expect(
+        test.db.deleteFrom('inventory.workstation').where('id', '=', workstationId).execute(),
+      ).rejects.toThrow(/entry_workstation_id_fkey/);
+    });
   });
 });

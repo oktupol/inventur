@@ -170,10 +170,11 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 Die Bezeichner in Datenbank und Code sind englisch. In Klammern steht der Fachbegriff aus dieser Spezifikation.
 
 - **stocktake** (Inventur): id, name (Bezeichnung), status (`active` oder `finished`), started_at, finished_at
-- **employee** (Mitarbeiter): id, stocktake_id, name, workstation_id (nullable = nicht zugewiesen), removed_at (entfernte Mitarbeiter bleiben erhalten, damit ihre Erfassungen ihnen zugeordnet bleiben; der Name ist nur unter den nicht entfernten eindeutig)
-- **workstation** (Arbeitsstation): id, name (eindeutig), token, work_area_id (nullable), last_seen_at
+- **employee** (Mitarbeiter): id, stocktake_id, name (eindeutig je Inventur), workstation_id (nullable = nicht zugewiesen). Löschen nur ohne Erfassungen, die Datenbank verhindert es per Fremdschlüssel.
+- **workstation** (Arbeitsstation): id, name (eindeutig), token, work_area_id (nullable), last_seen_at. Löschen nur ohne Erfassungen, die Datenbank verhindert es per Fremdschlüssel.
 - **work_area** (Arbeitsbereich): id, stocktake_id, name, description, status (`open`, `in_progress` oder `closed`), closed_at
-- **entry** (Erfassung, Zeile): id, stocktake_id, work_area_id, article_id (nullable, ohne Fremdschlüssel, weil die Stammdaten ersetzt werden dürfen), is_manual (bool), input (gescannter oder getippter Code), Momentaufnahme (description, ean, category, price_net, price_gross; bei manuellen Artikeln sind category und price_net leer), serial_number (nullable), quantity (≥ 1), workstation_id, employee_ids (die zum Zeitpunkt zugewiesenen Mitarbeiter), created_at, updated_at, deleted_at (Soft-Delete für die Nachvollziehbarkeit)
+- **entry** (Erfassung, Zeile): id, stocktake_id, work_area_id, article_id (nullable, ohne Fremdschlüssel, weil die Stammdaten ersetzt werden dürfen), is_manual (bool), input (gescannter oder getippter Code), Momentaufnahme (description, ean, category, price_net, price_gross; bei manuellen Artikeln sind category und price_net leer), serial_number (nullable), quantity (≥ 1), workstation_id, created_at, updated_at, deleted_at (Soft-Delete für die Nachvollziehbarkeit)
+- **entry_employee**: entry_id, employee_id. Die Mitarbeiter, die beim Erfassen an der Station angemeldet waren.
 - **checkpoint**: id, work_area_id, number (fortlaufend je Bereich), workstation_id, created_at
 - **pairing** (Kopplung): id, workstation_id, one_time_code, qr_token, valid_until, device_token, paired_at
 
@@ -186,14 +187,15 @@ Der Administrator kann
 - Eine Inventur starten (mit Bezeichnung, z. B. „Inventur 2026“). Das geht nur, wenn keine andere Inventur aktiv ist.
 - In einer gestarteten Inventur Mitarbeiter hinzufügen und entfernen
   - Ein Mitarbeiter hat nur einen Namen, der innerhalb der Inventur eindeutig ist.
-  - Beim Entfernen wird der Mitarbeiter automatisch von seiner Arbeitsstation abgemeldet. Bisherige Erfassungen bleiben ihm zugeordnet.
+  - Entfernen (Löschen) ist nur möglich, solange der Mitarbeiter keine Artikel erfasst hat. Gelöschte Erfassungen (Soft-Delete) zählen mit. Ein Mitarbeiter mit Erfassungen bleibt also erhalten und lässt sich nur von seiner Station abmelden.
+  - Beim Entfernen wird der Mitarbeiter automatisch von seiner Arbeitsstation abgemeldet.
   - Mitarbeiter lassen sich aus der letzten Inventur übernehmen. **(Annahme)**
   - Der Administrator kann einen Mitarbeiter zwangsweise von einer Station abmelden, z. B. wenn ein Rechner ausgeschaltet wurde.
 - Arbeitsbereiche definieren
   - Name (eindeutig innerhalb der Inventur) und optionale Beschreibung
   - Anlegen, umbenennen, löschen (nur ohne Erfassungen), abschließen und wieder öffnen
   - Arbeitsbereiche lassen sich aus der letzten Inventur übernehmen. **(Annahme)**
-- Arbeitsstationen verwalten: umbenennen und löschen. Stationen bleiben über Inventuren hinweg bestehen.
+- Arbeitsstationen verwalten: umbenennen und löschen. Stationen bleiben über Inventuren hinweg bestehen. Löschen ist nur möglich, solange die Station in keiner Inventur Artikel erfasst hat (auch nicht in gelöschten Zeilen). Angemeldete Mitarbeiter werden beim Löschen abgemeldet.
 - Die Inventur beenden
   - Sind noch Arbeitsbereiche nicht abgeschlossen, erscheint eine Warnung mit Liste. Der Administrator kann trotzdem beenden.
   - Nach dem Beenden ist die Inventur schreibgeschützt. Alle Stationen zeigen „Keine aktive Inventur“, und alle Kopplungen werden getrennt.

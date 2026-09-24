@@ -4,12 +4,6 @@ import type { Database } from './schema.ts';
 
 // Read BIGINT (type 20) as number; IDs stay far below Number.MAX_SAFE_INTEGER.
 pg.types.setTypeParser(20, (value) => Number(value));
-// BIGINT[] (type 1016), e.g. entry.employee_ids. Contains only numbers, so no quoting.
-// The typings only list scalar type ids, hence the cast.
-const BIGINT_ARRAY = 1016 as Parameters<typeof pg.types.setTypeParser>[0];
-pg.types.setTypeParser(BIGINT_ARRAY, (value: string) =>
-  value === '{}' ? [] : value.slice(1, -1).split(',').map(Number),
-);
 
 export type Db = Kysely<Database>;
 

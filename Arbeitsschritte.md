@@ -65,7 +65,8 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - **Fertig, wenn:** Die Unit-Tests alle Statusübergänge und die Ablehnung von Schreibzugriffen auf beendete Inventuren abdecken.
 
 ### 7. Mitarbeiter und Arbeitsbereiche verwalten (Server)
-- Mitarbeiter: anlegen, entfernen (mit automatischer Abmeldung von der Station), zwangsweise abmelden, Übernahme aus der letzten Inventur
+- Mitarbeiter: anlegen, entfernen (nur ohne Erfassungen, mit automatischer Abmeldung von der Station), zwangsweise abmelden, Übernahme aus der letzten Inventur
+- Arbeitsstationen: umbenennen, löschen (nur ohne Erfassungen, angemeldete Mitarbeiter werden abgemeldet)
 - Arbeitsbereiche: anlegen, umbenennen, löschen (nur ohne Erfassungen), Übernahme aus der letzten Inventur
 - Eindeutige Namen innerhalb einer Inventur
 - **Fertig, wenn:** Die Unit-Tests alle Regeln und Fehlerfälle abdecken.

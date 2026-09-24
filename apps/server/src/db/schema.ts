@@ -39,7 +39,6 @@ export interface EmployeeTable {
   stocktake_id: number;
   name: string;
   workstation_id: number | null;
-  removed_at: NullableTimestamp;
 }
 
 export interface WorkstationTable {
@@ -75,11 +74,15 @@ export interface EntryTable {
   price_gross: Amount;
   serial_number: string | null;
   quantity: ColumnType<number, number | undefined>;
-  workstation_id: number | null;
-  employee_ids: number[];
+  workstation_id: number;
   created_at: Timestamp;
   updated_at: Timestamp;
   deleted_at: NullableTimestamp;
+}
+
+export interface EntryEmployeeTable {
+  entry_id: number;
+  employee_id: number;
 }
 
 export interface CheckpointTable {
@@ -108,6 +111,7 @@ export interface Database {
   'inventory.workstation': WorkstationTable;
   'inventory.work_area': WorkAreaTable;
   'inventory.entry': EntryTable;
+  'inventory.entry_employee': EntryEmployeeTable;
   'inventory.checkpoint': CheckpointTable;
   'inventory.pairing': PairingTable;
 }

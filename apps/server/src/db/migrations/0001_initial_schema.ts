@@ -71,25 +71,21 @@ export const initialSchema: Migration = {
         last_seen_at  TIMESTAMPTZ NULL
       )`.execute(db);
 
-    // Removed employees keep their row so their entries stay attributed to them.
     await sql`
       CREATE TABLE inventory.employee (
         id              BIGSERIAL   PRIMARY KEY,
         stocktake_id    BIGINT      NOT NULL REFERENCES inventory.stocktake(id) ON DELETE CASCADE,
         name            TEXT        NOT NULL,
         workstation_id  BIGINT      NULL REFERENCES inventory.workstation(id) ON DELETE SET NULL,
-        removed_at      TIMESTAMPTZ NULL,
-        CHECK (removed_at IS NULL OR workstation_id IS NULL)
+        UNIQUE (stocktake_id, name)
       )`.execute(db);
-    await sql`
-      CREATE UNIQUE INDEX employee_name_idx
-        ON inventory.employee (stocktake_id, name) WHERE removed_at IS NULL`.execute(db);
     await sql`CREATE INDEX employee_workstation_idx ON inventory.employee (workstation_id)`.execute(
       db,
     );
 
     // article_id has no foreign key: master data may be replaced, while the
-    // entry keeps its snapshot.
+    // entry keeps its snapshot. A workstation that has created entries cannot
+    // be deleted (ON DELETE RESTRICT).
     await sql`
       CREATE TABLE inventory.entry (
         id              BIGSERIAL     PRIMARY KEY,
@@ -105,8 +101,7 @@ export const initialSchema: Migration = {
         price_gross     NUMERIC(12,2) NOT NULL,
         serial_number   TEXT          NULL,
         quantity        INTEGER       NOT NULL DEFAULT 1 CHECK (quantity >= 1),
-        workstation_id  BIGINT        NULL REFERENCES inventory.workstation(id) ON DELETE SET NULL,
-        employee_ids    BIGINT[]      NOT NULL DEFAULT '{}',
+        workstation_id  BIGINT        NOT NULL REFERENCES inventory.workstation(id) ON DELETE RESTRICT,
         created_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
         updated_at      TIMESTAMPTZ   NOT NULL DEFAULT now(),
         deleted_at      TIMESTAMPTZ   NULL,
@@ -118,6 +113,20 @@ export const initialSchema: Migration = {
     await sql`
       CREATE INDEX entry_stocktake_article_idx
         ON inventory.entry (stocktake_id, article_id)`.execute(db);
+    await sql`CREATE INDEX entry_workstation_idx ON inventory.entry (workstation_id)`.execute(db);
+
+    // Employees assigned to the workstation when the entry was created. An
+    // employee who has created entries cannot be deleted (ON DELETE RESTRICT).
+    await sql`
+      CREATE TABLE inventory.entry_employee (
+        entry_id     BIGINT NOT NULL REFERENCES inventory.entry(id) ON DELETE CASCADE,
+        employee_id  BIGINT NOT NULL REFERENCES inventory.employee(id) ON DELETE RESTRICT,
+        PRIMARY KEY (entry_id, employee_id)
+      )`.execute(db);
+    await sql`
+      CREATE INDEX entry_employee_employee_idx ON inventory.entry_employee (employee_id)`.execute(
+      db,
+    );
 
     await sql`
       CREATE TABLE inventory.checkpoint (
