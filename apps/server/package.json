@@ -1,0 +1,20 @@
+{
+  "name": "@inventur/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --watch-preserve-output src/index.ts",
+    "start": "node src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "@inventur/shared": "workspace:*",
+    "fastify": "^5.12.5"
+  }
+}
