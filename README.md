@@ -40,6 +40,7 @@ Voraussetzungen: Node.js 24.2 oder neuer, pnpm (z. B. per `npm install -g pnpm`)
 pnpm install
 pnpm db:up      # Postgres für die Entwicklung starten (127.0.0.1:54329)
 pnpm seed --count 5000 --seed 42   # Stammdaten mit Dummy-Daten befüllen (--replace ersetzt vorhandene)
+pnpm test-sheet --output testblatt.pdf   # Barcode-Testblatt aus den aktuellen Stammdaten (--count, --seed)
 pnpm dev        # Server (Port 3000) und Frontend (http://localhost:5173) im Entwicklungsmodus
 pnpm lint       # ESLint und Prettier-Prüfung
 pnpm format     # Formatierung mit Prettier anwenden
@@ -89,3 +90,5 @@ Ein druckbares PDF mit Test-Barcodes, mit einem Abschnitt je Erfassungsfall (gr�
 ```sh
 docker compose run --rm -v "$PWD:/out" app barcode-test-sheet --output /out/testblatt.pdf
 ```
+
+Das eingebundene Verzeichnis muss für den Container-Benutzer `node` (UID 1000) beschreibbar sein. Das Blatt in Originalgröße drucken (100 %, nicht „An Seite anpassen“), damit die EAN-Barcodes die Nenngröße haben.

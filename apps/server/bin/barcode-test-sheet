@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node /app/apps/server/src/cli/barcode-test-sheet.ts "$@"

@@ -1,4 +1,5 @@
 import { parseArgs } from 'node:util';
+import { parseInteger, randomSeed as defaultRandomSeed } from './args.ts';
 import { createDb } from '../db/connection.ts';
 import { migrateToLatest } from '../db/migrate.ts';
 import { MasterDataNotEmptyError, seedMasterData, type SeedOptions } from '../master-data/seed.ts';
@@ -16,17 +17,9 @@ Options:
 
 export type SeedCommand = { help: true } | ({ help: false } & SeedOptions);
 
-function parseInteger(name: string, value: string, min: number): number {
-  const number = Number(value);
-  if (!/^-?\d+$/.test(value) || !Number.isSafeInteger(number) || number < min) {
-    throw new Error(`--${name} must be an integer >= ${min}, got: ${value}`);
-  }
-  return number;
-}
-
 export function parseSeedArgs(
   args: string[],
-  randomSeed: () => number = () => Math.floor(Math.random() * 2 ** 31),
+  randomSeed: () => number = defaultRandomSeed,
 ): SeedCommand {
   const { values } = parseArgs({
     args,
