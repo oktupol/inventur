@@ -4,14 +4,18 @@
   "type": "module",
   "packageManager": "pnpm@12.6.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.2"
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @inventur/server --filter @inventur/web dev",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "test:unit": "pnpm -r test:unit",
+    "seed": "pnpm --filter @inventur/server seed",
+    "db:up": "docker compose -f compose.dev.yml up -d --wait",
+    "db:down": "docker compose -f compose.dev.yml down"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

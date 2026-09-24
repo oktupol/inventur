@@ -30,22 +30,24 @@ Die Stammdaten können aus verschiedenen Quellen kommen. Die Anwendung gibt desh
 
 Jeder Stammdatensatz ist ein **Einzelstück**, d. h. ein physischer Artikel mit eigener EAN oder Artikelnummer. Die Menge pro Zeile bleibt trotzdem änderbar, z. B. für Kleinteile wie Batterien oder Armbänder.
 
-### Schema `stammdaten` (Annahme)
+### Schema `master_data` (Annahme)
+
+Datenbank, Code und Kommandozeile verwenden englische Bezeichner (siehe [Datenmodell](#datenmodell-der-anwendung-schema-inventory-annahme)).
 
 ```sql
-CREATE TABLE stammdaten.artikel (
-    id            BIGSERIAL PRIMARY KEY,
-    bezeichnung   TEXT          NOT NULL,
-    ean           TEXT          NULL,       -- optional, nicht eindeutig erzwungen
-    preis_netto   NUMERIC(12,2) NOT NULL,
-    preis_brutto  NUMERIC(12,2) NOT NULL,
-    kategorie     TEXT          NULL        -- flache Kategorie, keine Hierarchie
+CREATE TABLE master_data.article (
+    id           BIGSERIAL PRIMARY KEY,
+    description  TEXT          NOT NULL,   -- Bezeichnung
+    ean          TEXT          NULL,       -- optional, nicht eindeutig erzwungen
+    price_net    NUMERIC(12,2) NOT NULL,   -- Preis netto
+    price_gross  NUMERIC(12,2) NOT NULL,   -- Preis brutto
+    category     TEXT          NULL        -- flache Kategorie, keine Hierarchie
 );
 
-CREATE TABLE stammdaten.artikelnummer (
-    artikel_id  BIGINT NOT NULL REFERENCES stammdaten.artikel(id) ON DELETE CASCADE,
-    nummer      TEXT   NOT NULL,
-    PRIMARY KEY (artikel_id, nummer)
+CREATE TABLE master_data.article_number (
+    article_id  BIGINT NOT NULL REFERENCES master_data.article(id) ON DELETE CASCADE,
+    number      TEXT   NOT NULL,           -- Artikelnummer
+    PRIMARY KEY (article_id, number)
 );
 ```
 
@@ -60,11 +62,11 @@ CREATE TABLE stammdaten.artikelnummer (
 
 Für Tests, Entwicklung und Vorführungen lassen sich die Stammdaten automatisiert mit Dummy-Daten befüllen.
 
-- Aufruf als Kommandozeilenbefehl im App-Container, z. B. `docker compose run --rm app seed-stammdaten --anzahl 5000`. In der Entwicklung gibt es dafür `pnpm seed`. **(Annahme)**
+- Aufruf als Kommandozeilenbefehl im App-Container, z. B. `docker compose run --rm app seed-master-data --count 5000`. In der Entwicklung gibt es dafür `pnpm seed`. **(Annahme)**
 - Parameter **(Annahme)**:
-  - `--anzahl <n>`: Anzahl der Artikel, Standard 5.000
-  - `--seed <zahl>`: Startwert für den Zufallsgenerator. Mit demselben Startwert entstehen dieselben Daten, damit Tests reproduzierbar sind.
-  - `--ersetzen`: Leert die Stammdaten vorher. Ohne diesen Parameter bricht der Befehl ab, wenn schon Stammdaten vorhanden sind. So werden echte Stammdaten nicht versehentlich vermischt.
+  - `--count <n>`: Anzahl der Artikel, Standard 5.000
+  - `--seed <zahl>`: Startwert für den Zufallsgenerator. Mit demselben Startwert entstehen dieselben Daten, damit Tests reproduzierbar sind. Ohne Angabe wird ein zufälliger Startwert gewählt und ausgegeben.
+  - `--replace`: Leert die Stammdaten vorher. Ohne diesen Parameter bricht der Befehl ab, wenn schon Stammdaten vorhanden sind. So werden echte Stammdaten nicht versehentlich vermischt.
 - Die Daten sollen realistisch sein und alle Fälle der Erfassung abdecken **(Annahme)**:
   - Bezeichnungen aus Kategorien eines Uhren- und Schmuckgeschäfts (z. B. Armbanduhren, Ringe, Ketten, Ohrschmuck, Armbänder, Zubehör), mit Marke, Material und Variante
   - Gültige EAN-13 mit korrekter Prüfziffer, damit echte Barcode-Scanner und die Handy-Kamera sie lesen können
@@ -79,12 +81,12 @@ Für Tests, Entwicklung und Vorführungen lassen sich die Stammdaten automatisie
 
 Um Barcode-Scanner und die Handy-Kamera ohne echte Ware zu testen, erzeugt ein Befehl ein druckbares PDF mit Barcodes.
 
-- Aufruf, z. B.: `docker compose run --rm -v "$PWD:/out" app barcode-testblatt --ausgabe /out/testblatt.pdf`. In der Entwicklung gibt es dafür `pnpm testblatt`. **(Annahme)**
+- Aufruf, z. B.: `docker compose run --rm -v "$PWD:/out" app barcode-test-sheet --output /out/testblatt.pdf`. In der Entwicklung gibt es dafür `pnpm test-sheet`. **(Annahme)**
 - Das Blatt liest die **aktuell vorhandenen Stammdaten** aus der Datenbank. Es funktioniert also mit Dummy-Daten und mit echten Daten.
 - Parameter **(Annahme)**:
-  - `--anzahl <n>`: Anzahl der Etiketten je Abschnitt, Standard 12
+  - `--count <n>`: Anzahl der Etiketten je Abschnitt, Standard 12
   - `--seed <zahl>`: Startwert für die Auswahl der Artikel, damit das Blatt wiederholbar ist
-  - `--ausgabe <pfad>`: Zieldatei
+  - `--output <pfad>`: Zieldatei
 - Die Abschnitte decken alle Fälle der Erfassung ab. Zu jedem Etikett steht das erwartete Ergebnis auf dem Blatt **(Annahme)**:
   1. **Eindeutig per EAN** (EAN-13), erwartet grün
   2. **Eindeutig per Artikelnummer** (Code 128), für Artikel ohne EAN, erwartet grün
@@ -163,15 +165,18 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 - Eine Datensicherung ist nicht Teil der Anwendung.
 - Frühere Inventuren bleiben gespeichert und können im Dashboard eingesehen und exportiert werden.
 
-## Datenmodell der Anwendung (Schema `inventur`, Annahme)
+## Datenmodell der Anwendung (Schema `inventory`, Annahme)
 
-- **inventur**: id, bezeichnung, status (`aktiv` oder `beendet`), gestartet_am, beendet_am
-- **mitarbeiter**: id, inventur_id, name, arbeitsstation_id (nullable = nicht zugewiesen)
-- **arbeitsstation**: id, name (eindeutig), token, arbeitsbereich_id (nullable), zuletzt_gesehen
-- **arbeitsbereich**: id, inventur_id, name, beschreibung, status (`offen`, `in_arbeit` oder `abgeschlossen`), abgeschlossen_am
-- **erfassung**: id, inventur_id, arbeitsbereich_id, artikel_id (nullable), manuell (bool), eingabe (gescannter oder getippter Code), Momentaufnahme (bezeichnung, ean, kategorie, preis_netto, preis_brutto; bei manuellen Artikeln sind kategorie und preis_netto leer), seriennummer (nullable), menge (≥ 1), arbeitsstation_id, mitarbeiter_ids (die zum Zeitpunkt zugewiesenen Mitarbeiter), erfasst_am, geaendert_am, geloescht_am (Soft-Delete für die Nachvollziehbarkeit)
-- **checkpoint**: id, arbeitsbereich_id, nummer (fortlaufend je Bereich), arbeitsstation_id, erstellt_am
-- **kopplung**: id, arbeitsstation_id, einmalcode, qr_token, gueltig_bis, geraet_token, gekoppelt_am
+Die Bezeichner in Datenbank und Code sind englisch. In Klammern steht der Fachbegriff aus dieser Spezifikation.
+
+- **stocktake** (Inventur): id, name (Bezeichnung), status (`active` oder `finished`), started_at, finished_at
+- **employee** (Mitarbeiter): id, stocktake_id, name (eindeutig je Inventur), workstation_id (nullable = nicht zugewiesen). Löschen nur ohne Erfassungen, die Datenbank verhindert es per Fremdschlüssel.
+- **workstation** (Arbeitsstation): id, name (eindeutig), token, work_area_id (nullable), last_seen_at. Löschen nur ohne Erfassungen, die Datenbank verhindert es per Fremdschlüssel.
+- **work_area** (Arbeitsbereich): id, stocktake_id, name, description, status (`open`, `in_progress` oder `closed`), closed_at
+- **entry** (Erfassung, Zeile): id, stocktake_id, work_area_id, article_id (nullable, ohne Fremdschlüssel, weil die Stammdaten ersetzt werden dürfen), is_manual (bool), input (gescannter oder getippter Code), Momentaufnahme (description, ean, category, price_net, price_gross; bei manuellen Artikeln sind category und price_net leer), serial_number (nullable), quantity (≥ 1), workstation_id, created_at, updated_at. Gelöschte Zeilen werden endgültig entfernt, es gibt kein Soft-Delete.
+- **entry_employee**: entry_id, employee_id. Die Mitarbeiter, die beim Erfassen an der Station angemeldet waren.
+- **checkpoint**: id, work_area_id, number (fortlaufend je Bereich), workstation_id, created_at
+- **pairing** (Kopplung): id, workstation_id, one_time_code, qr_token, valid_until, device_token, paired_at
 
 ## Administrations-Dashboard
 
@@ -182,14 +187,15 @@ Der Administrator kann
 - Eine Inventur starten (mit Bezeichnung, z. B. „Inventur 2026“). Das geht nur, wenn keine andere Inventur aktiv ist.
 - In einer gestarteten Inventur Mitarbeiter hinzufügen und entfernen
   - Ein Mitarbeiter hat nur einen Namen, der innerhalb der Inventur eindeutig ist.
-  - Beim Entfernen wird der Mitarbeiter automatisch von seiner Arbeitsstation abgemeldet. Bisherige Erfassungen bleiben ihm zugeordnet.
+  - Entfernen (Löschen) ist nur möglich, solange der Mitarbeiter keine Artikel erfasst hat. Ein Mitarbeiter mit Erfassungen bleibt also erhalten und lässt sich nur von seiner Station abmelden.
+  - Beim Entfernen wird der Mitarbeiter automatisch von seiner Arbeitsstation abgemeldet.
   - Mitarbeiter lassen sich aus der letzten Inventur übernehmen. **(Annahme)**
   - Der Administrator kann einen Mitarbeiter zwangsweise von einer Station abmelden, z. B. wenn ein Rechner ausgeschaltet wurde.
 - Arbeitsbereiche definieren
   - Name (eindeutig innerhalb der Inventur) und optionale Beschreibung
   - Anlegen, umbenennen, löschen (nur ohne Erfassungen), abschließen und wieder öffnen
   - Arbeitsbereiche lassen sich aus der letzten Inventur übernehmen. **(Annahme)**
-- Arbeitsstationen verwalten: umbenennen und löschen. Stationen bleiben über Inventuren hinweg bestehen.
+- Arbeitsstationen verwalten: umbenennen und löschen. Stationen bleiben über Inventuren hinweg bestehen. Löschen ist nur möglich, solange die Station in keiner Inventur Artikel erfasst hat. Angemeldete Mitarbeiter werden beim Löschen abgemeldet.
 - Die Inventur beenden
   - Sind noch Arbeitsbereiche nicht abgeschlossen, erscheint eine Warnung mit Liste. Der Administrator kann trotzdem beenden.
   - Nach dem Beenden ist die Inventur schreibgeschützt. Alle Stationen zeigen „Keine aktive Inventur“, und alle Kopplungen werden getrennt.
@@ -299,7 +305,7 @@ Regeln für die Tastenkürzel:
 - Sie wirken auf die **ausgewählte Zeile**. Standardmäßig ist das die zuletzt von dieser Station erfasste Zeile. Mit `↑` und `↓` lässt sich eine andere Zeile im Bereich auswählen, `Esc` setzt die Auswahl zurück.
 - Die Tasten des Nummernblocks funktionieren gleichwertig.
 - `=` oder `*` wechselt in den Mengenmodus. Das Feld zeigt dann „Menge:“, nimmt nur Ziffern an, `Enter` übernimmt, `Esc` bricht ab. Die Menge muss mindestens 1 sein.
-- `Delete` löscht ohne Rückfrage, zeigt aber einen Hinweis „Zeile gelöscht“. Intern wird nur ein Soft-Delete durchgeführt.
+- `Delete` löscht ohne Rückfrage, zeigt aber einen Hinweis „Zeile gelöscht“. Die Zeile wird endgültig gelöscht.
 - Änderungen erscheinen live auf allen Stationen im Bereich.
 - Es gibt kein Rückgängig.
 

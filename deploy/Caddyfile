@@ -1,5 +1,5 @@
-# Vorerst nur HTTP für die Arbeitsstationen. HTTPS mit interner CA folgt in
-# Schritt 16, das Admin-Dashboard auf 127.0.0.1:8080 in Schritt 8.
+# HTTP only for the workstations for now. HTTPS with an internal CA follows in
+# step 16, the admin dashboard on 127.0.0.1:8080 in step 8.
 {
 	auto_https off
 }

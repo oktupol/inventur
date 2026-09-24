@@ -34,16 +34,22 @@ Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere
 
 ## Entwicklung
 
-Voraussetzungen: Node.js 24 oder neuer und pnpm (z. B. per `npm install -g pnpm` oder `corepack enable`).
+Voraussetzungen: Node.js 24.2 oder neuer, pnpm (z. B. per `npm install -g pnpm`) und Docker (für die Entwicklungsdatenbank und die Integrationstests).
 
 ```sh
 pnpm install
+pnpm db:up      # Postgres für die Entwicklung starten (127.0.0.1:54329)
+pnpm seed --count 5000 --seed 42   # Stammdaten mit Dummy-Daten befüllen (--replace ersetzt vorhandene)
 pnpm dev        # Server (Port 3000) und Frontend (http://localhost:5173) im Entwicklungsmodus
 pnpm lint       # ESLint und Prettier-Prüfung
 pnpm format     # Formatierung mit Prettier anwenden
 pnpm typecheck  # TypeScript-Prüfung aller Pakete
-pnpm test       # Unit-Tests aller Pakete
+pnpm test       # Unit- und Integrationstests aller Pakete (Integrationstests brauchen Docker)
+pnpm test:unit  # nur Unit-Tests
+pnpm db:down    # Entwicklungsdatenbank stoppen (Daten bleiben im Volume erhalten)
 ```
+
+Der Server migriert die Datenbank beim Start automatisch. Die Verbindungsdaten für die Entwicklung stehen in `apps/server/dev.env`. Gesetzte Umgebungsvariablen (`DATABASE_URL` oder `PGHOST`, `PGUSER` usw.) haben Vorrang.
 
 Das Frontend leitet `/api` im Entwicklungsmodus an den Server weiter. Die Routen sind `/` (Arbeitsstation), `/admin` (Dashboard) und `/scan` (Handy).
 
@@ -70,16 +76,16 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Die Stammdaten befüllt der Administrator vorab selbst in die Tabellen `stammdaten.artikel` und `stammdaten.artikelnummer`. Das Schema steht in [Anforderung.md](Anforderung.md#stammdaten).
+Die Stammdaten befüllt der Administrator vorab selbst in die Tabellen `master_data.article` und `master_data.article_number`. Das Schema steht in [Anforderung.md](Anforderung.md#stammdaten).
 
 Zum Testen lassen sich die Stammdaten stattdessen mit Dummy-Daten befüllen:
 
 ```sh
-docker compose run --rm app seed-stammdaten --anzahl 5000 --seed 42
+docker compose run --rm app seed-master-data --count 5000 --seed 42
 ```
 
 Ein druckbares PDF mit Test-Barcodes, mit einem Abschnitt je Erfassungsfall (grün, gelb, rot), erzeugt:
 
 ```sh
-docker compose run --rm -v "$PWD:/out" app barcode-testblatt --ausgabe /out/testblatt.pdf
+docker compose run --rm -v "$PWD:/out" app barcode-test-sheet --output /out/testblatt.pdf
 ```

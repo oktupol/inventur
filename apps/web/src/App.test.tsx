@@ -11,15 +11,15 @@ function renderAt(path: string) {
   );
 }
 
-describe('App-Routen', () => {
+describe('app routes', () => {
   afterEach(cleanup);
 
   it.each([
-    ['/', 'Arbeitsstation'],
-    ['/admin', 'Admin-Dashboard'],
-    ['/scan', 'Handy-Scanner'],
-    ['/gibt-es-nicht', 'Seite nicht gefunden'],
-  ])('zeigt unter %s die Seite „%s“', (path, heading) => {
+    ['Arbeitsstation', '/'],
+    ['Admin-Dashboard', '/admin'],
+    ['Handy-Scanner', '/scan'],
+    ['Seite nicht gefunden', '/does-not-exist'],
+  ])('shows the heading "%s" at %s', (heading, path) => {
     renderAt(path);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(heading);
   });

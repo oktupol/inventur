@@ -8,7 +8,7 @@ export type AppOptions = Pick<Config, 'version'> & Partial<Pick<Config, 'staticD
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test' });
 
-  // Der Docker-Healthcheck fragt alle 10 Sekunden ab, daher ohne Request-Log.
+  // The Docker health check polls every 10 seconds, so skip the request log.
   app.get('/api/health', { logLevel: 'warn' }, async (): Promise<HealthResponse> => {
     return { status: 'ok', version: options.version };
   });
@@ -20,10 +20,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.setNotFoundHandler((request, reply) => {
     const isApi = request.url === '/api' || request.url.startsWith('/api/');
     if (options.staticDir && request.method === 'GET' && !isApi) {
-      // Single-Page-App: unbekannte Pfade wie /admin oder /scan liefern index.html.
+      // Single-page app: unknown paths such as /admin or /scan get index.html.
       return reply.sendFile('index.html');
     }
-    return reply.code(404).send({ fehler: 'Nicht gefunden' });
+    return reply.code(404).send({ error: 'Not found' });
   });
 
   return app;

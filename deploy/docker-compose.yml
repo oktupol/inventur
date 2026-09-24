@@ -7,12 +7,12 @@ services:
     environment:
       POSTGRES_DB: inventur
       POSTGRES_USER: inventur
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in .env setzen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     ports:
-      # Nur lokal erreichbar, damit der Administrator die Stammdaten befüllen kann.
+      # Local access only, so the administrator can load the master data.
       - 127.0.0.1:5432:5432
     volumes:
-      - db-daten:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
     healthcheck:
       test: [CMD-SHELL, pg_isready -U inventur -d inventur]
       interval: 5s
@@ -28,7 +28,7 @@ services:
       PGDATABASE: inventur
       PGUSER: inventur
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      PUBLIC_HOST: ${PUBLIC_HOST:?PUBLIC_HOST in .env setzen}
+      PUBLIC_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST in .env}
     depends_on:
       db:
         condition: service_healthy
@@ -40,12 +40,12 @@ services:
       - 80:80
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-daten:/data
+      - caddy-data:/data
       - caddy-config:/config
     depends_on:
       - app
 
 volumes:
-  db-daten:
-  caddy-daten:
+  db-data:
+  caddy-data:
   caddy-config:
