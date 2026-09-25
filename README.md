@@ -127,10 +127,10 @@ Wiederherstellen in eine leere Datenbank: `docker compose exec -T db pg_restore 
 
 Die Anwendung liest die Stammdaten nur, befüllt werden sie vom Administrator in zwei Tabellen der Datenbank:
 
-- `master_data.article`: `id`, `description` (Bezeichnung), `ean` (optional), `price_net`, `price_gross`, `category` (optional)
+- `master_data.article`: `id`, `description` (Bezeichnung), `ean` (optional), `price_net`, `price_gross`, `category` (optional), `expected_quantity` (Soll-Anzahl, optional)
 - `master_data.article_number`: `article_id`, `number` (0 bis n Artikelnummern je Artikel)
 
-Das vollständige Schema steht in [Anforderung.md](Anforderung.md#stammdaten). Jeder Datensatz ist ein **Einzelstück** (Soll-Bestand 1).
+Das vollständige Schema steht in [Anforderung.md](Anforderung.md#stammdaten). Die **Soll-Anzahl** ist die Stückzahl laut Warenwirtschaft: bei Schmuck und Uhren meist 1, bei Kleinteilen wie Batterien auch mehr. Artikel ohne Soll-Anzahl (`NULL`) werden im Soll/Ist-Abgleich nicht berücksichtigt. Bei Artikeln mit Soll-Anzahl 1 weist die Station auf eine erneute Erfassung hin (Doppelscan).
 
 > **Wichtig:** Als `id` die feste Artikel-ID aus der Warenwirtschaft verwenden. Der Soll/Ist-Abgleich vergleicht die Erfassungen über diese ID mit den aktuellen Stammdaten. Werden die Stammdaten neu geladen, müssen dieselben Artikel dieselbe ID behalten.
 
@@ -147,10 +147,10 @@ BEGIN;
 -- Vorhandene Stammdaten ersetzen (Artikelnummern werden mitgelöscht).
 TRUNCATE master_data.article CASCADE;
 
-INSERT INTO master_data.article (id, description, ean, price_net, price_gross, category) VALUES
-  (1001, 'Herrenuhr Automatik Edelstahl, 40 mm', '4006381333931', 840.34, 1000.00, 'Armbanduhren'),
-  (1002, 'Solitärring Weißgold 750, Brillant 0,25 ct, Gr. 54', NULL, 1512.61, 1800.00, 'Ringe'),
-  (1003, 'Uhrenarmband Leder, 20 mm, braun', '4012345678901', 25.13, 29.90, 'Zubehör');
+INSERT INTO master_data.article (id, description, ean, price_net, price_gross, category, expected_quantity) VALUES
+  (1001, 'Herrenuhr Automatik Edelstahl, 40 mm', '4006381333931', 840.34, 1000.00, 'Armbanduhren', 1),
+  (1002, 'Solitärring Weißgold 750, Brillant 0,25 ct, Gr. 54', NULL, 1512.61, 1800.00, 'Ringe', 1),
+  (1003, 'Uhrenarmband Leder, 20 mm, braun', '4012345678901', 25.13, 29.90, 'Zubehör', 12);
 
 INSERT INTO master_data.article_number (article_id, number) VALUES
   (1001, 'HU-4711'),
@@ -166,8 +166,8 @@ Preise mit Punkt als Dezimaltrenner. EAN und Artikelnummern dürfen mehrfach vor
 Mit `\copy` lassen sich CSV-Dateien direkt laden. Die Spalten müssen in der angegebenen Reihenfolge stehen, Preise mit Punkt als Dezimaltrenner, leere Felder werden zu `NULL`:
 
 ```sh
-# artikel.csv: id;description;ean;price_net;price_gross;category
-docker compose exec -T db psql -U inventur -d inventur -c "\copy master_data.article (id, description, ean, price_net, price_gross, category) FROM STDIN WITH (FORMAT csv, HEADER true, DELIMITER ';')" < artikel.csv
+# artikel.csv: id;description;ean;price_net;price_gross;category;expected_quantity
+docker compose exec -T db psql -U inventur -d inventur -c "\copy master_data.article (id, description, ean, price_net, price_gross, category, expected_quantity) FROM STDIN WITH (FORMAT csv, HEADER true, DELIMITER ';')" < artikel.csv
 
 # artikelnummern.csv: article_id;number
 docker compose exec -T db psql -U inventur -d inventur -c "\copy master_data.article_number (article_id, number) FROM STDIN WITH (FORMAT csv, HEADER true, DELIMITER ';')" < artikelnummern.csv
@@ -254,7 +254,7 @@ Tastenkürzel an der Station, wenn das Eingabefeld leer ist (auch auf dem Nummer
 
 **Auswertung und Abschluss**
 
-1. Im Dashboard unter **Statistik** den Fortschritt verfolgen und den **Soll/Ist-Abgleich** prüfen: Fehlbestand (nicht erfasste Artikel) und Mehrbestand (mehrfach gezählte, manuell erfasste oder nicht mehr in den Stammdaten stehende Artikel). Auffällige Bereiche wieder öffnen und nachzählen.
+1. Im Dashboard unter **Statistik** den Fortschritt verfolgen und den **Soll/Ist-Abgleich** prüfen: Fehlbestand (weniger erfasst als die Soll-Anzahl) und Mehrbestand (mehr erfasst als die Soll-Anzahl, manuell erfasste oder nicht mehr in den Stammdaten stehende Artikel). Auffällige Bereiche wieder öffnen und nachzählen.
 2. Unter **Inventur → Export** je Bereich die **Zählliste** als PDF drucken und von Zählern und Verantwortlichem unterschreiben lassen. Dort gibt es auch die Einzelzeilen, die Liste je Artikel und den Soll/Ist-Abgleich als CSV (für Excel mit deutschen Einstellungen) und XLSX.
 3. **Inventur beenden.** Offene Bereiche werden in einer Warnung aufgelistet. Danach ist die Inventur schreibgeschützt, alle Stationen zeigen „Keine aktive Inventur“, und alle Handys werden getrennt.
 4. Frühere Inventuren bleiben unter **Historie** mit Statistik und Exporten erhalten.

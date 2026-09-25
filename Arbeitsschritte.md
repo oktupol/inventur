@@ -184,6 +184,13 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - Je Bereich und gesamt: Kopfdaten, Positionen, Checkpoints als Zwischensummen, Summen und Unterschriftsfelder
 - **Fertig, wenn:** Das PDF für einen Bereich mit einigen hundert Zeilen korrekt umbricht und die Summen stimmen.
 
+### 21a. Soll-Anzahl in den Stammdaten
+- Optionale Spalte `expected_quantity` (Soll-Anzahl) in `master_data.article`; Dummy-Daten mit Soll-Anzahlen
+- Soll/Ist-Abgleich mit Fehl- und Mehrmengen je Artikel statt Soll 1; Artikel ohne Soll-Anzahl werden nicht verglichen
+- Doppelscan-Hinweis nur bei Soll-Anzahl 1, Auffälligkeiten als Artikel mit Ist > Soll
+- Export je Artikel mit Soll und Differenz
+- **Fertig, wenn:** Die Unit-Tests den Abgleich mit Soll-Anzahlen abdecken, auch Artikel ohne Soll-Anzahl und mit Soll 0.
+
 ## Phase 7 – Abschluss
 
 ### 22. Dokumentation und Release 1.0

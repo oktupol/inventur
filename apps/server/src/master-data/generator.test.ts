@@ -77,6 +77,22 @@ describe('generateMasterData', () => {
     );
   });
 
+  it('makes most articles single items, accessories bulk goods and leaves a few without target', () => {
+    const quantities = articles.map((a) => a.expectedQuantity);
+    const share = (test: (q: number | null) => boolean) =>
+      quantities.filter(test).length / quantities.length;
+    expect(share((q) => q === 1)).toBeGreaterThan(0.8);
+    expect(share((q) => q === null)).toBeGreaterThan(0.005);
+    expect(share((q) => q === 0)).toBeGreaterThan(0.005);
+    const batteries = articles.filter(
+      (a) => a.description.startsWith('Uhrenbatterie') && a.expectedQuantity !== null,
+    );
+    expect(batteries.filter((a) => a.expectedQuantity! >= 2).length).toBeGreaterThan(0);
+    expect(quantities.every((q) => q === null || (Number.isInteger(q) && q >= 0 && q <= 30))).toBe(
+      true,
+    );
+  });
+
   it('rejects an invalid count', () => {
     expect(() => generateMasterData({ count: 0, seed: 1 })).toThrow('Invalid count');
   });

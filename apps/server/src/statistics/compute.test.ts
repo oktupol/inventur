@@ -62,6 +62,7 @@ function input(entries: StatisticsEntry[], overrides: Partial<StatisticsInput> =
       { id: 2, name: 'Lager-PC' },
     ],
     entries,
+    expectedQuantities: new Map<number, number>(),
     until: new Date('2026-01-02T10:00:00Z'),
     ...overrides,
   };
@@ -220,29 +221,56 @@ describe('computeStatistics', () => {
     });
   });
 
-  it('reports single items captured in several lines or with a quantity above 1', () => {
+  it('reports articles captured more often than their target quantity', () => {
     const stats = computeStatistics(
-      input([
-        entry({ articleId: 1, description: 'Ring', workAreaId: 1 }),
-        entry({ articleId: 1, description: 'Ring', workAreaId: 2 }),
-        entry({ articleId: 2, description: 'Uhr', quantity: 3 }),
-        entry({ articleId: 3, description: 'Kette' }),
-        manual({ quantity: 5 }),
-      ]),
+      input(
+        [
+          entry({ articleId: 1, description: 'Ring', workAreaId: 1 }),
+          entry({ articleId: 1, description: 'Ring', workAreaId: 2 }),
+          entry({ articleId: 2, description: 'Uhr', quantity: 3 }),
+          // Within the target of 10.
+          entry({ articleId: 3, description: 'Batterie', quantity: 4 }),
+          entry({ articleId: 3, description: 'Batterie', quantity: 6 }),
+          // Target 0: every piece is too many.
+          entry({ articleId: 4, description: 'Kette' }),
+          // Without a target quantity: not compared.
+          entry({ articleId: 5, description: 'Armband', quantity: 7 }),
+          manual({ quantity: 5 }),
+        ],
+        {
+          expectedQuantities: new Map([
+            [1, 1],
+            [2, 1],
+            [3, 10],
+            [4, 0],
+          ]),
+        },
+      ),
     );
-    expect(stats.duplicates).toEqual([
+    expect(stats.overcounted).toEqual([
       {
         articleId: 2,
         description: 'Uhr',
         ean: '4000000000017',
+        expected: 1,
         lines: 1,
         quantity: 3,
+        workAreas: [{ id: 1, name: 'Vitrine 2' }],
+      },
+      {
+        articleId: 4,
+        description: 'Kette',
+        ean: '4000000000017',
+        expected: 0,
+        lines: 1,
+        quantity: 1,
         workAreas: [{ id: 1, name: 'Vitrine 2' }],
       },
       {
         articleId: 1,
         description: 'Ring',
         ean: '4000000000017',
+        expected: 1,
         lines: 2,
         quantity: 2,
         workAreas: [
@@ -258,7 +286,7 @@ describe('computeStatistics', () => {
     expect(stats.totals).toEqual({ lines: 0, quantity: 0, net: '0.00', gross: '0.00' });
     expect(stats.byCategory).toEqual([]);
     expect(stats.byWorkstation).toEqual([]);
-    expect(stats.duplicates).toEqual([]);
+    expect(stats.overcounted).toEqual([]);
     expect(stats.manual).toEqual({ lines: 0, quantity: 0, gross: '0.00', entries: [] });
     expect(stats.rate.buckets).toEqual([]);
   });

@@ -46,7 +46,7 @@ Außerdem: gedrucktes Barcode-Testblatt und einige echte Artikel bzw. Etiketten.
 - [ ] Abschnitt 3 (mehrdeutig): gelb; Auswahl mit Pfeiltasten + Enter und per Maus; `Esc` bricht ab.
 - [ ] Abschnitt 4 (unbekannt): rot mit Ton; `F2` öffnet **Manuell erfassen** mit dem gescannten Code; Zeile ist als manuell markiert.
 - [ ] Zehn Etiketten sehr schnell hintereinander scannen: alle zehn Zeilen erscheinen in der richtigen Reihenfolge.
-- [ ] Denselben Artikel zweimal scannen: zwei Zeilen und ein Hinweis auf den Doppelscan.
+- [ ] Einen Artikel mit Soll-Anzahl 1 zweimal scannen: zwei Zeilen und ein Hinweis auf den Doppelscan. Bei einem Artikel mit höherer Soll-Anzahl (z. B. Batterie) erscheint kein Hinweis.
 - [ ] Station B zeigt alle Zeilen von Station A ohne Neuladen; die Gesamtanzahl stimmt auf beiden Stationen.
 
 ## 5. Tastatur und Maus (Station B)
@@ -94,7 +94,7 @@ Außerdem: gedrucktes Barcode-Testblatt und einige echte Artikel bzw. Etiketten.
 
 - [ ] **Statistik** aktualisiert sich live während einer Erfassung; Summen je Bereich und Kategorie stimmen mit den Stationen überein.
 - [ ] Manuelle Artikel erscheinen als „ohne Kategorie (manuell)“ ohne Nettowert.
-- [ ] Soll/Ist-Abgleich: Fehlbestand und Mehrbestand sind plausibel (doppelt gescannter Artikel und manuelle Artikel im Mehrbestand).
+- [ ] Soll/Ist-Abgleich: Fehl- und Mehrmengen sind plausibel (doppelt gescanntes Einzelstück und manuelle Artikel im Mehrbestand, teilweise gezählte Kleinteile im Fehlbestand); Artikel ohne Soll-Anzahl sind nicht enthalten.
 - [ ] CSV-Export in **Excel** öffnen: Umlaute, Beträge als Zahlen, EANs vollständig (nicht `4E+12`), Zeitpunkte als Datum.
 - [ ] Dieselbe CSV und die XLSX in **LibreOffice** öffnen.
 - [ ] XLSX in Excel öffnen: Kopfzeile fixiert mit Filter, Beträge in €.

@@ -22,8 +22,8 @@ export interface Entry {
   createdAt: string;
   updatedAt: string;
   /**
-   * Other lines of the same article in this stocktake. Master data articles
-   * are single items, so a value above 0 hints at a double scan.
+   * Other lines of the same article in this stocktake if it is a single item
+   * (target quantity 1), otherwise 0. A value above 0 hints at a double scan.
    */
   duplicateCount: number;
   /**

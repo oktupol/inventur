@@ -34,6 +34,7 @@ describe('exports', () => {
           price_net: '100.00',
           price_gross: '119.00',
           category: 'Ringe',
+          expected_quantity: 1,
         },
         {
           id: 2,
@@ -42,6 +43,7 @@ describe('exports', () => {
           price_net: '10.00',
           price_gross: '11.90',
           category: 'Ketten',
+          expected_quantity: 3,
         },
         {
           id: 3,
@@ -50,6 +52,7 @@ describe('exports', () => {
           price_net: '200.00',
           price_gross: '238.00',
           category: 'Uhren',
+          expected_quantity: 1,
         },
       ])
       .execute();
@@ -120,19 +123,23 @@ describe('exports', () => {
   it('exports the lines aggregated per article', async () => {
     const lines = csvLines((await download('articles?format=csv')).body);
     expect(lines).toHaveLength(4);
-    expect(lines[1]).toMatch(/^Lager;"Brosche; Unikat";;;;SN-1;1;1;;30,00;;30,00;ja;/);
+    expect(lines[0]).toContain(';Zeilen;Menge;Soll;Differenz;');
+    expect(lines[1]).toMatch(/^Lager;"Brosche; Unikat";;;;SN-1;1;1;;;;30,00;;30,00;ja;/);
     expect(lines[2]).toMatch(
-      /^Lager, Vitrine 1;Herrenring Gold;="4000000000017";R-1, R-2;Ringe;;2;2;100,00;119,00;200,00;238,00;nein;Kasse;Anna;/,
+      /^Lager, Vitrine 1;Herrenring Gold;="4000000000017";R-1, R-2;Ringe;;2;2;1;1;100,00;119,00;200,00;238,00;nein;Kasse;Anna;/,
     );
-    expect(lines[3]).toMatch(/^Vitrine 1;Kette Silber;="4000000000031";;Ketten;;1;1;10,00;11,90;/);
+    expect(lines[3]).toMatch(
+      /^Vitrine 1;Kette Silber;="4000000000031";;Ketten;;1;1;3;-2;10,00;11,90;/,
+    );
   });
 
   it('exports the complete target/actual comparison', async () => {
     const lines = csvLines((await download('reconciliation?format=csv')).body);
     expect(lines).toEqual([
       'Ergebnis;Grund;Bezeichnung;EAN;Artikelnummer(n);Kategorie;Soll;Ist;Differenz;Preis netto;Preis brutto;Wert netto;Wert brutto',
+      'Fehlbestand;zu wenig erfasst;Kette Silber;="4000000000031";;Ketten;3;1;-2;10,00;11,90;-20,00;-23,80',
       'Fehlbestand;nicht erfasst;Damenuhr Größe S;;U-3;Uhren;1;0;-1;200,00;238,00;-200,00;-238,00',
-      'Mehrbestand;mehrfach gezählt;Herrenring Gold;="4000000000017";R-1, R-2;Ringe;1;2;1;100,00;119,00;100,00;119,00',
+      'Mehrbestand;zu viel erfasst;Herrenring Gold;="4000000000017";R-1, R-2;Ringe;1;2;1;100,00;119,00;100,00;119,00',
       'Mehrbestand;manuell erfasst;"Brosche; Unikat";;;;0;1;1;;30,00;;30,00',
     ]);
   });

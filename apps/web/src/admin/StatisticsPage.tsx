@@ -276,9 +276,9 @@ function StatisticsSections({ stats }: { stats: StocktakeStatistics }) {
       <div className="card">
         <h2>Auffälligkeiten</h2>
         <p className="muted">
-          Einzelstücke, die in mehreren Zeilen oder mit einer Menge über 1 erfasst wurden.
+          Artikel, die öfter erfasst wurden, als ihre Soll-Anzahl in den Stammdaten angibt.
         </p>
-        {stats.duplicates.length === 0 ? (
+        {stats.overcounted.length === 0 ? (
           <p>Keine Auffälligkeiten.</p>
         ) : (
           <div className="table-wrap">
@@ -289,16 +289,18 @@ function StatisticsSections({ stats }: { stats: StocktakeStatistics }) {
                   <th>EAN</th>
                   <th>Arbeitsbereiche</th>
                   <th className="number">Zeilen</th>
-                  <th className="number">Stück</th>
+                  <th className="number">Soll</th>
+                  <th className="number">Ist</th>
                 </tr>
               </thead>
               <tbody>
-                {stats.duplicates.map((article) => (
+                {stats.overcounted.map((article) => (
                   <tr key={article.articleId}>
                     <td>{article.description}</td>
                     <td>{article.ean ?? ''}</td>
                     <td>{article.workAreas.map((area) => area.name).join(', ')}</td>
                     <td className="number">{formatNumber(article.lines)}</td>
+                    <td className="number">{formatNumber(article.expected)}</td>
                     <td className="number">{formatNumber(article.quantity)}</td>
                   </tr>
                 ))}
@@ -312,7 +314,7 @@ function StatisticsSections({ stats }: { stats: StocktakeStatistics }) {
 }
 
 const SURPLUS_KIND_LABELS: Record<SurplusKind, string> = {
-  excess: 'mehrfach gezählt',
+  excess: 'zu viel erfasst',
   unknown: 'nicht mehr in den Stammdaten',
   manual: 'manuell erfasst',
 };
@@ -331,21 +333,29 @@ function ShortageList({ articles }: { articles: readonly ShortageArticle[] }) {
           <tr>
             <th>Bezeichnung</th>
             <th>EAN</th>
-            <th className="number">Preis netto</th>
+            <th className="number">Soll</th>
+            <th className="number">Ist</th>
+            <th className="number">Fehlt</th>
             <th className="number">Preis brutto</th>
+            <th className="number">Wert netto</th>
+            <th className="number">Wert brutto</th>
           </tr>
         </thead>
         {groups.map((group) => (
           <tbody key={group.category ?? ''}>
             <tr className="group-header">
-              <th colSpan={4}>{categoryLabel(group.category)}</th>
+              <th colSpan={8}>{categoryLabel(group.category)}</th>
             </tr>
             {group.articles.map((article) => (
               <tr key={article.articleId}>
                 <td>{article.description}</td>
                 <td>{article.ean ?? ''}</td>
-                <td className="number">{formatEuro(article.priceNet)}</td>
+                <td className="number">{formatNumber(article.expected)}</td>
+                <td className="number">{formatNumber(article.counted)}</td>
+                <td className="number">{formatNumber(article.missing)}</td>
                 <td className="number">{formatEuro(article.priceGross)}</td>
+                <td className="number">{formatEuro(article.net)}</td>
+                <td className="number">{formatEuro(article.gross)}</td>
               </tr>
             ))}
           </tbody>
@@ -361,13 +371,16 @@ function ReconciliationSection({ result }: { result: Reconciliation }) {
     <div className="card">
       <h2>Soll/Ist-Abgleich</h2>
       <p className="muted">
-        Jeder der {formatNumber(result.articleCount)} Artikel der aktuellen Stammdaten ist ein
-        Einzelstück mit einem Soll-Bestand von 1.
+        Verglichen werden {formatNumber(result.articleCount)} Artikel der aktuellen Stammdaten mit
+        zusammen {formatNumber(result.expectedQuantity)} Stück Soll-Bestand.
+        {result.withoutTargetCount > 0 &&
+          ` ${formatNumber(result.withoutTargetCount)} Artikel ohne Soll-Anzahl sind nicht berücksichtigt.`}
       </p>
 
       <h3>Fehlbestand</h3>
       <div className="stats">
-        <Tile label="Artikel nicht erfasst" value={formatNumber(shortage.count)} />
+        <Tile label="Artikel mit Fehlmenge" value={formatNumber(shortage.count)} />
+        <Tile label="Stück fehlen" value={formatNumber(shortage.quantity)} />
         <Tile label="Wert netto" value={formatEuro(shortage.net)} />
         <Tile label="Wert brutto" value={formatEuro(shortage.gross)} />
       </div>
@@ -379,6 +392,7 @@ function ReconciliationSection({ result }: { result: Reconciliation }) {
                 <tr>
                   <th>Kategorie</th>
                   <th className="number">Artikel</th>
+                  <th className="number">Stück</th>
                   <th className="number">Wert netto</th>
                   <th className="number">Wert brutto</th>
                 </tr>
@@ -390,6 +404,7 @@ function ReconciliationSection({ result }: { result: Reconciliation }) {
                       {categoryLabel(category.category)}
                     </td>
                     <td className="number">{formatNumber(category.count)}</td>
+                    <td className="number">{formatNumber(category.quantity)}</td>
                     <td className="number">{formatEuro(category.net)}</td>
                     <td className="number">{formatEuro(category.gross)}</td>
                   </tr>
@@ -399,7 +414,7 @@ function ReconciliationSection({ result }: { result: Reconciliation }) {
           </div>
           <details className="shortage-list">
             <summary>
-              Liste der fehlenden Artikel
+              Liste der Artikel mit Fehlmenge
               {shortage.truncated &&
                 ` (die ersten ${formatNumber(shortage.articles.length)} von ${formatNumber(shortage.count)})`}
             </summary>

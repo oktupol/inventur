@@ -8,8 +8,10 @@ import {
 import { fromCents, lineCents, toCents } from '../money.ts';
 
 /**
- * Target/actual comparison, independent of the database. Every article of
- * the master data is a single item with a target quantity of 1.
+ * Target/actual comparison, independent of the database. Each article of the
+ * master data may have a target quantity; articles without one are left out.
+ * An article counted less often than its target is part of the shortage, one
+ * counted more often part of the surplus, by the difference in pieces.
  */
 
 export interface ArticleCount {
@@ -19,6 +21,8 @@ export interface ArticleCount {
   category: string | null;
   priceNet: string;
   priceGross: string;
+  /** Target quantity. */
+  expected: number;
   /** Sum of the quantities of all lines of the article in the stocktake. */
   counted: number;
 }
@@ -43,25 +47,24 @@ export interface ManualLine {
 
 export interface ReconciliationInput {
   stocktakeId: number;
-  /** Number of articles in the master data. */
+  /** Articles of the master data with a target quantity. */
   articleCount: number;
+  /** Sum of their target quantities. */
+  expectedQuantity: number;
+  withoutTargetCount: number;
   /**
-   * Articles of the master data that were not captured. The database
-   * aggregates them, because at the start of a stocktake these are all
-   * articles.
+   * Articles of the master data counted less often than their target. The
+   * database aggregates them, because at the start of a stocktake these are
+   * all articles.
    */
   shortage: {
-    /** Number and values of the articles per category. */
+    /** Articles, missing pieces and their values per category. */
     byCategory: readonly ShortageCategory[];
     /** The first articles by category and description; more than `listLimit` means truncated. */
-    articles: readonly ShortageArticle[];
+    articles: readonly ArticleCount[];
   };
-  /**
-   * Articles of the master data with their counted quantity. Only those
-   * counted more than once make a difference; the others match the target
-   * or are part of the shortage.
-   */
-  counted: readonly ArticleCount[];
+  /** Articles of the master data counted more often than their target. */
+  excess: readonly ArticleCount[];
   /** Captured articles that are no longer in the master data. */
   unknown: readonly CapturedArticle[];
   manual: readonly ManualLine[];
@@ -76,56 +79,62 @@ function compareCategories(a: string | null, b: string | null): number {
   return collator.compare(a, b);
 }
 
-export function reconcile(input: ReconciliationInput): Reconciliation {
-  const limit = input.listLimit ?? SHORTAGE_LIST_LIMIT;
-  const byCategory = [...input.shortage.byCategory].sort((a, b) =>
-    compareCategories(a.category, b.category),
-  );
-  const shortageNet = byCategory.reduce((sum, category) => sum + toCents(category.net), 0n);
-  const shortageGross = byCategory.reduce((sum, category) => sum + toCents(category.gross), 0n);
+function shortageArticle(article: ArticleCount): ShortageArticle {
+  const missing = article.expected - article.counted;
+  return {
+    articleId: article.articleId,
+    description: article.description,
+    ean: article.ean,
+    category: article.category,
+    priceNet: article.priceNet,
+    priceGross: article.priceGross,
+    expected: article.expected,
+    counted: article.counted,
+    missing,
+    net: fromCents(lineCents(article.priceNet, missing)),
+    gross: fromCents(lineCents(article.priceGross, missing)),
+  };
+}
 
-  const counted: SurplusItem[] = [
-    ...input.counted
-      .filter((article) => article.counted > 1)
-      .map((article): SurplusItem => {
-        const surplus = article.counted - 1;
-        return {
-          kind: 'excess',
-          articleId: article.articleId,
-          entryId: null,
-          description: article.description,
-          ean: article.ean,
-          category: article.category,
-          priceNet: article.priceNet,
-          priceGross: article.priceGross,
-          expected: 1,
-          counted: article.counted,
-          surplus,
-          net: fromCents(lineCents(article.priceNet, surplus)),
-          gross: fromCents(lineCents(article.priceGross, surplus)),
-        };
-      }),
-    ...input.unknown.map((article): SurplusItem => ({
-      kind: 'unknown',
-      articleId: article.articleId,
-      entryId: null,
-      description: article.description,
-      ean: article.ean,
-      category: article.category,
-      priceNet: article.priceNet,
-      priceGross: article.priceGross,
-      expected: 0,
-      counted: article.counted,
-      surplus: article.counted,
-      net:
-        article.priceNet === null ? null : fromCents(lineCents(article.priceNet, article.counted)),
-      gross: fromCents(lineCents(article.priceGross, article.counted)),
-    })),
-  ].sort(
-    (a, b) =>
-      collator.compare(a.description, b.description) || (a.articleId ?? 0) - (b.articleId ?? 0),
-  );
-  const manual = input.manual.map((line): SurplusItem => ({
+function excessItem(article: ArticleCount): SurplusItem {
+  const surplus = article.counted - article.expected;
+  return {
+    kind: 'excess',
+    articleId: article.articleId,
+    entryId: null,
+    description: article.description,
+    ean: article.ean,
+    category: article.category,
+    priceNet: article.priceNet,
+    priceGross: article.priceGross,
+    expected: article.expected,
+    counted: article.counted,
+    surplus,
+    net: fromCents(lineCents(article.priceNet, surplus)),
+    gross: fromCents(lineCents(article.priceGross, surplus)),
+  };
+}
+
+function unknownItem(article: CapturedArticle): SurplusItem {
+  return {
+    kind: 'unknown',
+    articleId: article.articleId,
+    entryId: null,
+    description: article.description,
+    ean: article.ean,
+    category: article.category,
+    priceNet: article.priceNet,
+    priceGross: article.priceGross,
+    expected: 0,
+    counted: article.counted,
+    surplus: article.counted,
+    net: article.priceNet === null ? null : fromCents(lineCents(article.priceNet, article.counted)),
+    gross: fromCents(lineCents(article.priceGross, article.counted)),
+  };
+}
+
+function manualItem(line: ManualLine): SurplusItem {
+  return {
     kind: 'manual',
     articleId: null,
     entryId: line.entryId,
@@ -139,24 +148,49 @@ export function reconcile(input: ReconciliationInput): Reconciliation {
     surplus: line.quantity,
     net: null,
     gross: fromCents(lineCents(line.priceGross, line.quantity)),
-  }));
-  const items = [...counted, ...manual];
+  };
+}
+
+export function reconcile(input: ReconciliationInput): Reconciliation {
+  const limit = input.listLimit ?? SHORTAGE_LIST_LIMIT;
+  const byCategory = [...input.shortage.byCategory].sort((a, b) =>
+    compareCategories(a.category, b.category),
+  );
+  const sum = (pick: (category: ShortageCategory) => bigint) =>
+    byCategory.reduce((total, category) => total + pick(category), 0n);
+  const shortageArticles = input.shortage.articles
+    .filter((article) => article.counted < article.expected)
+    .map(shortageArticle);
+
+  const counted = [
+    ...input.excess.filter((article) => article.counted > article.expected).map(excessItem),
+    ...input.unknown.map(unknownItem),
+  ].sort(
+    (a, b) =>
+      collator.compare(a.description, b.description) || (a.articleId ?? 0) - (b.articleId ?? 0),
+  );
+  const items = [...counted, ...input.manual.map(manualItem)];
 
   return {
     stocktakeId: input.stocktakeId,
     articleCount: input.articleCount,
+    expectedQuantity: input.expectedQuantity,
+    withoutTargetCount: input.withoutTargetCount,
     shortage: {
-      count: byCategory.reduce((sum, category) => sum + category.count, 0),
-      net: fromCents(shortageNet),
-      gross: fromCents(shortageGross),
+      count: byCategory.reduce((total, category) => total + category.count, 0),
+      quantity: byCategory.reduce((total, category) => total + category.quantity, 0),
+      net: fromCents(sum((category) => toCents(category.net))),
+      gross: fromCents(sum((category) => toCents(category.gross))),
       byCategory,
-      articles: input.shortage.articles.slice(0, limit),
-      truncated: input.shortage.articles.length > limit,
+      articles: shortageArticles.slice(0, limit),
+      truncated: shortageArticles.length > limit,
     },
     surplus: {
-      quantity: items.reduce((sum, item) => sum + item.surplus, 0),
-      net: fromCents(items.reduce((sum, item) => sum + (item.net ? toCents(item.net) : 0n), 0n)),
-      gross: fromCents(items.reduce((sum, item) => sum + toCents(item.gross), 0n)),
+      quantity: items.reduce((total, item) => total + item.surplus, 0),
+      net: fromCents(
+        items.reduce((total, item) => total + (item.net ? toCents(item.net) : 0n), 0n),
+      ),
+      gross: fromCents(items.reduce((total, item) => total + toCents(item.gross), 0n)),
       items,
     },
   };

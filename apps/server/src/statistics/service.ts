@@ -11,7 +11,7 @@ import { reconcile } from './reconciliation.ts';
 
 export async function getStatistics(db: Db, stocktakeId: number): Promise<StocktakeStatistics> {
   const stocktake = await getStocktake(db, stocktakeId);
-  const [workAreas, employees, entries, workstations] = await Promise.all([
+  const [workAreas, employees, entries, workstations, expected] = await Promise.all([
     db
       .selectFrom('inventory.work_area')
       .select(['id', 'name', 'status'])
@@ -57,12 +57,25 @@ export async function getStatistics(db: Db, stocktakeId: number): Promise<Stockt
           .where('stocktake_id', '=', stocktakeId),
       )
       .execute(),
+    db
+      .selectFrom('master_data.article as a')
+      .select(['a.id', 'a.expected_quantity'])
+      .where('a.expected_quantity', 'is not', null)
+      .where('a.id', 'in', (eb) =>
+        eb
+          .selectFrom('inventory.entry')
+          .select('article_id')
+          .where('stocktake_id', '=', stocktakeId)
+          .where('article_id', 'is not', null),
+      )
+      .execute(),
   ]);
   return computeStatistics({
     stocktakeId,
     workAreas,
     employees,
     workstations,
+    expectedQuantities: new Map(expected.map((row) => [row.id, row.expected_quantity!])),
     entries: entries.map((row) => ({
       id: row.id,
       workAreaId: row.work_area_id,
@@ -98,56 +111,56 @@ export async function getReconciliation(
     .where('is_manual', '=', false)
     .where('article_id', 'is not', null)
     .groupBy('article_id');
-  const missing = db
+  // Articles with a target quantity and their counted quantity (0 if never captured).
+  const compared = db
     .selectFrom('master_data.article as a')
-    .where(({ not, exists, selectFrom }) =>
-      not(
-        exists(
-          selectFrom('inventory.entry as e')
-            .select('e.id')
-            .whereRef('e.article_id', '=', 'a.id')
-            .where('e.stocktake_id', '=', stocktakeId)
-            .where('e.is_manual', '=', false),
-        ),
-      ),
-    );
+    .leftJoin(counted.as('c'), 'c.article_id', 'a.id')
+    .where('a.expected_quantity', 'is not', null);
+  const countedSql = sql<number>`coalesce(c.counted, 0)`;
+  const missingSql = sql<number>`(a.expected_quantity - coalesce(c.counted, 0))`;
+  const missing = compared.where(sql<boolean>`${countedSql} < a.expected_quantity`);
+  const articleColumns = [
+    'a.id',
+    'a.description',
+    'a.ean',
+    'a.category',
+    'a.price_net',
+    'a.price_gross',
+    'a.expected_quantity',
+    countedSql.as('counted'),
+  ] as const;
 
-  const [articleCount, shortageByCategory, shortageArticles, excess, unknown, manual] =
-    await Promise.all([
+  const [totals, shortageByCategory, shortageArticles, excess, unknown, manual] = await Promise.all(
+    [
       db
         .selectFrom('master_data.article')
-        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .select([
+          sql<string>`count(expected_quantity)`.as('with_target'),
+          sql<string>`count(*) - count(expected_quantity)`.as('without_target'),
+          sql<string>`coalesce(sum(expected_quantity), 0)`.as('expected'),
+        ])
         .executeTakeFirstOrThrow(),
       missing
         .select([
           'a.category',
           sql<string>`count(*)`.as('count'),
-          sql<string>`sum(a.price_net)`.as('net'),
-          sql<string>`sum(a.price_gross)`.as('gross'),
+          sql<string>`sum(${missingSql})`.as('quantity'),
+          sql<string>`sum(a.price_net * ${missingSql})`.as('net'),
+          sql<string>`sum(a.price_gross * ${missingSql})`.as('gross'),
         ])
         .groupBy('a.category')
         .execute(),
       // One more than the limit shows that the list is truncated.
       missing
-        .select(['a.id', 'a.description', 'a.ean', 'a.category', 'a.price_net', 'a.price_gross'])
+        .select(articleColumns)
         .orderBy(sql`a.category nulls last`)
         .orderBy('a.description')
         .orderBy('a.id')
         .$if(listLimit !== null, (query) => query.limit(listLimit! + 1))
         .execute(),
-      db
-        .selectFrom('master_data.article as a')
-        .innerJoin(counted.as('c'), 'c.article_id', 'a.id')
-        .select([
-          'a.id',
-          'a.description',
-          'a.ean',
-          'a.category',
-          'a.price_net',
-          'a.price_gross',
-          'c.counted',
-        ])
-        .where(sql<boolean>`c.counted > 1`)
+      compared
+        .select(articleColumns)
+        .where(sql<boolean>`${countedSql} > a.expected_quantity`)
         .execute(),
       // Uses the snapshot of the newest line of each article.
       db
@@ -185,37 +198,36 @@ export async function getReconciliation(
         .orderBy('created_at')
         .orderBy('id')
         .execute(),
-    ]);
+    ],
+  );
 
+  const articleCount = (row: (typeof excess)[number]) => ({
+    articleId: row.id,
+    description: row.description,
+    ean: row.ean,
+    category: row.category,
+    priceNet: row.price_net,
+    priceGross: row.price_gross,
+    expected: row.expected_quantity!,
+    counted: Number(row.counted),
+  });
   return reconcile({
     stocktakeId,
     listLimit: listLimit ?? Infinity,
-    articleCount: Number(articleCount.n),
+    articleCount: Number(totals.with_target),
+    expectedQuantity: Number(totals.expected),
+    withoutTargetCount: Number(totals.without_target),
     shortage: {
       byCategory: shortageByCategory.map((row) => ({
         category: row.category,
         count: Number(row.count),
+        quantity: Number(row.quantity),
         net: row.net,
         gross: row.gross,
       })),
-      articles: shortageArticles.map((row) => ({
-        articleId: row.id,
-        description: row.description,
-        ean: row.ean,
-        category: row.category,
-        priceNet: row.price_net,
-        priceGross: row.price_gross,
-      })),
+      articles: shortageArticles.map(articleCount),
     },
-    counted: excess.map((row) => ({
-      articleId: row.id,
-      description: row.description,
-      ean: row.ean,
-      category: row.category,
-      priceNet: row.price_net,
-      priceGross: row.price_gross,
-      counted: Number(row.counted),
-    })),
+    excess: excess.map(articleCount),
     unknown: unknown.map((row) => ({
       articleId: row.article_id!,
       description: row.description,

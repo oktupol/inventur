@@ -38,18 +38,20 @@ describe('statistics and reconciliation', () => {
       .insertInto('master_data.article')
       .values(
         [
-          [1, 'Herrenring Gold', '4000000000017', '100.00', '119.00', 'Ringe'],
-          [2, 'Kette Silber', '4000000000031', '10.00', '11.90', 'Ketten'],
-          [3, 'Damenuhr', '4000000000048', '200.00', '238.00', 'Uhren'],
-          [4, 'Etui', '4000000000055', '1.00', '1.19', null],
-          [5, 'Alter Ring', '4000000000062', '50.00', '59.50', 'Ringe'],
-        ].map(([id, description, ean, price_net, price_gross, category]) => ({
+          [1, 'Herrenring Gold', '4000000000017', '100.00', '119.00', 'Ringe', 1],
+          [2, 'Kette Silber', '4000000000031', '10.00', '11.90', 'Ketten', 3],
+          [3, 'Damenuhr', '4000000000048', '200.00', '238.00', 'Uhren', 2],
+          // Without a target quantity: not compared.
+          [4, 'Etui', '4000000000055', '1.00', '1.19', null, null],
+          [5, 'Alter Ring', '4000000000062', '50.00', '59.50', 'Ringe', 1],
+        ].map(([id, description, ean, price_net, price_gross, category, expected]) => ({
           id: id as number,
           description: description as string,
           ean: ean as string,
           price_net: price_net as string,
           price_gross: price_gross as string,
           category: category as string | null,
+          expected_quantity: expected as number | null,
         })),
       )
       .execute();
@@ -122,11 +124,12 @@ describe('statistics and reconciliation', () => {
       workArea: { id: lager, name: 'Lager' },
       workstation: { id: kasse.id, name: 'Kasse' },
     });
-    expect(stats.duplicates).toEqual([
+    expect(stats.overcounted).toEqual([
       {
         articleId: 1,
         description: 'Herrenring Gold',
         ean: '4000000000017',
+        expected: 1,
         lines: 2,
         quantity: 2,
         workAreas: [{ id: vitrine, name: 'Vitrine' }],
@@ -136,18 +139,19 @@ describe('statistics and reconciliation', () => {
 
   it('compares the counted quantities with the current master data', async () => {
     const result = await get<Reconciliation>(`/api/admin/stocktakes/${stocktakeId}/reconciliation`);
-    expect(result.articleCount).toBe(4);
+    expect(result).toMatchObject({ articleCount: 3, expectedQuantity: 6, withoutTargetCount: 1 });
     expect(result.shortage).toEqual({
       count: 2,
-      net: '201.00',
-      gross: '239.19',
+      quantity: 4,
+      net: '420.00',
+      gross: '499.80',
       byCategory: [
-        { category: 'Uhren', count: 1, net: '200.00', gross: '238.00' },
-        { category: null, count: 1, net: '1.00', gross: '1.19' },
+        { category: 'Ketten', count: 1, quantity: 2, net: '20.00', gross: '23.80' },
+        { category: 'Uhren', count: 1, quantity: 2, net: '400.00', gross: '476.00' },
       ],
       articles: [
-        expect.objectContaining({ articleId: 3, description: 'Damenuhr', priceGross: '238.00' }),
-        expect.objectContaining({ articleId: 4, description: 'Etui', category: null }),
+        expect.objectContaining({ articleId: 2, expected: 3, counted: 1, missing: 2 }),
+        expect.objectContaining({ articleId: 3, expected: 2, counted: 0, gross: '476.00' }),
       ],
       truncated: false,
     });

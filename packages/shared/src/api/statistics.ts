@@ -57,12 +57,15 @@ export interface ManualEntryItem {
   createdAt: string;
 }
 
-/** A single item of the master data captured in several lines or with a quantity above 1. */
-export interface DuplicateArticle {
+/** An article of the master data captured more often than its target quantity. */
+export interface OvercountedArticle {
   articleId: number;
   description: string;
   ean: string | null;
+  /** Target quantity of the current master data. */
+  expected: number;
   lines: number;
+  /** Counted pieces, more than the target. */
   quantity: number;
   workAreas: NamedRef[];
 }
@@ -87,11 +90,11 @@ export interface StocktakeStatistics {
   /** Capture rate over time, from the first line until now or the end of the stocktake. */
   rate: { bucketMinutes: number; buckets: RateBucket[] };
   manual: { lines: number; quantity: number; gross: string; entries: ManualEntryItem[] };
-  /** Most pieces first. */
-  duplicates: DuplicateArticle[];
+  /** Most excess pieces first. Articles without a target quantity are left out. */
+  overcounted: OvercountedArticle[];
 }
 
-/** An article of the master data that was not captured (target 1, counted 0). */
+/** An article of the master data counted less often than its target quantity. */
 export interface ShortageArticle {
   articleId: number;
   description: string;
@@ -99,17 +102,29 @@ export interface ShortageArticle {
   category: string | null;
   priceNet: string;
   priceGross: string;
+  /** Target quantity (Soll). */
+  expected: number;
+  /** Counted quantity (Ist), less than the target. */
+  counted: number;
+  /** expected − counted */
+  missing: number;
+  /** Value of the missing pieces. */
+  net: string;
+  gross: string;
 }
 
 export interface ShortageCategory {
   category: string | null;
+  /** Articles with a shortage. */
   count: number;
+  /** Missing pieces. */
+  quantity: number;
   net: string;
   gross: string;
 }
 
 /**
- * - `excess`: an article of the master data counted more than once
+ * - `excess`: an article of the master data counted more often than its target quantity
  * - `unknown`: a captured article that is no longer in the master data
  * - `manual`: a manually captured line
  */
@@ -125,7 +140,7 @@ export interface SurplusItem {
   category: string | null;
   priceNet: string | null;
   priceGross: string;
-  /** Target quantity: 1 for `excess`, otherwise 0. */
+  /** Target quantity: that of the article for `excess`, otherwise 0. */
   expected: number;
   counted: number;
   /** counted − expected */
@@ -137,15 +152,22 @@ export interface SurplusItem {
 
 /**
  * `GET /api/admin/stocktakes/:id/reconciliation`: target/actual comparison
- * against the current master data. Every master data article is a single
- * item with a target quantity of 1.
+ * against the current master data. Articles without a target quantity are
+ * left out.
  */
 export interface Reconciliation {
   stocktakeId: number;
-  /** Number of articles in the master data. */
+  /** Articles of the master data with a target quantity. */
   articleCount: number;
+  /** Sum of their target quantities. */
+  expectedQuantity: number;
+  /** Articles of the master data without a target quantity, which are not compared. */
+  withoutTargetCount: number;
   shortage: {
+    /** Articles with a shortage. */
     count: number;
+    /** Missing pieces. */
+    quantity: number;
     net: string;
     gross: string;
     /** Ordered by name, without category last. */

@@ -1,9 +1,9 @@
 import type {
   CaptureCount,
   CategoryStatistics,
-  DuplicateArticle,
   ManualEntryItem,
   NamedRef,
+  OvercountedArticle,
   RateBucket,
   StatisticsTotals,
   StocktakeStatistics,
@@ -37,6 +37,8 @@ export interface StatisticsInput {
   workAreas: readonly (NamedRef & { status: WorkAreaStatus })[];
   employees: readonly NamedRef[];
   workstations: readonly NamedRef[];
+  /** Target quantities of the captured articles in the current master data; absent without one. */
+  expectedQuantities: ReadonlyMap<number, number>;
   entries: readonly StatisticsEntry[];
   /** End of the capture rate: now, or the end of a finished stocktake. */
   until: Date;
@@ -248,19 +250,25 @@ export function computeStatistics(input: StatisticsInput): StocktakeStatistics {
     .map((id) => captureCount(workstationSums, ref(workstationNames, id)))
     .sort(byLines);
 
-  const duplicates: DuplicateArticle[] = [...articles.entries()]
-    .filter(([, article]) => article.quantity > 1)
-    .map(([articleId, article]) => ({
-      articleId,
-      description: article.entry.description,
-      ean: article.entry.ean,
-      lines: article.lines,
-      quantity: article.quantity,
-      workAreas: [...article.workAreaIds].map((id) => ref(workAreaNames, id)).sort(byName),
-    }))
+  const overcounted: OvercountedArticle[] = [...articles.entries()]
+    .flatMap(([articleId, article]) => {
+      const expected = input.expectedQuantities.get(articleId);
+      if (expected === undefined || article.quantity <= expected) return [];
+      return [
+        {
+          articleId,
+          description: article.entry.description,
+          ean: article.entry.ean,
+          expected,
+          lines: article.lines,
+          quantity: article.quantity,
+          workAreas: [...article.workAreaIds].map((id) => ref(workAreaNames, id)).sort(byName),
+        },
+      ];
+    })
     .sort(
       (a, b) =>
-        b.quantity - a.quantity ||
+        b.quantity - b.expected - (a.quantity - a.expected) ||
         collator.compare(a.description, b.description) ||
         a.articleId - b.articleId,
     );
@@ -281,6 +289,6 @@ export function computeStatistics(input: StatisticsInput): StocktakeStatistics {
       gross: manualTotals.gross,
       entries: manualEntries.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id - b.id),
     },
-    duplicates,
+    overcounted,
   };
 }

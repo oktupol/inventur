@@ -22,6 +22,7 @@ describe('capturing entries', () => {
           price_net: '100.00',
           price_gross: '119.00',
           category: 'Ringe',
+          expected_quantity: 1,
         },
         {
           id: 2,
@@ -30,6 +31,7 @@ describe('capturing entries', () => {
           price_net: '10.00',
           price_gross: '11.90',
           category: 'Ketten',
+          expected_quantity: 5,
         },
         {
           id: 3,
@@ -177,14 +179,21 @@ describe('capturing entries', () => {
     await capture('4000000000017');
     await capture('4000000000031', { articleId: 2 });
     await capture('4000000000017');
+    // Article 2 has a target quantity of 5, article 3 none: no hint.
+    await capture('4000000000031', { articleId: 2 });
+    await capture('4000000000031', { articleId: 3 });
+    await capture('4000000000031', { articleId: 3 });
     const { workArea, entries, totals } = await list();
     expect(workArea).toEqual({ id: workAreaId, name: 'Vitrine', status: 'in_progress' });
     expect(entries.map((e) => [e.articleId, e.duplicateCount])).toEqual([
+      [3, 0],
+      [3, 0],
+      [2, 0],
       [1, 1],
       [2, 0],
       [1, 1],
     ]);
-    expect(totals).toEqual({ quantity: 3, lines: 3, grossValue: '249.90' });
+    expect(totals).toEqual({ quantity: 6, lines: 6, grossValue: '309.40' });
   });
 
   it('shows the lines to a second workstation in the same work area', async () => {
