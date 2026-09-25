@@ -260,7 +260,11 @@ export function CaptureView() {
       playTone();
       return;
     }
-    if (event.entryId !== null) lastCreatedId.current = event.entryId;
+    if (event.entryId !== null) {
+      lastCreatedId.current = event.entryId;
+      // Like a scan at the workstation, the new line becomes the selected one.
+      setSelectedId(null);
+    }
     setFeedback({
       kind: 'phone',
       result: event.result,

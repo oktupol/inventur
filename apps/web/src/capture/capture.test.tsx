@@ -235,6 +235,7 @@ function stubServer(options: { employees?: boolean } = {}) {
     api,
     entries,
     control,
+    createEntry,
     entryPosts: () => api.calls.filter((c) => c.method === 'POST'),
     rowCalls: () =>
       api.calls
@@ -844,6 +845,46 @@ describe('scans of a paired phone', () => {
     phoneScan(realtime, 'ambiguous', '4000000000031');
     expect(await screen.findByText(/Die Auswahl erfolgt auf dem Handy/)).toBeTruthy();
     expect(panel().getAttribute('data-feedback')).toBe('ambiguous');
+  });
+
+  it('selects the line of the phone instead of one chosen with the arrow keys', async () => {
+    const server = stubServer();
+    const realtime = renderStation();
+    for (let i = 1; i <= 2; i++) {
+      await scan('4000000000017');
+      await waitFor(() => expect(server.entries).toHaveLength(i));
+    }
+    const selectedRow = () =>
+      document.querySelector('table.entries tr.selected')?.getAttribute('data-entry-id');
+    await waitFor(() => expect(selectedRow()).toBe('2'));
+    fireEvent.keyDown(await input(), { key: 'ArrowDown' });
+    expect(selectedRow()).toBe('1');
+
+    const entry = server.createEntry(ring, '4000000000017');
+    act(() => {
+      realtime.latest().receive({
+        type: 'event',
+        event: {
+          type: 'phone_scan.result',
+          workstationId: 7,
+          input: '4000000000017',
+          result: 'unique',
+          entryId: entry.id,
+          description: entry.description,
+        },
+      });
+      realtime.latest().receive({
+        type: 'event',
+        event: {
+          type: 'entry.changed',
+          action: 'created',
+          stocktakeId: 1,
+          workAreaId: 4,
+          entryId: entry.id,
+        },
+      });
+    });
+    await waitFor(() => expect(selectedRow()).toBe('3'));
   });
 
   it('offers the manual capture with the unknown code of the phone', async () => {
