@@ -14,6 +14,7 @@ import { countListRoutes } from './count-list/routes.ts';
 import { employeeRoutes } from './employee/routes.ts';
 import { exportRoutes } from './export/routes.ts';
 import { entryRoutes } from './entry/routes.ts';
+import { masterDataRoutes } from './master-data/routes.ts';
 import { pairingRoutes } from './pairing/routes.ts';
 import { scanRoutes } from './scan/routes.ts';
 import { searchRoutes } from './search/routes.ts';
@@ -68,6 +69,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await countListRoutes(app, context);
     await auditRoutes(app, context);
     await articleSearchRoutes(app, context);
+    await masterDataRoutes(app, context);
   }
 
   if (options.staticDir) {

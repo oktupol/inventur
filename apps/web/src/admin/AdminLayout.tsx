@@ -22,6 +22,7 @@ function Navigation() {
       <NavLink to="/admin/artikel">Artikelsuche</NavLink>
       <NavLink to="/admin/protokoll">Protokoll</NavLink>
       <NavLink to="/admin/historie">Historie</NavLink>
+      <NavLink to="/admin/stammdaten">Stammdaten</NavLink>
       <div className="spacer" />
       <ConnectionIndicator />
     </nav>

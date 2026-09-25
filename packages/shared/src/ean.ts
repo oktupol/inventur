@@ -19,3 +19,16 @@ export function ean13(twelveDigits: string): string {
 export function isValidEan13(code: string): boolean {
   return /^\d{13}$/.test(code) && ean13CheckDigit(code.slice(0, 12)) === Number(code[12]);
 }
+
+/**
+ * Whether an EAN-8 or EAN-13 has the correct check digit. Counting from the
+ * check digit leftwards, the digits weigh 3, 1, 3, … (GTIN rule).
+ */
+export function hasValidEanCheckDigit(code: string): boolean {
+  if (!/^(\d{8}|\d{13})$/.test(code)) return false;
+  let sum = 0;
+  for (let i = code.length - 2, weight = 3; i >= 0; i--, weight = 4 - weight) {
+    sum += Number(code[i]) * weight;
+  }
+  return (10 - (sum % 10)) % 10 === Number(code.at(-1));
+}

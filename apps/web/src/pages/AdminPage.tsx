@@ -4,6 +4,7 @@ import { ArticleSearchPage, StocktakeArticleSearchPage } from '../admin/ArticleS
 import { AuditLogPage, StocktakeAuditLogPage } from '../admin/AuditLogPage.tsx';
 import { EmployeesPage } from '../admin/EmployeesPage.tsx';
 import { HistoryPage, StocktakeDetailPage } from '../admin/HistoryPage.tsx';
+import { MasterDataPage } from '../admin/MasterDataPage.tsx';
 import { StatisticsPage, StocktakeStatisticsPage } from '../admin/StatisticsPage.tsx';
 import { StocktakePage } from '../admin/StocktakePage.tsx';
 import { WorkAreasPage } from '../admin/WorkAreasPage.tsx';
@@ -19,6 +20,7 @@ export function AdminPage() {
         <Route path="bereiche" element={<WorkAreasPage />} />
         <Route path="stationen" element={<WorkstationsPage />} />
         <Route path="historie" element={<HistoryPage />} />
+        <Route path="stammdaten" element={<MasterDataPage />} />
         <Route path="statistik" element={<StatisticsPage />} />
         <Route path="artikel" element={<ArticleSearchPage />} />
         <Route path="protokoll" element={<AuditLogPage />} />
