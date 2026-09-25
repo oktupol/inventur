@@ -8,6 +8,8 @@ import type {
   UpdateEntryRequest,
 } from '@inventur/shared';
 import { sql } from 'kysely';
+import { entryChange } from '../audit/rules.ts';
+import { recordAudit, type AuditActor } from '../audit/service.ts';
 import type { Context } from '../context.ts';
 import type { Db } from '../db/connection.ts';
 import { isUniqueViolation } from '../db/errors.ts';
@@ -247,7 +249,7 @@ async function lockOwnAreaEntry(trx: Trx, station: StationIdentity, entryId: num
   const { workArea } = await lockCaptureContext(trx, station);
   const entry = await trx
     .selectFrom('inventory.entry')
-    .select(['id', 'quantity', 'work_area_id'])
+    .select(['id', 'quantity', 'work_area_id', 'description', 'ean', 'input'])
     .where('id', '=', entryId)
     .forUpdate()
     .executeTakeFirst();
@@ -257,16 +259,22 @@ async function lockOwnAreaEntry(trx: Trx, station: StationIdentity, entryId: num
   return { entry, workArea };
 }
 
-/** Changes the quantity of a line; +/− are applied relative to the current value. */
+/** An actor at a workstation, directly or with a paired phone. */
+export type StationActor = Extract<AuditActor, { workstation: StationIdentity }>;
+
+/**
+ * Changes the quantity of a line; +/− are applied relative to the current
+ * value. A change is recorded in the audit log.
+ */
 export async function updateEntryQuantity(
   { db, events }: Context,
-  station: StationIdentity,
+  actor: StationActor,
   entryId: number,
   change: UpdateEntryRequest,
 ): Promise<Entry> {
   const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
   const { entry, changed } = await withWritableStocktake(db, stocktakeId, async (trx) => {
-    const { entry: current } = await lockOwnAreaEntry(trx, station, entryId);
+    const { entry: current } = await lockOwnAreaEntry(trx, actor.workstation, entryId);
     const quantity = nextQuantity(current.quantity, change);
     if (quantity !== current.quantity) {
       await trx
@@ -274,6 +282,12 @@ export async function updateEntryQuantity(
         .set({ quantity, updated_at: new Date() })
         .where('id', '=', entryId)
         .execute();
+      await recordAudit(
+        trx,
+        stocktakeId,
+        actor,
+        entryChange('quantity_changed', current, current.quantity, quantity),
+      );
     }
     return { entry: await getEntry(trx, entryId), changed: quantity !== current.quantity };
   });
@@ -290,20 +304,46 @@ export async function updateEntryQuantity(
 }
 
 /**
- * Deletes a line permanently; there is no undo. A checkpoint whose section
- * becomes empty is removed as well.
+ * The complete row of a line with its employees, as JSON with timestamps in
+ * full precision, so that it can be restored exactly.
+ */
+async function entrySnapshot(trx: Trx, entryId: number): Promise<Record<string, unknown>> {
+  const { rows } = await sql<{ snapshot: Record<string, unknown> }>`
+    SELECT jsonb_build_object(
+      'entry', to_jsonb(e),
+      'employeeIds', coalesce(
+        (SELECT jsonb_agg(ee.employee_id ORDER BY ee.employee_id)
+         FROM inventory.entry_employee ee WHERE ee.entry_id = e.id),
+        '[]'::jsonb)
+    ) AS snapshot
+    FROM inventory.entry e WHERE e.id = ${entryId}`.execute(trx);
+  return rows[0]!.snapshot;
+}
+
+/**
+ * Deletes a line. A checkpoint whose section becomes empty is removed as
+ * well. The audit log keeps the line and these checkpoints.
  */
 export async function deleteEntry(
   { db, events }: Context,
-  station: StationIdentity,
+  actor: StationActor,
   entryId: number,
 ): Promise<DeleteEntryResponse> {
   const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
   const { workAreaId, removed } = await withWritableStocktake(db, stocktakeId, async (trx) => {
-    const { workArea } = await lockOwnAreaEntry(trx, station, entryId);
+    const { entry, workArea } = await lockOwnAreaEntry(trx, actor.workstation, entryId);
     await lockCheckpoints(trx, workArea.id);
+    const snapshot = await entrySnapshot(trx, entryId);
     await trx.deleteFrom('inventory.entry').where('id', '=', entryId).execute();
-    return { workAreaId: workArea.id, removed: await removeEmptyCheckpoints(trx, workArea.id) };
+    const removed = await removeEmptyCheckpoints(trx, workArea.id);
+    await recordAudit(
+      trx,
+      stocktakeId,
+      actor,
+      entryChange('deleted', entry, entry.quantity, null),
+      { ...snapshot, checkpoints: removed.map((c) => c.row) },
+    );
+    return { workAreaId: workArea.id, removed };
   });
   events.publish({ type: 'entry.changed', action: 'deleted', stocktakeId, workAreaId, entryId });
   for (const { id } of removed) {

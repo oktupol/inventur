@@ -183,18 +183,20 @@ export async function deleteCheckpoint(
 export async function removeEmptyCheckpoints(
   trx: Trx,
   workAreaId: number,
-): Promise<{ id: number; number: number }[]> {
+): Promise<{ id: number; number: number; row: unknown }[]> {
   const times = await loadTimes(trx, workAreaId);
   const empty = emptyCheckpoints(times.entries, times.checkpoints);
-  if (empty.length > 0) {
-    await trx
-      .deleteFrom('inventory.checkpoint')
-      .where(
-        'id',
-        'in',
-        empty.map((c) => c.id),
-      )
-      .execute();
-  }
-  return empty.map(({ id, number }) => ({ id, number }));
+  if (empty.length === 0) return [];
+  // The complete rows in full precision allow restoring them exactly.
+  const deleted = await trx
+    .deleteFrom('inventory.checkpoint')
+    .where(
+      'id',
+      'in',
+      empty.map((c) => c.id),
+    )
+    .returning(['id', sql<unknown>`to_jsonb(checkpoint)`.as('row')])
+    .execute();
+  const rows = new Map(deleted.map((d) => [d.id, d.row]));
+  return empty.map(({ id, number }) => ({ id, number, row: rows.get(id) }));
 }

@@ -1,6 +1,12 @@
-import type { Reconciliation } from '@inventur/shared';
+import type { AuditLogEntry, Reconciliation } from '@inventur/shared';
 import { describe, expect, it } from 'vitest';
-import { articleTable, entryTable, reconciliationTable, type ExportEntry } from './table.ts';
+import {
+  articleTable,
+  auditLogTable,
+  entryTable,
+  reconciliationTable,
+  type ExportEntry,
+} from './table.ts';
 
 let nextId = 1;
 
@@ -322,6 +328,81 @@ describe('reconciliationTable', () => {
         '30.00',
         null,
         '60.00',
+      ],
+    ]);
+  });
+});
+
+describe('auditLogTable', () => {
+  const change: AuditLogEntry = {
+    id: 2,
+    action: 'quantity_changed',
+    entryId: 7,
+    workArea: { id: 1, name: 'Vitrine' },
+    description: 'Herrenuhr',
+    code: '4000000000017',
+    oldValue: '1',
+    newValue: '3',
+    source: 'phone',
+    workstation: { id: 3, name: 'Kasse' },
+    employees: ['Ben', 'Anna'],
+    createdAt: '2026-09-25T08:00:00.000Z',
+  };
+
+  it('lists the changes oldest first with German labels', () => {
+    const table = auditLogTable([
+      change,
+      {
+        ...change,
+        id: 1,
+        action: 'stocktake_reopened',
+        entryId: null,
+        workArea: null,
+        description: null,
+        code: null,
+        oldValue: null,
+        newValue: null,
+        source: 'admin',
+        workstation: null,
+        employees: [],
+      },
+    ]);
+    expect(table.columns.map((c) => c.header)).toEqual([
+      'Zeitpunkt',
+      'Aktion',
+      'Arbeitsbereich',
+      'Bezeichnung',
+      'EAN/Code',
+      'Alter Wert',
+      'Neuer Wert',
+      'Quelle',
+      'Station',
+      'Mitarbeiter',
+    ]);
+    expect(table.rows).toEqual([
+      [
+        new Date('2026-09-25T08:00:00.000Z'),
+        'Inventur wieder geöffnet',
+        null,
+        null,
+        null,
+        null,
+        null,
+        'Dashboard',
+        null,
+        '',
+      ],
+      [
+        new Date('2026-09-25T08:00:00.000Z'),
+        'Menge geändert',
+        'Vitrine',
+        'Herrenuhr',
+        '4000000000017',
+        '1',
+        '3',
+        'Handy',
+        'Kasse',
+        'Anna, Ben',
       ],
     ]);
   });

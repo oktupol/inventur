@@ -50,6 +50,24 @@ const EXPECTED_COLUMNS: Record<string, string[]> = {
     'paired_at',
     'device_label',
   ],
+  'inventory.audit_log': [
+    'id',
+    'stocktake_id',
+    'action',
+    'entry_id',
+    'work_area_id',
+    'work_area_name',
+    'description',
+    'code',
+    'old_value',
+    'new_value',
+    'entry_snapshot',
+    'source',
+    'workstation_id',
+    'workstation_name',
+    'employee_names',
+    'created_at',
+  ],
 };
 
 describe('migrations', () => {
@@ -69,6 +87,7 @@ describe('migrations', () => {
       '0003_checkpoint_boundary',
       '0004_pairing_device_label',
       '0005_article_expected_quantity',
+      '0006_audit_log',
     ]);
   });
 

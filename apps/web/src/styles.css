@@ -143,6 +143,10 @@ a.button.small {
   align-items: flex-end;
 }
 
+.form-row .spacer {
+  flex: 1;
+}
+
 .form-row label {
   display: flex;
   flex-direction: column;
