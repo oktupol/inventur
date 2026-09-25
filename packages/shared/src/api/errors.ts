@@ -7,6 +7,7 @@ export type ErrorCode =
   | 'not_found'
   | 'stocktake_already_active'
   | 'stocktake_finished'
+  | 'stocktake_not_finished'
   | 'unclosed_work_areas'
   | 'name_taken'
   | 'employee_has_entries'

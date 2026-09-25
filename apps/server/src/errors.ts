@@ -5,6 +5,7 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   not_found: 404,
   stocktake_already_active: 409,
   stocktake_finished: 409,
+  stocktake_not_finished: 409,
   unclosed_work_areas: 409,
   name_taken: 409,
   employee_has_entries: 409,

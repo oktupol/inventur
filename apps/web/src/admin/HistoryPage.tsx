@@ -1,11 +1,75 @@
 import type { Employee, Stocktake, StocktakeSummary, WorkArea } from '@inventur/shared';
-import { Link, useParams } from 'react-router';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { api } from '../api/client.ts';
+import { useAction } from '../api/useAction.ts';
 import { useApiData } from '../api/useApiData.ts';
+import { ConfirmDialog } from '../components/Dialog.tsx';
 import { ErrorNotice } from '../components/Notice.tsx';
 import { formatDateTime, formatNumber, STOCKTAKE_STATUS_LABELS } from '../format.ts';
 import { EmployeeTable } from './EmployeesPage.tsx';
+import { useActiveStocktake } from './ActiveStocktake.tsx';
 import { ExportCard } from './ExportCard.tsx';
 import { WorkAreaTable } from './WorkAreasPage.tsx';
+
+/**
+ * Reopens a finished stocktake after a confirmation, while no other one is
+ * active; afterwards the dashboard shows it as the active stocktake.
+ */
+function ReopenButton({ stocktake }: { stocktake: Pick<Stocktake, 'id' | 'name' | 'status'> }) {
+  const { stocktake: active, reload } = useActiveStocktake();
+  const [confirming, setConfirming] = useState(false);
+  const reopen = useAction();
+  const navigate = useNavigate();
+  if (stocktake.status !== 'finished') return null;
+  const blocked = active !== null;
+
+  const confirm = async () => {
+    if (await reopen.run(() => api.post(`/api/admin/stocktakes/${stocktake.id}/reopen`))) {
+      setConfirming(false);
+      reload();
+      void navigate('/admin');
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="small"
+        disabled={blocked}
+        title={
+          blocked ? 'Es ist eine andere Inventur aktiv. Sie muss zuerst beendet werden.' : undefined
+        }
+        onClick={() => {
+          reopen.clearError();
+          setConfirming(true);
+        }}
+      >
+        Wieder öffnen
+      </button>
+      {confirming && (
+        <ConfirmDialog
+          title="Inventur wieder öffnen"
+          confirmLabel="Wieder öffnen"
+          busy={reopen.busy}
+          onConfirm={() => void confirm()}
+          onCancel={() => setConfirming(false)}
+        >
+          <p>
+            Soll die Inventur <strong>{stocktake.name}</strong> wieder geöffnet werden? Sie ist
+            danach wieder aktiv und lässt sich bearbeiten.
+          </p>
+          <p className="muted">
+            Abgeschlossene Bereiche bleiben abgeschlossen. Mitarbeiter müssen sich an den Stationen
+            neu anmelden, Handys werden neu gekoppelt. Das Wiederöffnen steht im Änderungsprotokoll.
+          </p>
+          <ErrorNotice error={reopen.error} />
+        </ConfirmDialog>
+      )}
+    </>
+  );
+}
 
 export function HistoryPage() {
   const stocktakes = useApiData<StocktakeSummary[]>('/api/admin/stocktakes', {
@@ -35,6 +99,7 @@ export function HistoryPage() {
                   <th className="number">Mitarbeiter</th>
                   <th className="number">Zeilen</th>
                   <th className="number">Stück</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -56,6 +121,9 @@ export function HistoryPage() {
                     <td className="number">{formatNumber(s.employeeCount)}</td>
                     <td className="number">{formatNumber(s.entryCount)}</td>
                     <td className="number">{formatNumber(s.quantity)}</td>
+                    <td className="actions">
+                      <ReopenButton stocktake={s} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -89,6 +157,7 @@ export function StocktakeDetailPage() {
               {s.name}{' '}
               <span className={`badge ${s.status}`}>{STOCKTAKE_STATUS_LABELS[s.status]}</span>
             </h1>
+            <ReopenButton stocktake={s} />
           </div>
           <p className="muted">
             Gestartet am {formatDateTime(s.startedAt)}

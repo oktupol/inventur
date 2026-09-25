@@ -1,11 +1,19 @@
 import type { Stocktake, StocktakeSummary } from '@inventur/shared';
 import type { Selectable, Transaction } from 'kysely';
+import { stocktakeChange } from '../audit/rules.ts';
+import { recordAudit } from '../audit/service.ts';
 import type { Context } from '../context.ts';
 import type { Db } from '../db/connection.ts';
 import { isUniqueViolation } from '../db/errors.ts';
 import type { Database, StocktakeTable } from '../db/schema.ts';
 import { DomainError } from '../errors.ts';
-import { assertCanStart, assertWritable, parseStocktakeName, planFinish } from './lifecycle.ts';
+import {
+  assertCanStart,
+  assertWritable,
+  parseStocktakeName,
+  planFinish,
+  planReopen,
+} from './lifecycle.ts';
 
 export type Trx = Transaction<Database>;
 
@@ -177,6 +185,7 @@ export async function finishStocktake(
       .where('id', '=', id)
       .returningAll()
       .executeTakeFirstOrThrow();
+    await recordAudit(trx, id, { source: 'admin' }, stocktakeChange('stocktake_finished'));
 
     const workAreaIds = workAreas.map((area) => area.id);
     const workstations =
@@ -220,6 +229,67 @@ export async function finishStocktake(
   }
   for (const workstationId of result.changedWorkstations) {
     events.publish({ type: 'workstation.changed', action: 'updated', workstationId });
+  }
+  return result.stocktake;
+}
+
+/**
+ * Reopens a finished stocktake, e.g. to correct a mistake noticed after
+ * finishing. Only possible while no other stocktake is active. Work areas
+ * that were in progress fall back to open; employees log in again and
+ * phones are paired again.
+ */
+export async function reopenStocktake({ db, events }: Context, id: number): Promise<Stocktake> {
+  const result = await db.transaction().execute(async (trx) => {
+    const stocktake = await trx
+      .selectFrom('inventory.stocktake')
+      .select(['id', 'status'])
+      .where('id', '=', id)
+      .forUpdate()
+      .executeTakeFirst();
+    const active = (await getActiveStocktake(trx)) ?? undefined;
+    const workAreas = await trx
+      .selectFrom('inventory.work_area')
+      .select(['id', 'name', 'status'])
+      .where('stocktake_id', '=', id)
+      .execute();
+    const reopened = planReopen(stocktake, active, workAreas);
+
+    const row = await trx
+      .updateTable('inventory.stocktake')
+      .set({ status: 'active', finished_at: null })
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirstOrThrow()
+      .catch((error: unknown) => {
+        // Another stocktake was started or reopened at the same time.
+        throw isUniqueViolation(error, 'stocktake_single_active_idx')
+          ? new DomainError('stocktake_already_active', 'Another stocktake is already active')
+          : error;
+      });
+    if (reopened.length > 0) {
+      await trx
+        .updateTable('inventory.work_area')
+        .set({ status: 'open' })
+        .where(
+          'id',
+          'in',
+          reopened.map((area) => area.id),
+        )
+        .execute();
+    }
+    await recordAudit(trx, id, { source: 'admin' }, stocktakeChange('stocktake_reopened'));
+    return { stocktake: toStocktake(row), reopened };
+  });
+
+  events.publish({ type: 'stocktake.changed', action: 'updated', stocktakeId: id });
+  for (const area of result.reopened) {
+    events.publish({
+      type: 'work_area.changed',
+      action: 'updated',
+      stocktakeId: id,
+      workAreaId: area.id,
+    });
   }
   return result.stocktake;
 }
