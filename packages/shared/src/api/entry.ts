@@ -109,6 +109,24 @@ export function parsePrice(text: string): string | null {
   return Number(price) > 0 ? price : null;
 }
 
+/**
+ * `POST /api/station/entries/restore`: brings back the line the workstation
+ * (or its phone) deleted last, shortly after deleting it.
+ */
+export interface RestoreEntryRequest {
+  /** The deleted line; guards against restoring a different one than shown. */
+  entryId: number;
+}
+
+export interface RestoreEntryResponse {
+  entry: Entry;
+  /** Numbers of checkpoints that were removed with the line and are back. */
+  restoredCheckpoints: number[];
+}
+
+/** Time after a deletion in which the workstation offers to restore the line. */
+export const UNDO_DELETE_MS = 10_000;
+
 /** `DELETE /api/station/entries/:id` */
 export interface DeleteEntryResponse {
   /**

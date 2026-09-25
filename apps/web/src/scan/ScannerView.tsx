@@ -1,8 +1,10 @@
-import type {
-  ArticleMatch,
-  CreateEntryResponse,
-  DeleteEntryResponse,
-  Entry,
+import {
+  UNDO_DELETE_MS,
+  type ArticleMatch,
+  type CreateEntryResponse,
+  type DeleteEntryResponse,
+  type Entry,
+  type RestoreEntryResponse,
 } from '@inventur/shared';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
 import { ApiRequestError, type Api } from '../api/client.ts';
@@ -19,7 +21,7 @@ type Result =
   | { kind: 'unique'; entry: Entry }
   | { kind: 'ambiguous'; input: string; articles: ArticleMatch[] }
   | { kind: 'not_found'; input: string }
-  | { kind: 'deleted'; description: string }
+  | { kind: 'deleted'; entryId: number; description: string }
   | { kind: 'error'; message: string };
 
 interface Scan {
@@ -46,6 +48,8 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
   const [cameraError, setCameraError] = useState<string>();
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The line deleted last on this phone, while it can still be restored. */
+  const [undoable, setUndoable] = useState<number | null>(null);
   const [typing, setTyping] = useState(false);
   const [code, setCode] = useState('');
   const [holdMode, setHoldMode] = useState(loadHoldMode);
@@ -167,7 +171,8 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
       const url = `/api/scan/entries/${entry.id}`;
       if (action === 'delete') {
         await api.delete<DeleteEntryResponse>(url);
-        setResult({ kind: 'deleted', description: entry.description });
+        setResult({ kind: 'deleted', entryId: entry.id, description: entry.description });
+        setUndoable(entry.id);
       } else {
         const updated = await api.patch<Entry>(url, { delta: action === 'plus' ? 1 : -1 });
         setResult({ kind: 'unique', entry: updated });
@@ -178,6 +183,28 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
       setBusy(false);
     }
   }
+
+  async function undoDelete(entryId: number) {
+    setUndoable(null);
+    setBusy(true);
+    try {
+      const { entry } = await api.post<RestoreEntryResponse>('/api/scan/entries/restore', {
+        entryId,
+      });
+      setResult({ kind: 'unique', entry });
+    } catch (error) {
+      setResult({ kind: 'error', message: messageOf(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // The offer to restore a deleted line ends after a short time.
+  useEffect(() => {
+    if (undoable === null) return;
+    const timer = setTimeout(() => setUndoable(null), UNDO_DELETE_MS);
+    return () => clearTimeout(timer);
+  }, [undoable]);
 
   function submitCode(event: FormEvent) {
     event.preventDefault();
@@ -300,6 +327,17 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
           {result?.kind === 'deleted' && (
             <div className="result" data-result="deleted">
               Zeile gelöscht: {result.description}
+              {undoable === result.entryId && (
+                <div className="result-actions">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void undoDelete(result.entryId)}
+                  >
+                    Rückgängig
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {result?.kind === 'error' && (

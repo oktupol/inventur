@@ -366,8 +366,8 @@ Bei Uhren weist erst die Seriennummer ein bestimmtes Stück nach. Deshalb lässt
 Weil `Delete` ohne Rückfrage löscht, lässt sich die letzte Löschung kurz zurücknehmen. **(Annahme)**
 
 - Der Hinweis „Zeile gelöscht“ bleibt 10 Sekunden stehen und enthält einen Button „Rückgängig“. Solange er sichtbar ist, stellt auch `Strg+Z` bei leerem Eingabefeld die Zeile wieder her. Auf dem Handy erscheint nach `Löschen` derselbe Button.
-- Rückgängig machen kann nur die Station, an der gelöscht wurde (bzw. deren Handy), und nur die jeweils letzte Löschung.
-- Die Zeile wird mit denselben Daten wiederhergestellt: gleiche Kennung, Erfassungszeitpunkt, Menge, Seriennummer, Momentaufnahme und Mitarbeiter. Sie steht damit wieder an ihrer alten Stelle in der Liste und im alten Checkpoint-Abschnitt. Ein Checkpoint, der durch die Löschung automatisch entfallen ist, wird ebenfalls wiederhergestellt.
+- Rückgängig machen kann nur die Station, an der gelöscht wurde (bzw. deren Handy), und nur die jeweils letzte Löschung. Der Server nimmt die Anfrage bis 60 Sekunden nach dem Löschen an, damit eine nach einem Verbindungsabbruch wiederholte Anfrage noch durchgeht; eine wiederholte Anfrage stellt die Zeile nicht doppelt her.
+- Die Zeile wird mit denselben Daten wiederhergestellt: gleiche Kennung, Erfassungszeitpunkt, Menge, Seriennummer, Momentaufnahme und Mitarbeiter. Sie steht damit wieder an ihrer alten Stelle in der Liste und im alten Checkpoint-Abschnitt. Ein Checkpoint, der durch die Löschung automatisch entfallen ist, wird ebenfalls wiederhergestellt, sofern er dadurch keinen leeren Abschnitt erzeugt.
 - Das Wiederherstellen wird abgelehnt, wenn der Bereich inzwischen abgeschlossen oder die Inventur beendet ist.
 - Die Wiederherstellung erscheint live auf allen Stationen im Bereich und als eigener Eintrag im Änderungsprotokoll.
 - Mengenänderungen lassen sich nicht zurücknehmen; sie sind mit `+`, `−` oder dem Mengenmodus direkt korrigierbar.

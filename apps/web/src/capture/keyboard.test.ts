@@ -3,6 +3,7 @@ import {
   defaultSelection,
   effectiveSelection,
   interpretKey,
+  keyOf,
   moveRowSelection,
   type KeyState,
 } from './keyboard.ts';
@@ -32,6 +33,7 @@ describe('shortcuts with an empty input', () => {
     ['*', 'start_quantity'],
     ['Escape', 'reset_selection'],
     ['F3', 'checkpoint'],
+    ['Ctrl+z', 'undo'],
   ])('%s → %s', (key, type) => {
     expect(interpretKey(empty, key).type).toBe(type);
   });
@@ -67,13 +69,24 @@ describe('typing into a non-empty input', () => {
     expect(commands.every((type) => type === 'none')).toBe(true);
   });
 
-  it.each(['+', '-', '=', '*', 'Delete', 'ArrowUp', 'Escape', 'F3'])('lets %s through', (key) => {
-    expect(interpretKey({ ...empty, text: 'X' }, key).type).toBe('none');
-  });
+  it.each(['+', '-', '=', '*', 'Delete', 'ArrowUp', 'Escape', 'F3', 'Ctrl+z'])(
+    'lets %s through',
+    (key) => {
+      expect(interpretKey({ ...empty, text: 'X' }, key).type).toBe('none');
+    },
+  );
 
   it('leaves arrow keys to an open choice', () => {
     expect(interpretKey({ ...empty, choiceOpen: true }, 'ArrowDown').type).toBe('none');
     expect(interpretKey({ ...empty, choiceOpen: true }, '+').type).toBe('none');
+  });
+});
+
+describe('keyOf', () => {
+  it('prefixes keys pressed with Ctrl or Cmd', () => {
+    expect(keyOf({ key: 'z', ctrlKey: true, metaKey: false })).toBe('Ctrl+z');
+    expect(keyOf({ key: 'Z', ctrlKey: false, metaKey: true })).toBe('Ctrl+z');
+    expect(keyOf({ key: 'z', ctrlKey: false, metaKey: false })).toBe('z');
   });
 });
 

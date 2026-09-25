@@ -246,7 +246,8 @@ Tastenkürzel an der Station, wenn das Eingabefeld leer ist (auch auf dem Nummer
 |---|---|
 | `+` / `-` | Menge der ausgewählten Zeile erhöhen / verringern |
 | `=` oder `*`, Ziffern, `Enter` | Menge setzen, z. B. `* 20 Enter` |
-| `Entf` | Ausgewählte Zeile löschen (ohne Rückfrage, ohne Rückgängig) |
+| `Entf` | Ausgewählte Zeile löschen (ohne Rückfrage) |
+| `Strg+Z` | Zuletzt gelöschte Zeile wiederherstellen (10 Sekunden lang, auch per Button im Hinweis) |
 | `↑` / `↓` | Andere Zeile auswählen; standardmäßig ist es die zuletzt an dieser Station erfasste |
 | `Esc` | Auswahl zurücksetzen |
 | `Tab` | Vorgeschlagene Ergänzung übernehmen (bei Texteingabe) |

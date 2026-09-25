@@ -3,6 +3,7 @@ import type {
   CreateEntryResponse,
   CreateManualEntryRequest,
   DeleteEntryResponse,
+  RestoreEntryResponse,
   Entry,
   EntryListResponse,
   UpdateEntryRequest,
@@ -13,7 +14,12 @@ import { recordAudit, type AuditActor } from '../audit/service.ts';
 import type { Context } from '../context.ts';
 import type { Db } from '../db/connection.ts';
 import { isUniqueViolation } from '../db/errors.ts';
-import { loadCheckpoints, lockCheckpoints, removeEmptyCheckpoints } from '../checkpoint/service.ts';
+import {
+  loadCheckpoints,
+  lockCheckpoints,
+  removeEmptyCheckpoints,
+  restoreCheckpoints,
+} from '../checkpoint/service.ts';
 import { DomainError } from '../errors.ts';
 import { getArticle, resolveArticle } from '../search/service.ts';
 import { requireActiveStocktake } from '../station/rules.ts';
@@ -24,6 +30,7 @@ import {
   manualEntryValues,
   nextQuantity,
   parseInput,
+  planRestore,
   snapshotOf,
 } from './rules.ts';
 
@@ -356,6 +363,107 @@ export async function deleteEntry(
     });
   }
   return { removedCheckpoints: removed.map((c) => c.number) };
+}
+
+/** A deleted line as `deleteEntry` keeps it in the audit log. */
+interface DeletedEntrySnapshot {
+  entry: {
+    id: number;
+    work_area_id: number;
+    workstation_id: number;
+    description: string;
+    ean: string | null;
+    input: string;
+    quantity: number;
+  };
+  employeeIds: number[];
+  checkpoints: unknown[];
+}
+
+/**
+ * Restores the line the workstation (or its phone) deleted last, with the
+ * same id, capture time, employees and snapshot, so that it is back in its
+ * place and checkpoint section. Checkpoints removed with it return as well.
+ */
+export async function restoreEntry(
+  { db, events }: Context,
+  actor: StationActor,
+  entryId: number,
+): Promise<RestoreEntryResponse> {
+  const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
+  const unavailable = (reason: string) => new DomainError('restore_unavailable', reason);
+  const outcome = await withWritableStocktake(db, stocktakeId, async (trx) => {
+    const { workArea } = await lockCaptureContext(trx, actor.workstation);
+    // Serializes restoring with deleting lines and changing checkpoints of the area.
+    await lockCheckpoints(trx, workArea.id);
+    const last = await trx
+      .selectFrom('inventory.audit_log')
+      .select(['action', 'entry_id', 'work_area_id', 'entry_snapshot', 'created_at'])
+      .where('stocktake_id', '=', stocktakeId)
+      .where('workstation_id', '=', actor.workstation.id)
+      .where('action', 'in', ['deleted', 'restored'])
+      .orderBy('id', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+    const plan = planRestore(
+      last && {
+        action: last.action as 'deleted' | 'restored',
+        entryId: last.entry_id,
+        createdAt: last.created_at,
+      },
+      entryId,
+      new Date(),
+    );
+    if (plan === 'already_restored') {
+      return { entry: await getEntry(trx, entryId), checkpoints: [], restored: false };
+    }
+    if (last!.work_area_id !== workArea.id) {
+      throw unavailable('The line belongs to another work area');
+    }
+    const snapshot = last!.entry_snapshot as DeletedEntrySnapshot;
+    const creator = await trx
+      .selectFrom('inventory.workstation')
+      .select('id')
+      .where('id', '=', snapshot.entry.workstation_id)
+      .executeTakeFirst();
+    if (!creator) throw unavailable('The workstation that captured the line was deleted');
+
+    await sql`
+      INSERT INTO inventory.entry
+      SELECT * FROM jsonb_populate_record(
+        NULL::inventory.entry, ${JSON.stringify(snapshot.entry)}::jsonb)`.execute(trx);
+    // Employees without other lines may have been deleted meanwhile.
+    await sql`
+      INSERT INTO inventory.entry_employee (entry_id, employee_id)
+      SELECT ${entryId}, e.id FROM inventory.employee e
+      WHERE e.id = ANY(${snapshot.employeeIds}::bigint[])`.execute(trx);
+    const checkpoints = await restoreCheckpoints(trx, workArea.id, snapshot.checkpoints);
+    await recordAudit(
+      trx,
+      stocktakeId,
+      actor,
+      entryChange('restored', snapshot.entry, null, snapshot.entry.quantity),
+    );
+    return { entry: await getEntry(trx, entryId), checkpoints, restored: true };
+  });
+
+  if (outcome.restored) {
+    const { workAreaId } = outcome.entry;
+    events.publish({ type: 'entry.changed', action: 'created', stocktakeId, workAreaId, entryId });
+    for (const { id } of outcome.checkpoints) {
+      events.publish({
+        type: 'checkpoint.changed',
+        action: 'created',
+        stocktakeId,
+        workAreaId,
+        checkpointId: id,
+      });
+    }
+  }
+  return {
+    entry: outcome.entry,
+    restoredCheckpoints: outcome.checkpoints.map((c) => c.number),
+  };
 }
 
 /** Captures an article that is not in the master data; the line is marked as manual. */

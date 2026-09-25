@@ -6,7 +6,7 @@ import { MAX_QUANTITY, type Entry } from '@inventur/shared';
  * Shortcuts only apply while the input is empty; otherwise every key types
  * normally, so "AB-123" is an input and not a decrement. Keys are compared by
  * `KeyboardEvent.key`, which is the same for the number pad ("+", "-", "*",
- * digits, "Delete").
+ * digits, "Delete"). With Ctrl (or Cmd), the key is passed as e.g. "Ctrl+z".
  */
 
 export interface KeyState {
@@ -32,7 +32,8 @@ export type KeyCommand =
   | { type: 'select'; delta: -1 | 1 }
   | { type: 'reset_selection' }
   | { type: 'manual' }
-  | { type: 'checkpoint' };
+  | { type: 'checkpoint' }
+  | { type: 'undo' };
 
 const MAX_DIGITS = String(MAX_QUANTITY).length;
 
@@ -83,9 +84,16 @@ export function interpretKey(state: KeyState, key: string): KeyCommand {
       return { type: 'reset_selection' };
     case 'F3':
       return { type: 'checkpoint' };
+    case 'Ctrl+z':
+      return { type: 'undo' };
     default:
       return { type: 'none' };
   }
+}
+
+/** The key of a keyboard event as `interpretKey` expects it, e.g. "Ctrl+z" for Ctrl+Z or Cmd+Z. */
+export function keyOf(event: { key: string; ctrlKey: boolean; metaKey: boolean }): string {
+  return event.ctrlKey || event.metaKey ? `Ctrl+${event.key.toLowerCase()}` : event.key;
 }
 
 /** By default the shortcuts act on the newest line of this workstation. */

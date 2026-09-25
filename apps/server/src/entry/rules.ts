@@ -104,3 +104,37 @@ export function manualEntryValues(request: ManualEntryInput) {
     serial_number: serialNumber,
   };
 }
+
+/**
+ * Time in which the server accepts restoring a deleted line. It is longer
+ * than the undo offer at the workstation, so that a request delayed by a
+ * lost connection still succeeds.
+ */
+export const RESTORE_WINDOW_MS = 60_000;
+
+/** The newest deletion or restoration of a workstation, from the audit log. */
+export interface LastRemoval {
+  action: 'deleted' | 'restored';
+  entryId: number | null;
+  createdAt: Date;
+}
+
+/**
+ * Decides whether a workstation may restore a line: only the line it
+ * deleted last, and only shortly after. Restoring the same line again (a
+ * repeated request) is answered with the line restored before.
+ */
+export function planRestore(
+  last: LastRemoval | undefined,
+  entryId: number,
+  now: Date,
+): 'restore' | 'already_restored' {
+  if (last?.entryId === entryId && last.action === 'restored') return 'already_restored';
+  if (last?.entryId !== entryId || now.getTime() - last.createdAt.getTime() > RESTORE_WINDOW_MS) {
+    throw new DomainError(
+      'restore_unavailable',
+      'Only the line deleted last by this workstation can be restored, shortly after deleting it',
+    );
+  }
+  return 'restore';
+}

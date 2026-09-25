@@ -6,6 +6,8 @@ import {
   manualEntryValues,
   nextQuantity,
   parseInput,
+  planRestore,
+  RESTORE_WINDOW_MS,
   snapshotOf,
 } from './rules.ts';
 
@@ -141,5 +143,36 @@ describe('manualEntryValues', () => {
         'validation_failed',
       );
     }
+  });
+});
+
+describe('planRestore', () => {
+  const deletedAt = new Date('2026-09-25T10:00:00Z');
+  const deleted = { action: 'deleted' as const, entryId: 7, createdAt: deletedAt };
+  const after = (ms: number) => new Date(deletedAt.getTime() + ms);
+
+  it('restores the line deleted last, shortly after', () => {
+    expect(planRestore(deleted, 7, after(9_000))).toBe('restore');
+    expect(planRestore(deleted, 7, after(RESTORE_WINDOW_MS))).toBe('restore');
+  });
+
+  it('rejects other lines, e.g. after a further deletion', () => {
+    expect(codeOf(() => planRestore(deleted, 6, after(1_000)))).toBe('restore_unavailable');
+  });
+
+  it('rejects late requests', () => {
+    expect(codeOf(() => planRestore(deleted, 7, after(RESTORE_WINDOW_MS + 1)))).toBe(
+      'restore_unavailable',
+    );
+  });
+
+  it('rejects when the workstation deleted nothing', () => {
+    expect(codeOf(() => planRestore(undefined, 7, after(0)))).toBe('restore_unavailable');
+  });
+
+  it('answers a repeated request for the restored line', () => {
+    const restored = { ...deleted, action: 'restored' as const };
+    expect(planRestore(restored, 7, after(120_000))).toBe('already_restored');
+    expect(codeOf(() => planRestore(restored, 6, after(1_000)))).toBe('restore_unavailable');
   });
 });

@@ -20,6 +20,7 @@ const STATUS_CODES: Record<ErrorCode, number> = {
   no_work_area: 409,
   no_employee_logged_in: 409,
   checkpoint_empty_section: 409,
+  restore_unavailable: 409,
   pairing_invalid: 404,
   pairing_expired: 410,
   pairing_used: 409,
