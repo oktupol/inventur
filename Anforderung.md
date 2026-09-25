@@ -317,7 +317,7 @@ Es gibt Tastenkombinationen, um erfasste Artikel zu löschen und die Anzahl zu v
 Regeln für die Tastenkürzel:
 
 - Die Kürzel greifen **nur, wenn das Eingabefeld leer ist**. Sonst werden die Zeichen normal eingegeben, z. B. „AB-123“.
-- Sie wirken auf die **ausgewählte Zeile**. Standardmäßig ist das die zuletzt von dieser Station erfasste Zeile. Mit `↑` und `↓` lässt sich eine andere Zeile im Bereich auswählen, `Esc` setzt die Auswahl zurück.
+- Sie wirken auf die **ausgewählte Zeile**. Standardmäßig ist das die zuletzt von dieser Station erfasste Zeile. Mit `↑` und `↓` lässt sich eine andere Zeile im Bereich auswählen, `Esc` setzt die Auswahl zurück. Jede neue Erfassung der Station, auch über ein gekoppeltes Handy, wählt die neue Zeile aus.
 - Die Tasten des Nummernblocks funktionieren gleichwertig.
 - `=` oder `*` wechselt in den Mengenmodus. Das Feld zeigt dann „Menge:“, nimmt nur Ziffern an, `Enter` übernimmt, `Esc` bricht ab. Die Menge muss mindestens 1 sein.
 - `Delete` löscht ohne Rückfrage, zeigt aber einen Hinweis „Zeile gelöscht“. Die Zeile wird endgültig gelöscht.
