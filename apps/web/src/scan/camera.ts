@@ -9,12 +9,14 @@ export const BARCODE_FORMATS = [
   'qr_code',
 ] as const;
 
+import { frameToVideoRegion, type Rect } from './region.ts';
+
 interface DetectedBarcode {
   rawValue: string;
 }
 
 interface Detector {
-  detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
+  detect(source: HTMLCanvasElement): Promise<DetectedBarcode[]>;
 }
 
 export interface DetectorConstructor {
@@ -26,11 +28,17 @@ export interface CameraEnvironment {
   mediaDevices: Pick<MediaDevices, 'getUserMedia'> | undefined;
   BarcodeDetector: DetectorConstructor | undefined;
   loadZxing: () => Promise<{
-    decodeWithZxing: (
-      video: HTMLVideoElement,
-      onCode: (code: string) => void,
-    ) => Promise<() => void>;
+    createZxingDecoder: () => (canvas: HTMLCanvasElement) => string | null;
   }>;
+  createCanvas: () => HTMLCanvasElement;
+}
+
+export interface CameraOptions {
+  /**
+   * The scan frame in pixels of the video element. Only codes in the camera
+   * picture below it are read; without a frame, the whole picture is used.
+   */
+  frame?: () => Rect | null;
 }
 
 export interface CameraScanner {
@@ -47,7 +55,7 @@ export class CameraError extends Error {
   }
 }
 
-/** Pause between two detection attempts of the native detector. */
+/** Pause between two detection attempts. */
 const DETECT_INTERVAL_MS = 120;
 
 function defaultEnvironment(): CameraEnvironment {
@@ -55,6 +63,7 @@ function defaultEnvironment(): CameraEnvironment {
     mediaDevices: navigator.mediaDevices,
     BarcodeDetector: (globalThis as { BarcodeDetector?: DetectorConstructor }).BarcodeDetector,
     loadZxing: () => import('./zxing.ts'),
+    createCanvas: () => document.createElement('canvas'),
   };
 }
 
@@ -87,12 +96,47 @@ async function nativeDetector(
 }
 
 /**
- * Starts the rear camera in `video` and reports every detected code. Uses the
- * BarcodeDetector API where available and ZXing otherwise.
+ * Copies the part of the camera picture below the scan frame into `canvas`.
+ * Returns false while the video has no picture yet.
+ */
+function captureFrame(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+  frame: Rect | null,
+): boolean {
+  const picture = { width: video.videoWidth, height: video.videoHeight };
+  const region = frame
+    ? frameToVideoRegion(picture, { width: video.clientWidth, height: video.clientHeight }, frame)
+    : picture.width > 0 && picture.height > 0
+      ? { x: 0, y: 0, ...picture }
+      : null;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!region || !context) return false;
+  canvas.width = region.width;
+  canvas.height = region.height;
+  context.drawImage(
+    video,
+    region.x,
+    region.y,
+    region.width,
+    region.height,
+    0,
+    0,
+    region.width,
+    region.height,
+  );
+  return true;
+}
+
+/**
+ * Starts the rear camera in `video` and reports every code detected within
+ * the scan frame. Uses the BarcodeDetector API where available and ZXing
+ * otherwise.
  */
 export async function startCamera(
   video: HTMLVideoElement,
   onCode: (code: string) => void,
+  options: CameraOptions = {},
   environment: CameraEnvironment = defaultEnvironment(),
 ): Promise<CameraScanner> {
   if (!environment.mediaDevices) {
@@ -120,34 +164,40 @@ export async function startCamera(
   try {
     await video.play();
     const detector = await nativeDetector(environment.BarcodeDetector);
+    let engine: CameraScanner['engine'];
+    let decode: (canvas: HTMLCanvasElement) => Promise<string[]>;
     if (detector) {
-      let running = true;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const detect = async () => {
-        if (!running) return;
-        try {
-          for (const barcode of await detector.detect(video)) onCode(barcode.rawValue);
-        } catch {
-          // A frame that could not be analysed; try the next one.
-        }
-        if (running) timer = setTimeout(() => void detect(), DETECT_INTERVAL_MS);
-      };
-      void detect();
-      return {
-        engine: 'native',
-        stop: () => {
-          running = false;
-          clearTimeout(timer);
-          stopStream();
-        },
+      engine = 'native';
+      decode = async (canvas) => (await detector.detect(canvas)).map((code) => code.rawValue);
+    } else {
+      engine = 'zxing';
+      const decodeWithZxing = (await environment.loadZxing()).createZxingDecoder();
+      decode = async (canvas) => {
+        const code = decodeWithZxing(canvas);
+        return code === null ? [] : [code];
       };
     }
-    const { decodeWithZxing } = await environment.loadZxing();
-    const stopDecoding = await decodeWithZxing(video, onCode);
+
+    const canvas = environment.createCanvas();
+    let running = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const detect = async () => {
+      if (!running) return;
+      try {
+        if (captureFrame(video, canvas, options.frame?.() ?? null)) {
+          for (const code of await decode(canvas)) if (running) onCode(code);
+        }
+      } catch {
+        // A frame that could not be analysed; try the next one.
+      }
+      if (running) timer = setTimeout(() => void detect(), DETECT_INTERVAL_MS);
+    };
+    void detect();
     return {
-      engine: 'zxing',
+      engine,
       stop: () => {
-        stopDecoding();
+        running = false;
+        clearTimeout(timer);
         stopStream();
       },
     };

@@ -40,6 +40,7 @@ function messageOf(error: unknown): string {
  */
 export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const [scanner, setScanner] = useState<CameraScanner | null>(null);
   const [starting, setStarting] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
@@ -96,17 +97,34 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
     setCameraError(undefined);
     setStarting(true);
     try {
-      const started = await startCamera(videoRef.current!, (detected) => {
-        const { holdMode: hold, holding: held } = accepting.current;
-        if (hold && !held) return;
-        if (debouncer.accept(detected, performance.now())) capture(detected);
-      });
+      const started = await startCamera(
+        videoRef.current!,
+        (detected) => {
+          const { holdMode: hold, holding: held } = accepting.current;
+          if (hold && !held) return;
+          if (debouncer.accept(detected, performance.now())) capture(detected);
+        },
+        { frame: frameRect },
+      );
       setScanner(started);
     } catch (error) {
       setCameraError(messageOf(error));
     } finally {
       setStarting(false);
     }
+  }
+
+  /** The scan frame relative to the video, so only codes inside it are read. */
+  function frameRect() {
+    const video = videoRef.current?.getBoundingClientRect();
+    const frame = frameRef.current?.getBoundingClientRect();
+    if (!video || !frame) return null;
+    return {
+      x: frame.left - video.left,
+      y: frame.top - video.top,
+      width: frame.width,
+      height: frame.height,
+    };
   }
 
   function stop() {
@@ -175,9 +193,11 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
     <div className="scanner">
       <div className={`camera ${scanner ? 'running' : ''}`}>
         <video ref={videoRef} playsInline muted aria-label="Kamerabild" />
-        {scanner && (
-          <div className={`camera-frame ${!holdMode || holding ? 'active' : ''}`} aria-hidden />
-        )}
+        <div
+          ref={frameRef}
+          className={`camera-frame ${!holdMode || holding ? 'active' : ''}`}
+          aria-hidden
+        />
         {notice && <div className="scan-notice">{notice}</div>}
         {scanner && (
           <button type="button" className="small camera-off" onClick={stop}>

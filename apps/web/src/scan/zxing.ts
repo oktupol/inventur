@@ -3,12 +3,10 @@ import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 /**
  * Fallback decoder for browsers without the BarcodeDetector API (e.g. Safari
- * on iOS). Loaded on demand, so it does not enlarge the main bundle.
+ * on iOS). Loaded on demand, so it does not enlarge the main bundle. The
+ * decoder reads one code from a canvas and returns null if there is none.
  */
-export async function decodeWithZxing(
-  video: HTMLVideoElement,
-  onCode: (code: string) => void,
-): Promise<() => void> {
+export function createZxingDecoder(): (canvas: HTMLCanvasElement) => string | null {
   const hints = new Map<DecodeHintType, unknown>([
     [
       DecodeHintType.POSSIBLE_FORMATS,
@@ -23,9 +21,13 @@ export async function decodeWithZxing(
       ],
     ],
   ]);
-  const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 100 });
-  const controls = await reader.decodeFromVideoElement(video, (result) => {
-    if (result) onCode(result.getText());
-  });
-  return () => controls.stop();
+  const reader = new BrowserMultiFormatReader(hints);
+  return (canvas) => {
+    try {
+      return reader.decodeFromCanvas(canvas).getText();
+    } catch {
+      // No code in this picture.
+      return null;
+    }
+  };
 }
