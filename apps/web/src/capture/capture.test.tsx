@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App.tsx';
 import { RealtimeProvider } from '../realtime/RealtimeProvider.tsx';
-import { playTone } from '../station/audio.ts';
+import { playDuplicateTone, playTone } from '../station/audio.ts';
 import { saveToken } from '../station/token.ts';
 import { stubApi, type ApiCall } from '../test-utils/fake-api.ts';
 import { createFakeRealtime } from '../test-utils/fake-realtime.ts';
@@ -12,12 +12,14 @@ import { createFakeRealtime } from '../test-utils/fake-realtime.ts';
 vi.mock('../station/audio.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../station/audio.ts')>()),
   playTone: vi.fn(),
+  playDuplicateTone: vi.fn(),
 }));
 
 beforeEach(() => {
   localStorage.clear();
   saveToken('secret');
   vi.mocked(playTone).mockClear();
+  vi.mocked(playDuplicateTone).mockClear();
 });
 afterEach(() => {
   cleanup();
@@ -292,8 +294,10 @@ describe('capture', () => {
     renderStation();
     await scan('4000000000017');
     await waitFor(() => expect(panel().getAttribute('data-feedback')).toBe('unique'));
+    expect(playDuplicateTone).not.toHaveBeenCalled();
     await scan('4000000000017');
     expect(await screen.findByText(/wurde bereits einmal erfasst/)).toBeTruthy();
+    expect(playDuplicateTone).toHaveBeenCalledTimes(1);
     expect((await screen.findAllByText('mehrfach erfasst')).length).toBeGreaterThan(0);
   });
 
@@ -813,6 +817,7 @@ describe('scans of a paired phone', () => {
     realtime: ReturnType<typeof renderStation>,
     result: 'unique' | 'ambiguous' | 'not_found',
     input: string,
+    duplicate = false,
   ) =>
     act(() =>
       realtime.latest().receive({
@@ -824,6 +829,7 @@ describe('scans of a paired phone', () => {
           result,
           entryId: result === 'unique' ? 1 : null,
           description: result === 'unique' ? 'Herrenring Gold' : null,
+          duplicate,
         },
       }),
     );
@@ -841,6 +847,9 @@ describe('scans of a paired phone', () => {
     phoneScan(realtime, 'unique', '4000000000017');
     expect(await screen.findByText('Vom Handy erfasst:')).toBeTruthy();
     expect(panel().getAttribute('data-feedback')).toBe('unique');
+    expect(playDuplicateTone).not.toHaveBeenCalled();
+    phoneScan(realtime, 'unique', '4000000000017', true);
+    expect(playDuplicateTone).toHaveBeenCalledTimes(1);
 
     phoneScan(realtime, 'ambiguous', '4000000000031');
     expect(await screen.findByText(/Die Auswahl erfolgt auf dem Handy/)).toBeTruthy();
@@ -871,6 +880,7 @@ describe('scans of a paired phone', () => {
           result: 'unique',
           entryId: entry.id,
           description: entry.description,
+          duplicate: false,
         },
       });
       realtime.latest().receive({

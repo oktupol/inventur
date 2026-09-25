@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   installAudioUnlock,
   isAudioUnlocked,
+  playDuplicateTone,
   playTone,
   resetAudioForTests,
   unlockAudio,
@@ -62,6 +63,16 @@ describe('audio', () => {
     // The listener is removed after the first interaction.
     target.dispatchEvent(new Event('keydown'));
     expect(FakeAudioContext.instances).toHaveLength(1);
+  });
+
+  it('plays two beeps for a repeated article', () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    unlockAudio();
+    const audio = FakeAudioContext.instances[0]!;
+    audio.state = 'running';
+    audio.currentTime = 2;
+    playDuplicateTone();
+    expect(audio.oscillators.map((o) => o.start.mock.calls[0]![0])).toEqual([2, 2.16]);
   });
 
   it('ignores browsers without audio support', () => {

@@ -1,6 +1,7 @@
-import { playTone } from '../station/audio.ts';
+import { playDuplicateTone, playTone } from '../station/audio.ts';
 
-export type SignalKind = 'unique' | 'ambiguous' | 'not_found';
+/** A scan result; `duplicate` is a unique result for an article captured before. */
+export type SignalKind = 'unique' | 'duplicate' | 'ambiguous' | 'not_found';
 
 /** Vibration and tone for a scan result; both are silently skipped where unsupported. */
 export function signal(kind: SignalKind): void {
@@ -15,6 +16,10 @@ export function signal(kind: SignalKind): void {
     case 'unique':
       vibrate(80);
       playTone({ frequency: 880, durationMs: 120 });
+      break;
+    case 'duplicate':
+      vibrate([150, 100, 150]);
+      playDuplicateTone();
       break;
     case 'ambiguous':
       vibrate([60, 60, 60]);

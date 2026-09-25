@@ -90,6 +90,9 @@ function renderScanner() {
       if (input === '4000000000017') {
         return { body: { result: 'unique', entry: entry(8, 'Herrenring Gold') } };
       }
+      if (input === '4000000000024') {
+        return { body: { result: 'unique', entry: { ...entry(10, 'Uhr'), duplicateCount: 1 } } };
+      }
       if (input === '4000000000031') {
         return {
           body: {
@@ -214,6 +217,16 @@ describe('phone scanner', () => {
     await waitFor(() => expect(result()).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Ergebnis schließen' }));
     expect(result()).toBeNull();
+  });
+});
+
+describe('signals', () => {
+  it('signals an article captured before differently', async () => {
+    renderScanner();
+    await startScanning();
+    act(() => detect('4000000000024'));
+    await waitFor(() => expect(signal).toHaveBeenCalledWith('duplicate'));
+    expect(signal).not.toHaveBeenCalledWith('unique');
   });
 });
 

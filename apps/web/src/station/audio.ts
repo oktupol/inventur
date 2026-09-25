@@ -32,8 +32,11 @@ export function installAudioUnlock(target: EventTarget = window): () => void {
   return remove;
 }
 
-/** Plays a short tone, e.g. for an unknown article. Does nothing while audio is locked. */
-export function playTone({ frequency = 330, durationMs = 250 } = {}): void {
+/**
+ * Plays a short tone, e.g. for an unknown article, optionally after a delay.
+ * Does nothing while audio is locked.
+ */
+export function playTone({ frequency = 330, durationMs = 250, delayMs = 0 } = {}): void {
   if (!context || context.state !== 'running') return;
   const oscillator = context.createOscillator();
   const gain = context.createGain();
@@ -41,8 +44,15 @@ export function playTone({ frequency = 330, durationMs = 250 } = {}): void {
   oscillator.frequency.value = frequency;
   gain.gain.value = 0.15;
   oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + durationMs / 1000);
+  const start = context.currentTime + delayMs / 1000;
+  oscillator.start(start);
+  oscillator.stop(start + durationMs / 1000);
+}
+
+/** Two short beeps for an article that was captured before. */
+export function playDuplicateTone(): void {
+  playTone({ frequency: 660, durationMs: 100 });
+  playTone({ frequency: 660, durationMs: 100, delayMs: 160 });
 }
 
 /** Resets the module state; only for tests. */

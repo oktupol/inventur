@@ -45,6 +45,7 @@ export async function scanRoutes(app: FastifyInstance, context: Context): Promis
         result: response.result,
         entryId: response.result === 'unique' ? response.entry.id : null,
         description: response.result === 'unique' ? response.entry.description : null,
+        duplicate: response.result === 'unique' && response.entry.duplicateCount > 0,
       });
       return response;
     },

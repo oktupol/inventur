@@ -15,7 +15,7 @@ import { useApiData } from '../api/useApiData.ts';
 import { ErrorNotice } from '../components/Notice.tsx';
 import { formatEuro, formatNumber } from '../format.ts';
 import { useConnectionStatus, useRealtimeEvents } from '../realtime/RealtimeProvider.tsx';
-import { playTone } from '../station/audio.ts';
+import { playDuplicateTone, playTone } from '../station/audio.ts';
 import { useStation } from '../station/StationContext.tsx';
 import { completionFor, moveSelection, suggestionCode } from './completion.ts';
 import { EntryTable, type RowAction } from './EntryTable.tsx';
@@ -134,6 +134,7 @@ export function CaptureView() {
         case 'unique':
           lastCreatedId.current = response.entry.id;
           setFeedback({ kind: 'unique', entry: response.entry });
+          if (response.entry.duplicateCount > 0) playDuplicateTone();
           reloadEntries();
           return 'done';
         case 'not_found':
@@ -260,6 +261,7 @@ export function CaptureView() {
       playTone();
       return;
     }
+    if (event.duplicate) playDuplicateTone();
     if (event.entryId !== null) {
       lastCreatedId.current = event.entryId;
       // Like a scan at the workstation, the new line becomes the selected one.
