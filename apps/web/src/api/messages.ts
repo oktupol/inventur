@@ -5,6 +5,7 @@ const MESSAGES: Record<ErrorCode | 'network_error', string> = {
   not_found: 'Der Eintrag wurde nicht gefunden. Möglicherweise wurde er inzwischen gelöscht.',
   stocktake_already_active: 'Es läuft bereits eine Inventur. Sie muss zuerst beendet werden.',
   stocktake_finished: 'Die Inventur ist beendet und kann nicht mehr geändert werden.',
+  stocktake_not_finished: 'Die Inventur ist nicht beendet.',
   unclosed_work_areas: 'Es sind noch nicht alle Arbeitsbereiche abgeschlossen.',
   name_taken: 'Dieser Name ist bereits vergeben.',
   employee_has_entries:

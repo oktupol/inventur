@@ -264,7 +264,7 @@ Tastenkürzel an der Station, wenn das Eingabefeld leer ist (auch auf dem Nummer
 
 1. Im Dashboard unter **Statistik** den Fortschritt verfolgen und den **Soll/Ist-Abgleich** prüfen: Fehlbestand (weniger erfasst als die Soll-Anzahl) und Mehrbestand (mehr erfasst als die Soll-Anzahl, manuell erfasste oder nicht mehr in den Stammdaten stehende Artikel). Auffällige Bereiche wieder öffnen und nachzählen.
 2. Unter **Inventur → Export** je Bereich die **Zählliste** als PDF drucken und von Zählern und Verantwortlichem unterschreiben lassen. Dort gibt es auch die Einzelzeilen, die Liste je Artikel und den Soll/Ist-Abgleich als CSV (für Excel mit deutschen Einstellungen) und XLSX.
-3. **Inventur beenden.** Offene Bereiche werden in einer Warnung aufgelistet. Danach ist die Inventur schreibgeschützt, alle Stationen zeigen „Keine aktive Inventur“, und alle Handys werden getrennt.
+3. **Inventur beenden.** Offene Bereiche werden in einer Warnung aufgelistet. Danach ist die Inventur schreibgeschützt, alle Stationen zeigen „Keine aktive Inventur“, und alle Handys werden getrennt. Fällt danach noch ein Fehler auf, lässt sich die Inventur unter **Historie** mit **Wieder öffnen** erneut aktivieren, solange keine andere Inventur läuft. Mitarbeiter melden sich dann neu an den Stationen an, Handys werden neu gekoppelt.
 4. Frühere Inventuren bleiben unter **Historie** mit Statistik, Änderungsprotokoll und Exporten erhalten.
 
 Unter **Artikelsuche** findet man zu einer EAN, Artikelnummer, Bezeichnung oder Seriennummer alle Zeilen der Inventur mit Arbeitsbereich, Station, Mitarbeitern und Zeitpunkt, dazu Soll, Ist und die Änderungen, auch an inzwischen gelöschten Zeilen. Artikel aus Fehl- und Mehrbestand der Statistik öffnen sich dort per Klick.

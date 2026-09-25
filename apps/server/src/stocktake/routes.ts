@@ -13,6 +13,7 @@ import {
   getActiveStocktake,
   getStocktake,
   listStocktakes,
+  reopenStocktake,
   startStocktake,
 } from './service.ts';
 
@@ -56,5 +57,11 @@ export async function stocktakeRoutes(app: FastifyInstance, context: Context): P
     },
     async (request): Promise<Stocktake> =>
       finishStocktake(context, request.params.id, request.body?.confirm === true),
+  );
+
+  app.post<{ Params: IdParams }>(
+    '/api/admin/stocktakes/:id/reopen',
+    { schema: { params: idParams } },
+    async (request): Promise<Stocktake> => reopenStocktake(context, request.params.id),
   );
 }

@@ -5,6 +5,7 @@ import {
   assertWritable,
   parseStocktakeName,
   planFinish,
+  planReopen,
   type StocktakeState,
   type WorkAreaState,
 } from './lifecycle.ts';
@@ -98,5 +99,30 @@ describe('finishing a stocktake', () => {
 
   it('is rejected for an unknown stocktake', () => {
     expect(codeOf(() => planFinish(undefined, [], true))).toBe('not_found');
+  });
+});
+
+describe('reopening a stocktake', () => {
+  const areas: WorkAreaState[] = [
+    { id: 1, name: 'Vitrine 1', status: 'closed' },
+    { id: 2, name: 'Vitrine 2', status: 'in_progress' },
+    { id: 3, name: 'Lager', status: 'open' },
+  ];
+
+  it('turns a finished stocktake active again; areas in progress become open', () => {
+    expect(planReopen(finished, undefined, areas).map((a) => a.id)).toEqual([2]);
+  });
+
+  it('is rejected while another stocktake is active', () => {
+    const other = { id: 2, status: 'active' as const };
+    expect(codeOf(() => planReopen(finished, other, areas))).toBe('stocktake_already_active');
+  });
+
+  it('is rejected for an active stocktake', () => {
+    expect(codeOf(() => planReopen(active, active, areas))).toBe('stocktake_not_finished');
+  });
+
+  it('is rejected for an unknown stocktake', () => {
+    expect(codeOf(() => planReopen(undefined, undefined, areas))).toBe('not_found');
   });
 });
