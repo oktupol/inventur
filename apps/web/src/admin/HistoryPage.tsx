@@ -93,6 +93,9 @@ export function StocktakeDetailPage() {
             Gestartet am {formatDateTime(s.startedAt)}
             {s.finishedAt && `, beendet am ${formatDateTime(s.finishedAt)}`}
           </p>
+          <p>
+            <Link to={`/admin/historie/${s.id}/statistik`}>Statistik anzeigen</Link>
+          </p>
           <div className="card">
             <h2>Arbeitsbereiche</h2>
             <ErrorNotice error={workAreas.error} />

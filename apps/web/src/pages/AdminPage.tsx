@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 import { AdminLayout } from '../admin/AdminLayout.tsx';
 import { EmployeesPage } from '../admin/EmployeesPage.tsx';
 import { HistoryPage, StocktakeDetailPage } from '../admin/HistoryPage.tsx';
+import { StatisticsPage, StocktakeStatisticsPage } from '../admin/StatisticsPage.tsx';
 import { StocktakePage } from '../admin/StocktakePage.tsx';
 import { WorkAreasPage } from '../admin/WorkAreasPage.tsx';
 import { WorkstationsPage } from '../admin/WorkstationsPage.tsx';
@@ -16,7 +17,9 @@ export function AdminPage() {
         <Route path="bereiche" element={<WorkAreasPage />} />
         <Route path="stationen" element={<WorkstationsPage />} />
         <Route path="historie" element={<HistoryPage />} />
+        <Route path="statistik" element={<StatisticsPage />} />
         <Route path="historie/:id" element={<StocktakeDetailPage />} />
+        <Route path="historie/:id/statistik" element={<StocktakeStatisticsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
