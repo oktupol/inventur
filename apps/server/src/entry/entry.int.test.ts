@@ -175,25 +175,46 @@ describe('capturing entries', () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it('lists the lines newest first with totals and marks repeated single items', async () => {
+  it('lists the lines newest first with totals and marks repeated articles', async () => {
     await capture('4000000000017');
     await capture('4000000000031', { articleId: 2 });
     await capture('4000000000017');
-    // Article 2 has a target quantity of 5, article 3 none: no hint.
+    // Article 2 has a target quantity of 5, article 3 none.
     await capture('4000000000031', { articleId: 2 });
+    await capture('4000000000031', { articleId: 3 });
     await capture('4000000000031', { articleId: 3 });
     await capture('4000000000031', { articleId: 3 });
     const { workArea, entries, totals } = await list();
     expect(workArea).toEqual({ id: workAreaId, name: 'Vitrine', status: 'in_progress' });
     expect(entries.map((e) => [e.articleId, e.duplicateCount])).toEqual([
-      [3, 0],
-      [3, 0],
-      [2, 0],
+      [3, 2],
+      [3, 2],
+      [3, 2],
+      [2, 1],
       [1, 1],
+      [2, 1],
+      [1, 1],
+    ]);
+    expect(totals).toEqual({ quantity: 7, lines: 7, grossValue: '333.20' });
+  });
+
+  it('marks repeated single items across work areas, other articles only within one', async () => {
+    const otherArea = (
+      await post(`/api/admin/stocktakes/${stocktakeId}/work-areas`, { name: 'Lager' })
+    ).json().id;
+    await capture('4000000000017');
+    await capture('4000000000031', { articleId: 2 });
+    await capture('4000000000031', { articleId: 3 });
+    await post(`/api/station/work-areas/${otherArea}/join`, {}, kasse.token);
+    await capture('4000000000017');
+    await capture('4000000000031', { articleId: 2 });
+    await capture('4000000000031', { articleId: 3 });
+    const { entries } = await list();
+    expect(entries.map((e) => [e.articleId, e.duplicateCount])).toEqual([
+      [3, 0],
       [2, 0],
       [1, 1],
     ]);
-    expect(totals).toEqual({ quantity: 6, lines: 6, grossValue: '309.40' });
   });
 
   it('shows the lines to a second workstation in the same work area', async () => {

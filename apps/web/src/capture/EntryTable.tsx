@@ -108,6 +108,8 @@ export function EntryTable({
     return <p className="muted">In diesem Bereich wurde noch nichts erfasst.</p>;
   }
   const columns = onAction ? 8 : 7;
+  // The other lines of the selected line's article are highlighted.
+  const selectedArticleId = entries.find((entry) => entry.id === selectedId)?.articleId ?? null;
   const rows = buildRows(entries, checkpoints, sinceLastCheckpoint);
   return (
     <div className="table-wrap">
@@ -184,7 +186,13 @@ export function EntryTable({
               <tr
                 key={entry.id}
                 data-entry-id={entry.id}
-                className={entry.id === selectedId ? 'selected' : undefined}
+                className={
+                  entry.id === selectedId
+                    ? 'selected'
+                    : selectedArticleId !== null && entry.articleId === selectedArticleId
+                      ? 'same-article'
+                      : undefined
+                }
                 aria-selected={entry.id === selectedId}
                 onClick={() => onSelect?.(entry.id)}
                 onMouseMove={(event) => trackHover(event, targets)}
@@ -200,7 +208,7 @@ export function EntryTable({
                   {entry.duplicateCount > 0 && (
                     <span
                       className="badge duplicate"
-                      title="Einzelstück: Dieser Artikel wurde in der Inventur mehrfach erfasst."
+                      title="Dieser Artikel wurde in diesem Bereich mehrfach erfasst, als Einzelstück auch in einem anderen Bereich."
                     >
                       mehrfach erfasst
                     </span>

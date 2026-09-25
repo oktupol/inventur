@@ -38,15 +38,19 @@ function entryQuery(db: Db | Trx) {
         .whereRef('other.stocktake_id', '=', 'e.stocktake_id')
         .whereRef('other.article_id', '=', 'e.article_id')
         .whereRef('other.id', '!=', 'e.id')
-        // Only single items (target quantity 1) are hinted at.
+        // Any article repeated within the work area; single items (target
+        // quantity 1) also across work areas.
         .where((w) =>
-          w.exists(
-            w
-              .selectFrom('master_data.article as a')
-              .select('a.id')
-              .whereRef('a.id', '=', 'e.article_id')
-              .where('a.expected_quantity', '=', 1),
-          ),
+          w.or([
+            w('other.work_area_id', '=', w.ref('e.work_area_id')),
+            w.exists(
+              w
+                .selectFrom('master_data.article as a')
+                .select('a.id')
+                .whereRef('a.id', '=', 'e.article_id')
+                .where('a.expected_quantity', '=', 1),
+            ),
+          ]),
         )
         .as('duplicate_count'),
     ]);
