@@ -84,7 +84,12 @@ export async function getStatistics(db: Db, stocktakeId: number): Promise<Stockt
   });
 }
 
-export async function getReconciliation(db: Db, stocktakeId: number): Promise<Reconciliation> {
+/** With `listLimit` null, the shortage list is complete, e.g. for the export. */
+export async function getReconciliation(
+  db: Db,
+  stocktakeId: number,
+  listLimit: number | null = SHORTAGE_LIST_LIMIT,
+): Promise<Reconciliation> {
   await getStocktake(db, stocktakeId);
   const counted = db
     .selectFrom('inventory.entry')
@@ -128,7 +133,7 @@ export async function getReconciliation(db: Db, stocktakeId: number): Promise<Re
         .orderBy(sql`a.category nulls last`)
         .orderBy('a.description')
         .orderBy('a.id')
-        .limit(SHORTAGE_LIST_LIMIT + 1)
+        .$if(listLimit !== null, (query) => query.limit(listLimit! + 1))
         .execute(),
       db
         .selectFrom('master_data.article as a')
@@ -184,6 +189,7 @@ export async function getReconciliation(db: Db, stocktakeId: number): Promise<Re
 
   return reconcile({
     stocktakeId,
+    listLimit: listLimit ?? Infinity,
     articleCount: Number(articleCount.n),
     shortage: {
       byCategory: shortageByCategory.map((row) => ({

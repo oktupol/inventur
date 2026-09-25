@@ -4,6 +4,7 @@ import { useApiData } from '../api/useApiData.ts';
 import { ErrorNotice } from '../components/Notice.tsx';
 import { formatDateTime, formatNumber, STOCKTAKE_STATUS_LABELS } from '../format.ts';
 import { EmployeeTable } from './EmployeesPage.tsx';
+import { ExportCard } from './ExportCard.tsx';
 import { WorkAreaTable } from './WorkAreasPage.tsx';
 
 export function HistoryPage() {
@@ -106,6 +107,7 @@ export function StocktakeDetailPage() {
             <ErrorNotice error={employees.error} />
             {employees.data && <EmployeeTable employees={employees.data} />}
           </div>
+          <ExportCard stocktakeId={s.id} workAreas={workAreas.data ?? []} />
         </>
       )}
     </>

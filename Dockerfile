@@ -35,7 +35,8 @@ ENV NODE_ENV=production \
     APP_VERSION=${APP_VERSION} \
     HOST=0.0.0.0 \
     PORT=3000 \
-    STATIC_DIR=/app/web
+    STATIC_DIR=/app/web \
+    TZ=Europe/Berlin
 WORKDIR /app
 COPY --from=prod-deps /app ./
 COPY packages/shared/src packages/shared/src

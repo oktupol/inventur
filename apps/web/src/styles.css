@@ -72,12 +72,16 @@ textarea {
 
 input:focus-visible,
 textarea:focus-visible,
-button:focus-visible {
+button:focus-visible,
+a.button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
-button {
+button,
+a.button {
+  display: inline-block;
+  text-decoration: none;
   padding: 0.45rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -87,7 +91,8 @@ button {
   white-space: nowrap;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled),
+a.button:hover {
   border-color: var(--muted);
 }
 
@@ -108,7 +113,8 @@ button.danger {
   color: #fff;
 }
 
-button.small {
+button.small,
+a.button.small {
   padding: 0.2rem 0.55rem;
   font-size: 0.875rem;
 }
@@ -1536,4 +1542,8 @@ tr.group-header th {
 
 .rate-labels span:last-child {
   justify-content: flex-end;
+}
+
+.export-table td {
+  vertical-align: middle;
 }

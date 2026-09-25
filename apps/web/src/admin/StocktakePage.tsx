@@ -7,6 +7,7 @@ import { useApiData } from '../api/useApiData.ts';
 import { ErrorNotice } from '../components/Notice.tsx';
 import { formatDateTime, formatNumber } from '../format.ts';
 import { useActiveStocktake } from './ActiveStocktake.tsx';
+import { ExportCard } from './ExportCard.tsx';
 import { FinishStocktakeDialog } from './FinishStocktakeDialog.tsx';
 
 function StartStocktake({ onStarted }: { onStarted: () => void }) {
@@ -64,52 +65,55 @@ function ActiveStocktake({
   const loggedIn = (employees.data ?? []).filter((e) => e.workstation !== null).length;
 
   return (
-    <div className="card">
-      <div className="page-header">
-        <div>
-          <h2 style={{ marginBottom: '0.25rem' }}>
-            {stocktake.name} <span className="badge active">aktiv</span>
-          </h2>
-          <div className="muted">Gestartet am {formatDateTime(stocktake.startedAt)}</div>
+    <>
+      <div className="card">
+        <div className="page-header">
+          <div>
+            <h2 style={{ marginBottom: '0.25rem' }}>
+              {stocktake.name} <span className="badge active">aktiv</span>
+            </h2>
+            <div className="muted">Gestartet am {formatDateTime(stocktake.startedAt)}</div>
+          </div>
+          <button
+            type="button"
+            className="danger"
+            disabled={!workAreas.data}
+            onClick={() => setFinishing(true)}
+          >
+            Inventur beenden
+          </button>
         </div>
-        <button
-          type="button"
-          className="danger"
-          disabled={!workAreas.data}
-          onClick={() => setFinishing(true)}
-        >
-          Inventur beenden
-        </button>
+        <ErrorNotice error={workAreas.error ?? employees.error} />
+        <div className="stats">
+          <Stat label="Bereiche offen" value={count('open')} />
+          <Stat label="Bereiche in Arbeit" value={count('in_progress')} />
+          <Stat label="Bereiche abgeschlossen" value={count('closed')} />
+          <Stat label="Mitarbeiter" value={employees.data?.length ?? 0} />
+          <Stat label="davon angemeldet" value={loggedIn} />
+          <Stat label="Zeilen" value={areas.reduce((sum, a) => sum + a.entryCount, 0)} />
+          <Stat label="Stück" value={areas.reduce((sum, a) => sum + a.quantity, 0)} />
+        </div>
+        <div className="row">
+          <Link to="/admin/mitarbeiter">Mitarbeiter verwalten</Link>
+          <span className="muted">·</span>
+          <Link to="/admin/bereiche">Arbeitsbereiche verwalten</Link>
+          <span className="muted">·</span>
+          <Link to="/admin/statistik">Statistik</Link>
+        </div>
+        {finishing && (
+          <FinishStocktakeDialog
+            stocktake={stocktake}
+            workAreas={areas}
+            onCancel={() => setFinishing(false)}
+            onFinished={() => {
+              setFinishing(false);
+              onFinished();
+            }}
+          />
+        )}
       </div>
-      <ErrorNotice error={workAreas.error ?? employees.error} />
-      <div className="stats">
-        <Stat label="Bereiche offen" value={count('open')} />
-        <Stat label="Bereiche in Arbeit" value={count('in_progress')} />
-        <Stat label="Bereiche abgeschlossen" value={count('closed')} />
-        <Stat label="Mitarbeiter" value={employees.data?.length ?? 0} />
-        <Stat label="davon angemeldet" value={loggedIn} />
-        <Stat label="Zeilen" value={areas.reduce((sum, a) => sum + a.entryCount, 0)} />
-        <Stat label="Stück" value={areas.reduce((sum, a) => sum + a.quantity, 0)} />
-      </div>
-      <div className="row">
-        <Link to="/admin/mitarbeiter">Mitarbeiter verwalten</Link>
-        <span className="muted">·</span>
-        <Link to="/admin/bereiche">Arbeitsbereiche verwalten</Link>
-        <span className="muted">·</span>
-        <Link to="/admin/statistik">Statistik</Link>
-      </div>
-      {finishing && (
-        <FinishStocktakeDialog
-          stocktake={stocktake}
-          workAreas={areas}
-          onCancel={() => setFinishing(false)}
-          onFinished={() => {
-            setFinishing(false);
-            onFinished();
-          }}
-        />
-      )}
-    </div>
+      <ExportCard stocktakeId={stocktake.id} workAreas={areas} />
+    </>
   );
 }
 

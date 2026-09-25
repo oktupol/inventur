@@ -29,6 +29,8 @@ services:
       PGUSER: inventur
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PUBLIC_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST in .env}
+      # Time zone of the times in exports and PDFs.
+      TZ: ${TZ:-Europe/Berlin}
     depends_on:
       db:
         condition: service_healthy

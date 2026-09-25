@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    // Exports show local times, as in the container (see the Dockerfile).
+    env: { TZ: 'Europe/Berlin' },
     projects: [
       {
         extends: true,

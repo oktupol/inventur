@@ -219,6 +219,10 @@ Der Administrator kann
     - Eine Variante als Einzelzeilen und eine aggregiert je Artikel
     - Bei manuellen Artikeln bleiben Nettopreis und Kategorie leer.
     - Der Soll/Ist-Abgleich lässt sich als eigene Liste exportieren (Fehlbestand und Mehrbestand).
+    - Einzelzeilen und die Liste je Artikel gibt es für die gesamte Inventur oder je Arbeitsbereich. Die Liste je Artikel fasst die Zeilen eines Stammdatenartikels zusammen (zusätzliche Spalte „Zeilen“, Zeitpunkt der letzten Erfassung); manuelle Zeilen bleiben einzeln. **(Annahme)**
+    - Im Soll/Ist-Export sind Differenz und Wert beim Fehlbestand negativ, beim Mehrbestand positiv. **(Annahme)**
+    - In der CSV stehen lange Ziffernfolgen wie EANs als `="…"`, damit Excel sie nicht als Zahl (4E+12) darstellt. **(Annahme)**
+    - Zeitpunkte stehen in Ortszeit, standardmäßig `Europe/Berlin` (in der `.env` als `TZ` änderbar). **(Annahme)**
   - **PDF-Zählliste** je Arbeitsbereich und gesamt: Kopf mit Inventur, Bereich, Datum und beteiligten Mitarbeitern; Positionen mit Summen; Checkpoints als Zwischensummen **(Annahme)**; Unterschriftsfelder für Zähler und Verantwortlichen
 
 ## Arbeitsstationen
