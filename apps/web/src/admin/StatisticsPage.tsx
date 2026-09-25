@@ -15,6 +15,7 @@ import { WorkAreaStatusBadge } from '../components/WorkArea.tsx';
 import { formatDateTime, formatEuro, formatNumber, WORK_AREA_STATUS_LABELS } from '../format.ts';
 import { NoActiveStocktake, useActiveStocktake } from './ActiveStocktake.tsx';
 import { RateChart } from './RateChart.tsx';
+import { ArticleLink, ArticleSearchPath } from './ArticleLink.tsx';
 
 /** Statistics are computed over all lines, so reload them at most this often. */
 const STATISTICS_THROTTLE_MS = 2_000;
@@ -38,7 +39,7 @@ function euroOrDash(amount: string | null): string {
   return amount === null ? '–' : formatEuro(amount);
 }
 
-function Tile({ label, value, detail }: { label: string; value: string; detail?: string }) {
+export function Tile({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
     <div className="stat">
       <div className={value.length > 10 ? 'value long' : 'value'}>{value}</div>
@@ -296,7 +297,9 @@ function StatisticsSections({ stats }: { stats: StocktakeStatistics }) {
               <tbody>
                 {stats.overcounted.map((article) => (
                   <tr key={article.articleId}>
-                    <td>{article.description}</td>
+                    <td>
+                      <ArticleLink articleId={article.articleId}>{article.description}</ArticleLink>
+                    </td>
                     <td>{article.ean ?? ''}</td>
                     <td>{article.workAreas.map((area) => area.name).join(', ')}</td>
                     <td className="number">{formatNumber(article.lines)}</td>
@@ -348,7 +351,9 @@ function ShortageList({ articles }: { articles: readonly ShortageArticle[] }) {
             </tr>
             {group.articles.map((article) => (
               <tr key={article.articleId}>
-                <td>{article.description}</td>
+                <td>
+                  <ArticleLink articleId={article.articleId}>{article.description}</ArticleLink>
+                </td>
                 <td>{article.ean ?? ''}</td>
                 <td className="number">{formatNumber(article.expected)}</td>
                 <td className="number">{formatNumber(article.counted)}</td>
@@ -456,7 +461,13 @@ function ReconciliationSection({ result }: { result: Reconciliation }) {
             <tbody>
               {surplus.items.map((item) => (
                 <tr key={item.entryId === null ? `a${item.articleId}` : `e${item.entryId}`}>
-                  <td>{item.description}</td>
+                  <td>
+                    {item.articleId === null ? (
+                      item.description
+                    ) : (
+                      <ArticleLink articleId={item.articleId}>{item.description}</ArticleLink>
+                    )}
+                  </td>
                   <td>{item.ean ?? ''}</td>
                   <td className={item.category === null ? 'muted' : undefined}>
                     {categoryLabel(item.category, item.kind === 'manual')}
@@ -478,7 +489,14 @@ function ReconciliationSection({ result }: { result: Reconciliation }) {
 }
 
 /** Statistics of a stocktake, updated live while it is active. */
-export function StatisticsView({ stocktakeId }: { stocktakeId: number }) {
+export function StatisticsView({
+  stocktakeId,
+  articleSearchPath,
+}: {
+  stocktakeId: number;
+  /** Where articles in the lists link to. */
+  articleSearchPath: string;
+}) {
   const base = `/api/admin/stocktakes/${stocktakeId}`;
   const stats = useApiData<StocktakeStatistics>(`${base}/statistics`, {
     channels: ['admin'],
@@ -491,13 +509,13 @@ export function StatisticsView({ stocktakeId }: { stocktakeId: number }) {
     throttleMs: RECONCILIATION_THROTTLE_MS,
   });
   return (
-    <>
+    <ArticleSearchPath.Provider value={articleSearchPath}>
       <ErrorNotice error={stats.error} />
       {stats.loading && <p className="muted">Wird geladen …</p>}
       {stats.data && <StatisticsSections stats={stats.data} />}
       <ErrorNotice error={reconciliation.error} />
       {reconciliation.data && <ReconciliationSection result={reconciliation.data} />}
-    </>
+    </ArticleSearchPath.Provider>
   );
 }
 
@@ -510,7 +528,9 @@ export function StatisticsPage() {
         <h1>Statistik</h1>
       </div>
       {stocktake === null && <NoActiveStocktake />}
-      {stocktake && <StatisticsView stocktakeId={stocktake.id} />}
+      {stocktake && (
+        <StatisticsView stocktakeId={stocktake.id} articleSearchPath="/admin/artikel" />
+      )}
     </>
   );
 }
@@ -527,7 +547,10 @@ export function StocktakeStatisticsPage() {
       <div className="page-header">
         <h1>Statistik{stocktake.data && ` – ${stocktake.data.name}`}</h1>
       </div>
-      <StatisticsView stocktakeId={Number(id)} />
+      <StatisticsView
+        stocktakeId={Number(id)}
+        articleSearchPath={`/admin/historie/${Number(id)}/artikel`}
+      />
     </>
   );
 }

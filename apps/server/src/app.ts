@@ -7,6 +7,7 @@ import { registerErrorHandler } from './http/error-handler.ts';
 import { EventBus } from './realtime/event-bus.ts';
 import type { RealtimeHub } from './realtime/hub.ts';
 import { registerRealtime } from './realtime/plugin.ts';
+import { articleSearchRoutes } from './article-search/routes.ts';
 import { auditRoutes } from './audit/routes.ts';
 import { checkpointRoutes } from './checkpoint/routes.ts';
 import { countListRoutes } from './count-list/routes.ts';
@@ -66,6 +67,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await exportRoutes(app, context);
     await countListRoutes(app, context);
     await auditRoutes(app, context);
+    await articleSearchRoutes(app, context);
   }
 
   if (options.staticDir) {

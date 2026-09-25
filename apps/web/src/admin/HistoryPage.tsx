@@ -97,6 +97,8 @@ export function StocktakeDetailPage() {
           <p>
             <Link to={`/admin/historie/${s.id}/statistik`}>Statistik anzeigen</Link>
             {' · '}
+            <Link to={`/admin/historie/${s.id}/artikel`}>Artikelsuche</Link>
+            {' · '}
             <Link to={`/admin/historie/${s.id}/protokoll`}>Änderungsprotokoll anzeigen</Link>
           </p>
           <div className="card">
