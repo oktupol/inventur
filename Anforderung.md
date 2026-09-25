@@ -15,6 +15,7 @@ Ziel ist, eine Webanwendung zu schaffen, die zur Inventurerfassung in einem Uhre
 | Erfassung (Zeile) | Ein erfasster Artikel mit Menge in einem Arbeitsbereich. **Jeder Scan erzeugt eine neue Zeile**, auch beim selben Artikel. |
 | Kopplung | Die Verbindung eines Smartphones als Kamera-Scanner mit einer Arbeitsstation. |
 | Checkpoint | Eine Markierung in der Erfassungsliste eines Arbeitsbereichs, die eine Zwischensumme bildet. |
+| Änderungsprotokoll | Die Aufzeichnung aller nachträglichen Änderungen an Erfassungen (Menge, Seriennummer, Löschen, Wiederherstellen) sowie des Beendens und Wiederöffnens einer Inventur. |
 
 ## Stammdaten
 
@@ -154,7 +155,7 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 
 ### Tests
 
-- Unit-Tests decken die gesamte Fachlogik ab: Statusübergänge von Inventur und Arbeitsbereich, Mitarbeiterzuordnung, Suchauflösung (grün, gelb, rot), Mengenänderungen, Checkpoint-Zählung, Tastatursteuerung, Kopplung und Export-Inhalte.
+- Unit-Tests decken die gesamte Fachlogik ab: Statusübergänge von Inventur und Arbeitsbereich, Mitarbeiterzuordnung, Suchauflösung (grün, gelb, rot), Mengenänderungen, Checkpoint-Zählung, Tastatursteuerung, Kopplung, Export-Inhalte, Seriennummern, Änderungsprotokoll, Wiederherstellen gelöschter Zeilen, Wiederöffnen einer Inventur und die Prüfungen der Stammdaten.
 - Integrationstests gegen eine echte Postgres-Instanz (Testcontainers) für Suche und Migrationen. **(Annahme)**
 - Mindestabdeckung der Fachlogik: 80 %. **(Annahme)**
 
@@ -172,14 +173,15 @@ Browser erlauben Kamerazugriff nur in einem sicheren Kontext (HTTPS). Deshalb gi
 
 Die Bezeichner in Datenbank und Code sind englisch. In Klammern steht der Fachbegriff aus dieser Spezifikation.
 
-- **stocktake** (Inventur): id, name (Bezeichnung), status (`active` oder `finished`), started_at, finished_at
+- **stocktake** (Inventur): id, name (Bezeichnung), status (`active` oder `finished`), started_at, finished_at (beim Wiederöffnen wieder leer)
 - **employee** (Mitarbeiter): id, stocktake_id, name (eindeutig je Inventur), workstation_id (nullable = nicht zugewiesen). Löschen nur ohne Erfassungen, die Datenbank verhindert es per Fremdschlüssel.
 - **workstation** (Arbeitsstation): id, name (eindeutig), token, work_area_id (nullable), last_seen_at. Löschen nur ohne Erfassungen, die Datenbank verhindert es per Fremdschlüssel.
 - **work_area** (Arbeitsbereich): id, stocktake_id, name, description, status (`open`, `in_progress` oder `closed`), closed_at
-- **entry** (Erfassung, Zeile): id, stocktake_id, work_area_id, article_id (nullable, ohne Fremdschlüssel, weil die Stammdaten ersetzt werden dürfen), is_manual (bool), input (gescannter oder getippter Code), Momentaufnahme (description, ean, category, price_net, price_gross; bei manuellen Artikeln sind category und price_net leer), serial_number (nullable), quantity (≥ 1), workstation_id, created_at, updated_at, request_id (technisch: eine von der Station vergebene Kennung je Scan, damit eine nach einem Verbindungsabbruch wiederholte Anfrage keine zweite Zeile erzeugt). Gelöschte Zeilen werden endgültig entfernt, es gibt kein Soft-Delete.
+- **entry** (Erfassung, Zeile): id, stocktake_id, work_area_id, article_id (nullable, ohne Fremdschlüssel, weil die Stammdaten ersetzt werden dürfen), is_manual (bool), input (gescannter oder getippter Code), Momentaufnahme (description, ean, category, price_net, price_gross; bei manuellen Artikeln sind category und price_net leer), serial_number (nullable, an jeder Zeile änderbar), quantity (≥ 1), workstation_id, created_at, updated_at, request_id (technisch: eine von der Station vergebene Kennung je Scan, damit eine nach einem Verbindungsabbruch wiederholte Anfrage keine zweite Zeile erzeugt). Gelöschte Zeilen werden aus `entry` entfernt, es gibt kein Soft-Delete. Ihre Daten stehen im Änderungsprotokoll, von wo aus sie sich per Rückgängig wiederherstellen lassen.
 - **entry_employee**: entry_id, employee_id. Die Mitarbeiter, die beim Erfassen an der Station angemeldet waren.
 - **checkpoint**: id, work_area_id, boundary_at (Grenze: alle Zeilen, die bis zu diesem Zeitpunkt erfasst wurden, liegen davor; beim Anlegen am Ende der Zeitpunkt des Anlegens, beim nachträglichen Einfügen der Erfassungszeitpunkt der gewählten Zeile), workstation_id, created_at. Die Nummer wird aus der Reihenfolge der Grenzen berechnet.
 - **pairing** (Kopplung): id, workstation_id, one_time_code, qr_token, valid_until, device_token, paired_at
+- **audit_log** (Änderungsprotokoll): id, stocktake_id, action (`quantity_changed`, `serial_number_changed`, `deleted`, `restored`, `stocktake_finished`, `stocktake_reopened`), entry_id (nullable, ohne Fremdschlüssel, weil die Zeile gelöscht sein kann), work_area_id (nullable), old_value und new_value (Text, z. B. Menge oder Seriennummer), entry_snapshot (JSONB: die vollständige Zeile mit Mitarbeitern beim Löschen, außerdem ein dabei automatisch entfallener Checkpoint; Grundlage für das Wiederherstellen), source (`station`, `phone` oder `admin`), workstation_id (nullable, ohne Fremdschlüssel), workstation_name und employee_names (Momentaufnahme, weil Stationen und Mitarbeiter umbenannt oder gelöscht werden können), created_at. Einträge werden nie geändert oder gelöscht. **(Annahme)**
 
 ## Administrations-Dashboard
 
@@ -203,6 +205,31 @@ Der Administrator kann
 - Die Inventur beenden
   - Sind noch Arbeitsbereiche nicht abgeschlossen, erscheint eine Warnung mit Liste. Der Administrator kann trotzdem beenden.
   - Nach dem Beenden ist die Inventur schreibgeschützt. Alle Stationen zeigen „Keine aktive Inventur“, und alle Kopplungen werden getrennt.
+- Eine beendete Inventur wieder öffnen, z. B. wenn nach dem Beenden ein Fehler auffällt
+  - Das geht mit jeder beendeten Inventur aus der Historie, aber nur, wenn keine andere Inventur aktiv ist. Vorher erscheint eine Sicherheitsabfrage.
+  - Die Inventur ist danach wieder aktiv und beschreibbar, `finished_at` ist leer. Die Stationen zeigen sie sofort an.
+  - Abgeschlossene Bereiche bleiben abgeschlossen. Bereiche, die beim Beenden „in Arbeit“ waren, sind danach „offen“, weil beim Beenden alle Stationen ihre Bereiche verlassen haben. Mitarbeiter müssen sich neu an den Stationen anmelden und Handys neu gekoppelt werden. **(Annahme)**
+  - Beenden und Wiederöffnen stehen im Änderungsprotokoll. **(Annahme)**
+  - Beim erneuten Beenden gelten dieselben Regeln wie beim ersten Mal.
+- Die **Stammdaten prüfen** (Seite „Stammdaten“, unabhängig von einer Inventur) **(Annahme)**
+  - Kennzahlen: Anzahl Artikel, davon mit und ohne EAN, mit und ohne Artikelnummer, ohne Soll-Anzahl; Soll-Stückzahl und Soll-Wert (netto und brutto) gesamt und je Kategorie
+  - Prüfungen mit Anzahl und aufklappbarer Liste:
+    - doppelte EANs und doppelte Artikelnummern (führen bei der Erfassung zum Fall „gelb“)
+    - Artikel ohne EAN und ohne Artikelnummer (nur über die Bezeichnung auffindbar)
+    - EANs mit 8 oder 13 Ziffern und falscher Prüfziffer
+    - Preise von 0 € und Artikel mit Bruttopreis kleiner als Nettopreis
+  - Artikelliste mit derselben Suche wie an der Station, blätterbar, mit EAN, Artikelnummern, Kategorie, Preisen und Soll-Anzahl
+  - Die Seite wird beim Aufruf und per Button „Aktualisieren“ berechnet, nicht live, weil die Anwendung von Änderungen an den Stammdaten nichts erfährt. Einen Zeitpunkt der letzten Änderung gibt es nicht, weil die Stammdaten keinen tragen.
+  - Listen zeigen höchstens 500 Einträge mit Hinweis auf die Gesamtzahl.
+- **Artikel in einer Inventur suchen** („Wo wurde Artikel X erfasst?“), für die aktive und jede frühere Inventur **(Annahme)**
+  - Gesucht wird wie an der Station nach EAN, Artikelnummer und Bezeichnung, zusätzlich nach Seriennummer (Präfix) sowie in manuell erfassten Zeilen nach Bezeichnung und ursprünglicher Eingabe.
+  - Zu einem Stammdatenartikel zeigt das Ergebnis Soll-Anzahl, erfasste Gesamtmenge und alle Zeilen mit Arbeitsbereich, Station, Mitarbeitern, Zeitpunkt, Menge und Seriennummer, dazu die Einträge des Änderungsprotokolls zu diesen Zeilen (auch gelöschte).
+  - Artikel aus den Listen Fehlbestand, Mehrbestand und Auffälligkeiten der Statistik lassen sich per Klick in der Artikelsuche öffnen.
+  - Die Ergebnisse aktualisieren sich live bei neuen oder geänderten Erfassungen.
+- Das **Änderungsprotokoll** einsehen (für die aktive und jede frühere Inventur) **(Annahme)**
+  - Liste, neueste zuerst, filterbar nach Arbeitsbereich, Station und Aktion, live aktualisiert
+  - Je Eintrag: Zeitpunkt, Aktion, Arbeitsbereich, Artikel (Bezeichnung, EAN bzw. Artikelnummer), alter und neuer Wert, Station bzw. Handy und Mitarbeiter
+  - Export als CSV und XLSX mit denselben Formatregeln wie die übrigen Exporte
 - Statistiken über die Inventur einsehen (live aktualisiert):
   - Fortschritt: Arbeitsbereiche nach Status
   - Anzahl Zeilen, Stückzahl und Gesamtwert (netto und brutto), gesamt, je Arbeitsbereich und je Kategorie. Manuelle Artikel haben keinen Nettopreis und keine Kategorie. Sie fließen nur in die Bruttosumme ein und werden bei den Kategorien als „ohne Kategorie (manuell)“ ausgewiesen.
@@ -320,9 +347,30 @@ Regeln für die Tastenkürzel:
 - Sie wirken auf die **ausgewählte Zeile**. Standardmäßig ist das die zuletzt von dieser Station erfasste Zeile. Mit `↑` und `↓` lässt sich eine andere Zeile im Bereich auswählen, `Esc` setzt die Auswahl zurück. Jede neue Erfassung der Station, auch über ein gekoppeltes Handy, wählt die neue Zeile aus.
 - Die Tasten des Nummernblocks funktionieren gleichwertig.
 - `=` oder `*` wechselt in den Mengenmodus. Das Feld zeigt dann „Menge:“, nimmt nur Ziffern an, `Enter` übernimmt, `Esc` bricht ab. Die Menge muss mindestens 1 sein.
-- `Delete` löscht ohne Rückfrage, zeigt aber einen Hinweis „Zeile gelöscht“. Die Zeile wird endgültig gelöscht.
+- `Delete` löscht ohne Rückfrage, zeigt aber einen Hinweis „Zeile gelöscht“ mit einem Button „Rückgängig“ (siehe unten).
 - Änderungen erscheinen live auf allen Stationen im Bereich.
-- Es gibt kein Rückgängig.
+- Mengenänderungen, Seriennummern und Löschungen werden im Änderungsprotokoll festgehalten, mit Station und angemeldeten Mitarbeitern.
+
+### Seriennummer
+
+Bei Uhren weist erst die Seriennummer ein bestimmtes Stück nach. Deshalb lässt sich die Seriennummer an jeder Zeile nachtragen, ändern und entfernen, nicht nur bei manuellen Erfassungen. **(Annahme)**
+
+- Per Tastenkürzel `F4` bei leerem Eingabefeld für die ausgewählte Zeile oder per Stiftsymbol in der Spalte Seriennummer. Das Eingabefeld zeigt dann „Seriennummer:“, `Enter` übernimmt, `Esc` bricht ab. Ein leerer Wert entfernt die Seriennummer.
+- In diesem Modus darf auch ein Barcode-Scanner die Seriennummer eingeben; der Scan wird dann nicht als Artikel erfasst.
+- Auf dem Handy gibt es im grünen Ergebnis zusätzlich einen Button „Seriennummer“ mit einem Eingabefeld.
+- Höchstens 100 Zeichen, führende und folgende Leerzeichen werden entfernt. Seriennummern müssen nicht eindeutig sein.
+- Die Seriennummer gehört zur Zeile, nicht zum Stammdatenartikel. Bei einer Zeile mit Menge größer als 1 gilt sie für die ganze Zeile.
+
+### Rückgängig beim Löschen
+
+Weil `Delete` ohne Rückfrage löscht, lässt sich die letzte Löschung kurz zurücknehmen. **(Annahme)**
+
+- Der Hinweis „Zeile gelöscht“ bleibt 10 Sekunden stehen und enthält einen Button „Rückgängig“. Solange er sichtbar ist, stellt auch `Strg+Z` bei leerem Eingabefeld die Zeile wieder her. Auf dem Handy erscheint nach `Löschen` derselbe Button.
+- Rückgängig machen kann nur die Station, an der gelöscht wurde (bzw. deren Handy), und nur die jeweils letzte Löschung.
+- Die Zeile wird mit denselben Daten wiederhergestellt: gleiche Kennung, Erfassungszeitpunkt, Menge, Seriennummer, Momentaufnahme und Mitarbeiter. Sie steht damit wieder an ihrer alten Stelle in der Liste und im alten Checkpoint-Abschnitt. Ein Checkpoint, der durch die Löschung automatisch entfallen ist, wird ebenfalls wiederhergestellt.
+- Das Wiederherstellen wird abgelehnt, wenn der Bereich inzwischen abgeschlossen oder die Inventur beendet ist.
+- Die Wiederherstellung erscheint live auf allen Stationen im Bereich und als eigener Eintrag im Änderungsprotokoll.
+- Mengenänderungen lassen sich nicht zurücknehmen; sie sind mit `+`, `−` oder dem Mengenmodus direkt korrigierbar.
 
 ### Checkpoints
 
@@ -367,7 +415,7 @@ Man soll alternativ auch Smartphones als Barcode-Scanner koppeln. Der Kopplungsp
 - Die Handy-Ansicht füllt den Bildschirm, ohne dass man scrollen muss: Das Kamerabild nimmt den Platz ein, Ergebnis und Auswahl liegen darüber, die Bedienelemente in einer Leiste am unteren Rand.
 - Der erkannte Code läuft auf der Station durch dieselbe Logik wie eine Tastatureingabe (grün, gelb, rot).
 - Anzeige auf dem Handy:
-  - **Grün**: Bezeichnung, EAN, Preis und Menge sowie die Buttons `+`, `−` und `Löschen`. Sie wirken auf die durch diesen Scan erzeugte Zeile.
+  - **Grün**: Bezeichnung, EAN, Preis und Menge sowie die Buttons `+`, `−`, `Löschen` und `Seriennummer`. Sie wirken auf die durch diesen Scan erzeugte Zeile. Nach `Löschen` erscheint für 10 Sekunden `Rückgängig`.
   - **Gelb**: Auswahlliste auf dem Handy, alternativ die Auswahl an der Station.
   - **Rot**: Hinweis „Artikel unbekannt – bitte an der Station manuell erfassen“.
 

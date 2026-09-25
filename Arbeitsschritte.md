@@ -198,3 +198,43 @@ Umsetzungsplan für [Anforderung.md](Anforderung.md). Die Schritte bauen aufeina
 - Das Compose-File referenziert `v1.0.0`.
 - Probedurchlauf: eine komplette Inventur mit mehreren Stationen, einem Handy und einem Scanner nach einer Checkliste
 - **Fertig, wenn:** Der Probedurchlauf ohne Fehler abgeschlossen ist und der Tag `v1.0.0` veröffentlicht ist.
+
+## Phase 8 – Erweiterungen
+
+### 23. Änderungsprotokoll
+- Tabelle `inventory.audit_log` (siehe [Anforderung.md](Anforderung.md#datenmodell-der-anwendung-schema-inventory-annahme)) mit Migration
+- Mengenänderungen und Löschungen schreiben in derselben Transaktion einen Protokolleintrag mit Station bzw. Handy, Stationsname und Mitarbeiternamen; Löschungen mit der vollständigen Zeile und einem dabei entfallenen Checkpoint
+- Admin-Seite „Protokoll“ für die aktive und jede frühere Inventur, filterbar nach Bereich, Station und Aktion, live aktualisiert
+- Export als CSV und XLSX
+- **Fertig, wenn:** Die Unit-Tests abdecken, dass jede Mengenänderung und Löschung genau einen Eintrag mit korrekten alten und neuen Werten erzeugt, und ein fehlgeschlagener Schreibzugriff keinen Eintrag hinterlässt.
+
+### 24. Rückgängig beim Löschen
+- Server: Wiederherstellen der zuletzt gelöschten Zeile einer Station aus dem Protokoll, mit gleicher Kennung, Erfassungszeitpunkt und Mitarbeitern, einschließlich eines automatisch entfallenen Checkpoints; abgelehnt bei abgeschlossenem Bereich oder beendeter Inventur; Protokolleintrag `restored`
+- Station: Hinweis „Zeile gelöscht“ 10 Sekunden mit Button „Rückgängig“ und `Strg+Z` bei leerem Eingabefeld
+- Handy: Button `Rückgängig` nach `Löschen`
+- **Fertig, wenn:** Die Unit-Tests abdecken, dass die Zeile an ihrer alten Stelle im alten Checkpoint-Abschnitt erscheint, ein entfallener Checkpoint zurückkommt, nur die löschende Station und nur die letzte Löschung wiederherstellen kann und die Ablehnungsfälle greifen.
+
+### 25. Seriennummer an jeder Zeile
+- Server: Seriennummer einer Zeile setzen, ändern und entfernen (höchstens 100 Zeichen), mit Live-Ereignis und Protokolleintrag
+- Station: `F4` bei leerem Eingabefeld und Stiftsymbol in der Spalte; Eingabemodus „Seriennummer:“, in dem auch ein Barcode-Scan als Seriennummer gilt
+- Handy: Button „Seriennummer“ im grünen Ergebnis
+- **Fertig, wenn:** Die Unit-Tests den Seriennummernmodus der Tastatursteuerung abdecken, insbesondere dass ein Scan in diesem Modus keine neue Zeile erzeugt, und die Seriennummer in Liste, Export und Zählliste erscheint.
+
+### 26. Artikelsuche im Dashboard
+- Suche innerhalb einer Inventur (aktiv oder früher) nach EAN, Artikelnummer, Bezeichnung und Seriennummer, auch in manuellen Zeilen
+- Ergebnis je Artikel: Soll-Anzahl, erfasste Gesamtmenge, alle Zeilen mit Bereich, Station, Mitarbeitern, Zeitpunkt, Menge und Seriennummer, dazu die Protokolleinträge dieser Zeilen
+- Artikel aus Fehlbestand, Mehrbestand und Auffälligkeiten öffnen per Klick die Artikelsuche.
+- Live-Aktualisierung
+- **Fertig, wenn:** Die Integrationstests die Suche über Seriennummer und manuelle Zeilen abdecken und eine gelöschte Zeile über das Protokoll auffindbar ist.
+
+### 27. Stammdatenübersicht
+- Admin-Seite „Stammdaten“: Kennzahlen gesamt und je Kategorie, Soll-Stückzahl und Soll-Wert
+- Prüfungen: doppelte EANs und Artikelnummern, Artikel ohne Code, falsche EAN-Prüfziffern, Preise von 0 € und brutto kleiner als netto, jeweils mit Liste (höchstens 500 Einträge)
+- Blätterbare Artikelliste mit der Stationssuche
+- Berechnung beim Aufruf und per Button „Aktualisieren“
+- **Fertig, wenn:** Die Unit-Tests jede Prüfung abdecken und die Seite bei 100.000 Artikeln in weniger als 2 Sekunden lädt.
+
+### 28. Beendete Inventur wieder öffnen
+- Server: jede beendete Inventur wieder öffnen, sofern keine andere aktiv ist; `finished_at` wird geleert, Bereiche „in Arbeit“ ohne Station fallen auf „offen“ zurück, Beenden und Wiederöffnen werden protokolliert
+- Dashboard: Button in der Historie mit Sicherheitsabfrage; die Stationen zeigen die Inventur sofort wieder an.
+- **Fertig, wenn:** Die Unit-Tests den Übergang `finished` → `active` abdecken, auch die Ablehnung bei einer anderen aktiven Inventur, und nach dem Wiederöffnen wieder erfasst und erneut beendet werden kann.
