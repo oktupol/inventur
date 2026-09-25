@@ -58,6 +58,7 @@ function stubServer(options: { employees?: boolean } = {}) {
     workArea: { id: 4, name: 'Vitrine', status: 'in_progress' },
   };
   const entries: Entry[] = [];
+  const deleted: Entry[] = [];
   /** Checkpoints as boundaries: all lines up to the entry id `after` lie before them. */
   const boundaries: { id: number; after: number }[] = [];
   let nextCheckpointId = 100;
@@ -180,6 +181,7 @@ function stubServer(options: { employees?: boolean } = {}) {
       const index = entries.findIndex((e) => e.id === Number(row[1]));
       if (index === -1) return { status: 404, body: { error: 'x', code: 'not_found' } };
       if (method === 'DELETE') {
+        deleted.push(entries[index]!);
         entries.splice(index, 1);
         const removed = listCheckpoints().filter((c) => c.sinceLast === 0);
         for (const c of removed) {
@@ -194,6 +196,17 @@ function stubServer(options: { employees?: boolean } = {}) {
       const current = entries[index]!;
       current.quantity = change.quantity ?? Math.max(1, current.quantity + (change.delta ?? 0));
       return { body: current };
+    }
+    if (method === 'POST' && url === '/api/station/entries/restore') {
+      const { entryId } = body as { entryId: number };
+      const entry = deleted.at(-1);
+      if (entry?.id !== entryId) {
+        return { status: 409, body: { error: 'x', code: 'restore_unavailable' } };
+      }
+      deleted.pop();
+      entries.push(entry);
+      entries.sort((a, b) => b.id - a.id);
+      return { body: { entry, restoredCheckpoints: [] } };
     }
     if (method === 'POST' && url === '/api/station/entries/manual') {
       const request = body as {
@@ -515,6 +528,64 @@ describe('changing lines', () => {
     await waitFor(() =>
       expect(document.querySelectorAll('table.entries tbody tr')).toHaveLength(2),
     );
+  });
+
+  it('restores the deleted line with Ctrl+Z', async () => {
+    const server = await scanned(2);
+    await press('Delete');
+    const undo = await screen.findByRole('button', { name: 'Rückgängig (Strg+Z)' });
+    expect(undo).toBeTruthy();
+    fireEvent.keyDown(await input(), { key: 'z', ctrlKey: true });
+
+    await waitFor(() =>
+      expect(server.entryPosts().at(-1)).toMatchObject({
+        url: '/api/station/entries/restore',
+        body: { entryId: 2 },
+      }),
+    );
+    expect(await screen.findByText('Zeile wiederhergestellt:')).toBeTruthy();
+    await waitFor(() =>
+      expect(document.querySelectorAll('table.entries tbody tr')).toHaveLength(2),
+    );
+    expect(screen.queryByRole('button', { name: 'Rückgängig (Strg+Z)' })).toBeNull();
+  });
+
+  it('restores the deleted line with the button', async () => {
+    const server = await scanned(1);
+    await press('Delete');
+    fireEvent.click(await screen.findByRole('button', { name: 'Rückgängig (Strg+Z)' }));
+    await waitFor(() =>
+      expect(server.entryPosts().at(-1)?.url).toBe('/api/station/entries/restore'),
+    );
+    expect(await screen.findByText('Zeile wiederhergestellt:')).toBeTruthy();
+  });
+
+  it('offers to restore only for a short time', async () => {
+    const server = await scanned(1);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await press('Delete');
+      await screen.findByRole('button', { name: 'Rückgängig (Strg+Z)' });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(screen.queryByRole('button', { name: 'Rückgängig (Strg+Z)' })).toBeNull();
+      expect(screen.getByText('Zeile gelöscht:')).toBeTruthy();
+      fireEvent.keyDown(await input(), { key: 'z', ctrlKey: true });
+      expect(server.entryPosts().some((c) => c.url.endsWith('/restore'))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps Ctrl+Z for the text while typing', async () => {
+    const server = await scanned(1);
+    await press('Delete');
+    await screen.findByRole('button', { name: 'Rückgängig (Strg+Z)' });
+    const field = await input();
+    fireEvent.change(field, { target: { value: 'AB' } });
+    fireEvent.keyDown(field, { key: 'z', ctrlKey: true });
+    expect(server.entryPosts().some((c) => c.url.endsWith('/restore'))).toBe(false);
   });
 
   it('offers +, −, an editable quantity and Löschen per line for the mouse', async () => {

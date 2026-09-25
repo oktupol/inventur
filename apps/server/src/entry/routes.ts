@@ -4,6 +4,8 @@ import {
   type CreateEntryResponse,
   type CreateManualEntryRequest,
   type DeleteEntryResponse,
+  type RestoreEntryRequest,
+  type RestoreEntryResponse,
   type Entry,
   type EntryListResponse,
   type UpdateEntryRequest,
@@ -17,8 +19,17 @@ import {
   createManualEntry,
   deleteEntry,
   listEntries,
+  restoreEntry,
   updateEntryQuantity,
 } from './service.ts';
+
+/** JSON schema of `RestoreEntryRequest`. */
+export const restoreBody = {
+  type: 'object',
+  required: ['entryId'],
+  properties: { entryId: idParams.properties.id },
+  additionalProperties: false,
+} as const;
 
 export async function entryRoutes(app: FastifyInstance, context: Context): Promise<void> {
   const { db } = context;
@@ -87,6 +98,17 @@ export async function entryRoutes(app: FastifyInstance, context: Context): Promi
         context,
         { source: 'station', workstation: await authenticateRequest(db, request) },
         request.params.id,
+      ),
+  );
+
+  app.post<{ Body: RestoreEntryRequest }>(
+    '/api/station/entries/restore',
+    { schema: { body: restoreBody } },
+    async (request): Promise<RestoreEntryResponse> =>
+      restoreEntry(
+        context,
+        { source: 'station', workstation: await authenticateRequest(db, request) },
+        request.body.entryId,
       ),
   );
 

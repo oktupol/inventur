@@ -111,6 +111,9 @@ function renderScanner() {
     if (method === 'DELETE' && url === '/api/scan/entries/8') {
       return { body: { removedCheckpoints: [] } };
     }
+    if (method === 'POST' && url === '/api/scan/entries/restore') {
+      return { body: { entry: entry(8, 'Herrenring Gold', quantity), restoredCheckpoints: [] } };
+    }
   });
   const realtime = createFakeRealtime();
   render(
@@ -152,7 +155,7 @@ describe('phone scanner', () => {
     fireEvent.click(within(card).getByRole('button', { name: 'Menge verringern' }));
     await waitFor(() => expect(within(card).getByLabelText('Menge').textContent).toBe('1'));
     fireEvent.click(within(card).getByRole('button', { name: 'Löschen' }));
-    await waitFor(() => expect(result()?.textContent).toBe('Zeile gelöscht: Herrenring Gold'));
+    await waitFor(() => expect(result()?.textContent).toContain('Zeile gelöscht: Herrenring Gold'));
 
     expect(
       api.calls
@@ -163,6 +166,24 @@ describe('phone scanner', () => {
       ['PATCH', '/api/scan/entries/8', { delta: -1 }],
       ['DELETE', '/api/scan/entries/8', undefined],
     ]);
+  });
+
+  it('restores a line deleted on the phone', async () => {
+    const { api } = renderScanner();
+    await startScanning();
+    act(() => detect('4000000000017'));
+    await waitFor(() => expect(result()?.getAttribute('data-result')).toBe('unique'));
+    fireEvent.click(within(result() as HTMLElement).getByRole('button', { name: 'Löschen' }));
+    await waitFor(() => expect(result()?.getAttribute('data-result')).toBe('deleted'));
+
+    fireEvent.click(within(result() as HTMLElement).getByRole('button', { name: 'Rückgängig' }));
+    await waitFor(() => expect(result()?.getAttribute('data-result')).toBe('unique'));
+    expect(result()?.textContent).toContain('Herrenring Gold');
+    expect(api.calls.at(-1)).toMatchObject({
+      method: 'POST',
+      url: '/api/scan/entries/restore',
+      body: { entryId: 8 },
+    });
   });
 
   it('lets the user choose between several articles', async () => {

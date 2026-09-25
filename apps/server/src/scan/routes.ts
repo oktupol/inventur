@@ -3,12 +3,15 @@ import {
   type CreateEntryRequest,
   type CreateEntryResponse,
   type DeleteEntryResponse,
+  type RestoreEntryRequest,
+  type RestoreEntryResponse,
   type Entry,
   type UpdateEntryRequest,
 } from '@inventur/shared';
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../context.ts';
-import { createEntry, deleteEntry, updateEntryQuantity } from '../entry/service.ts';
+import { restoreBody } from '../entry/routes.ts';
+import { createEntry, deleteEntry, restoreEntry, updateEntryQuantity } from '../entry/service.ts';
 import { idParams, type IdParams } from '../http/schemas.ts';
 import { authenticateDeviceRequest } from '../pairing/routes.ts';
 
@@ -91,6 +94,15 @@ export async function scanRoutes(app: FastifyInstance, context: Context): Promis
     async (request): Promise<DeleteEntryResponse> => {
       const { workstation } = await authenticateDeviceRequest(db, request);
       return deleteEntry(context, { source: 'phone', workstation }, request.params.id);
+    },
+  );
+
+  app.post<{ Body: RestoreEntryRequest }>(
+    '/api/scan/entries/restore',
+    { schema: { body: restoreBody } },
+    async (request): Promise<RestoreEntryResponse> => {
+      const { workstation } = await authenticateDeviceRequest(db, request);
+      return restoreEntry(context, { source: 'phone', workstation }, request.body.entryId);
     },
   );
 }

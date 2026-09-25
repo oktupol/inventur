@@ -1,4 +1,5 @@
 import {
+  UNDO_DELETE_MS,
   workAreaChannel,
   workstationChannel,
   type ArticleMatch,
@@ -8,6 +9,7 @@ import {
   type DeleteEntryResponse,
   type Entry,
   type EntryListResponse,
+  type RestoreEntryResponse,
 } from '@inventur/shared';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ApiRequestError } from '../api/client.ts';
@@ -19,7 +21,7 @@ import { playDuplicateTone, playTone } from '../station/audio.ts';
 import { useStation } from '../station/StationContext.tsx';
 import { completionFor, moveSelection, suggestionCode } from './completion.ts';
 import { EntryTable, type RowAction } from './EntryTable.tsx';
-import { effectiveSelection, interpretKey, moveRowSelection } from './keyboard.ts';
+import { effectiveSelection, interpretKey, keyOf, moveRowSelection } from './keyboard.ts';
 import { ManualEntryDialog, type ManualEntryValues } from './ManualEntryDialog.tsx';
 import { SerialQueue, type QueueOutcome } from './queue.ts';
 import { useSuggestions } from './useSuggestions.ts';
@@ -42,14 +44,16 @@ type Task =
   | ({ kind: 'row' } & RowTask)
   | ({ kind: 'manual' } & CreateManualEntryRequest)
   | { kind: 'checkpoint'; afterEntryId: number | null }
-  | { kind: 'delete_checkpoint'; checkpoint: Checkpoint };
+  | { kind: 'delete_checkpoint'; checkpoint: Checkpoint }
+  | { kind: 'restore'; entryId: number };
 
 type Feedback =
   | { kind: 'unique'; entry: Entry }
   | { kind: 'not_found'; input: string; fromPhone?: boolean }
   | { kind: 'phone'; result: 'unique' | 'ambiguous'; input: string; description: string | null }
   | { kind: 'updated'; entry: Entry }
-  | { kind: 'deleted'; description: string; removedCheckpoints: number[] }
+  | { kind: 'deleted'; entryId: number; description: string; removedCheckpoints: number[] }
+  | { kind: 'restored'; entry: Entry; restoredCheckpoints: number[] }
   | { kind: 'info'; message: string }
   | { kind: 'checkpoint'; checkpoint: Checkpoint }
   | { kind: 'error'; message: string; input?: string };
@@ -105,6 +109,8 @@ export function CaptureView() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [pending, setPending] = useState(0);
+  /** The line this workstation deleted last, while it can still be restored. */
+  const [undoable, setUndoable] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestions = useSuggestions(api, choice || quantityDigits !== null ? '' : text);
   const completion = choice || quantityDigits !== null ? null : completionFor(text, suggestions);
@@ -170,7 +176,8 @@ export function CaptureView() {
           const { removedCheckpoints } = await api.delete<DeleteEntryResponse>(url);
           if (lastCreatedId.current === target) lastCreatedId.current = null;
           const description = list.find((e) => e.id === target)?.description ?? 'Zeile';
-          setFeedback({ kind: 'deleted', description, removedCheckpoints });
+          setFeedback({ kind: 'deleted', entryId: target, description, removedCheckpoints });
+          setUndoable(target);
         } else {
           const body =
             action.type === 'set' ? { quantity: action.quantity } : { delta: action.delta };
@@ -237,6 +244,20 @@ export function CaptureView() {
       return 'done';
     }
 
+    async function processRestore(entryId: number): Promise<QueueOutcome> {
+      try {
+        const response = await api.post<RestoreEntryResponse>('/api/station/entries/restore', {
+          entryId,
+        });
+        setFeedback({ kind: 'restored', ...response });
+        reloadEntries();
+      } catch (error) {
+        if (isTransient(error)) return 'retry';
+        setFeedback({ kind: 'error', message: messageOf(error) });
+      }
+      return 'done';
+    }
+
     queue.setHandler((task) => {
       switch (task.kind) {
         case 'scan':
@@ -249,6 +270,8 @@ export function CaptureView() {
           return processCheckpoint(task.afterEntryId);
         case 'delete_checkpoint':
           return processDeleteCheckpoint(task.checkpoint);
+        case 'restore':
+          return processRestore(task.entryId);
       }
     });
   });
@@ -274,6 +297,13 @@ export function CaptureView() {
       description: event.description,
     });
   });
+
+  // The offer to restore a deleted line ends after a short time.
+  useEffect(() => {
+    if (undoable === null) return;
+    const timer = setTimeout(() => setUndoable(null), UNDO_DELETE_MS);
+    return () => clearTimeout(timer);
+  }, [undoable]);
 
   // Retry scans that failed because the server was unreachable.
   useEffect(() => {
@@ -338,8 +368,19 @@ export function CaptureView() {
     queue.push({ kind: 'row', action, entryId: entryId ?? explicitSelection });
   }
 
+  /** Restores the line deleted last, while the offer lasts. */
+  function undoDelete() {
+    if (undoable === null) return;
+    queue.push({ kind: 'restore', entryId: undoable });
+    setUndoable(null);
+    inputRef.current?.focus();
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    const command = interpretKey({ text, quantityDigits, choiceOpen: choice !== null }, event.key);
+    const command = interpretKey(
+      { text, quantityDigits, choiceOpen: choice !== null },
+      keyOf(event),
+    );
     if (command.type !== 'none') event.preventDefault();
     switch (command.type) {
       case 'delete':
@@ -368,6 +409,8 @@ export function CaptureView() {
         return openManual();
       case 'checkpoint':
         return addCheckpoint();
+      case 'undo':
+        return undoDelete();
       case 'ignore':
         return;
       case 'none':
@@ -588,6 +631,22 @@ export function CaptureView() {
                   {' '}
                   – Checkpoint {number} wurde entfernt, weil sein Abschnitt leer war.
                 </span>
+              ))}
+              {undoable === feedback.entryId && (
+                <>
+                  {' '}
+                  <button type="button" className="small primary" onClick={undoDelete}>
+                    Rückgängig (Strg+Z)
+                  </button>
+                </>
+              )}
+            </span>
+          )}
+          {!choice && feedback?.kind === 'restored' && (
+            <span>
+              <strong>Zeile wiederhergestellt:</strong> {feedback.entry.description}
+              {feedback.restoredCheckpoints.map((number) => (
+                <span key={number}> – Checkpoint {number} ist wieder da.</span>
               ))}
             </span>
           )}

@@ -200,3 +200,49 @@ export async function removeEmptyCheckpoints(
   const rows = new Map(deleted.map((d) => [d.id, d.row]));
   return empty.map(({ id, number }) => ({ id, number, row: rows.get(id) }));
 }
+
+/**
+ * Restores checkpoints that were removed together with a line, from their
+ * rows as `removeEmptyCheckpoints` returned them. Callers hold
+ * `lockCheckpoints` and have restored the line. A checkpoint that would now
+ * create an empty section, e.g. because another one was set at the same
+ * place meanwhile, stays removed. Returns the restored checkpoints with their
+ * current numbers.
+ */
+export async function restoreCheckpoints(
+  trx: Trx,
+  workAreaId: number,
+  rows: readonly unknown[],
+): Promise<{ id: number; number: number }[]> {
+  const restored: number[] = [];
+  for (const row of rows) {
+    const { rows: parsed } = await sql<{ id: number; at: string }>`
+      SELECT c.id, (extract(epoch from c.boundary_at) * 1000000)::bigint AS at
+      FROM jsonb_populate_record(NULL::inventory.checkpoint, ${JSON.stringify(row)}::jsonb) c`.execute(
+      trx,
+    );
+    const checkpoint = parsed[0]!;
+    const times = await loadTimes(trx, workAreaId);
+    try {
+      planCheckpoint(times.entries, times.checkpoints, Number(checkpoint.at));
+    } catch (error) {
+      if (error instanceof DomainError && error.code === 'checkpoint_empty_section') continue;
+      throw error;
+    }
+    // The workstation that set the checkpoint may have been deleted meanwhile.
+    await sql`
+      INSERT INTO inventory.checkpoint (id, work_area_id, boundary_at, workstation_id, created_at)
+      SELECT c.id, ${workAreaId}, c.boundary_at,
+             (SELECT w.id FROM inventory.workstation w WHERE w.id = c.workstation_id),
+             c.created_at
+      FROM jsonb_populate_record(NULL::inventory.checkpoint, ${JSON.stringify(row)}::jsonb) c`.execute(
+      trx,
+    );
+    restored.push(checkpoint.id);
+  }
+  if (restored.length === 0) return [];
+  const { checkpoints } = await loadCheckpoints(trx, workAreaId);
+  return checkpoints
+    .filter((c) => restored.includes(c.id))
+    .map(({ id, number }) => ({ id, number }));
+}
