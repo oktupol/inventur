@@ -9,6 +9,7 @@ import type { RealtimeHub } from './realtime/hub.ts';
 import { registerRealtime } from './realtime/plugin.ts';
 import { checkpointRoutes } from './checkpoint/routes.ts';
 import { employeeRoutes } from './employee/routes.ts';
+import { exportRoutes } from './export/routes.ts';
 import { entryRoutes } from './entry/routes.ts';
 import { pairingRoutes } from './pairing/routes.ts';
 import { scanRoutes } from './scan/routes.ts';
@@ -60,6 +61,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await pairingRoutes(app, context);
     await scanRoutes(app, context);
     await statisticsRoutes(app, context);
+    await exportRoutes(app, context);
   }
 
   if (options.staticDir) {
