@@ -55,6 +55,7 @@ export async function seedMasterData(db: Db, options: SeedOptions): Promise<Seed
             price_net: a.priceNet,
             price_gross: a.priceGross,
             category: a.category,
+            expected_quantity: a.expectedQuantity,
           })),
         )
         .execute();

@@ -14,6 +14,7 @@ function entry(overrides: Partial<ExportEntry> = {}): ExportEntry {
     description: 'Herrenring Gold',
     ean: '4000000000017',
     articleNumbers: ['R-1', 'R-2'],
+    expectedQuantity: 1,
     category: 'Ringe',
     serialNumber: null,
     quantity: 1,
@@ -33,6 +34,7 @@ function manual(overrides: Partial<ExportEntry> = {}): ExportEntry {
     description: 'Brosche',
     ean: null,
     articleNumbers: [],
+    expectedQuantity: null,
     category: null,
     priceNet: null,
     priceGross: '30.00',
@@ -122,7 +124,12 @@ describe('articleTable', () => {
       createdAt: new Date('2026-09-25T10:00:00Z'),
     });
     const { rows, columns } = articleTable([first, second]);
-    expect(columns.map((c) => c.header)).toContain('Zeilen');
+    expect(columns.map((c) => c.header).slice(6, 10)).toEqual([
+      'Zeilen',
+      'Menge',
+      'Soll',
+      'Differenz',
+    ]);
     expect(rows).toEqual([
       [
         'Lager, Vitrine',
@@ -133,6 +140,8 @@ describe('articleTable', () => {
         'A, B',
         2,
         3,
+        1,
+        2,
         '110.00',
         '130.90',
         '320.00',
@@ -151,10 +160,21 @@ describe('articleTable', () => {
       manual({ description: 'Brosche' }),
       entry({ articleId: 3, description: 'Armband' }),
     ]);
-    expect(rows.map((row) => [row[1], row[7], row[10], row[11], row[12]])).toEqual([
-      ['Armband', 1, '100.00', '119.00', 'nein'],
-      ['Brosche', 2, null, '60.00', 'ja'],
-      ['Brosche', 1, null, '30.00', 'ja'],
+    expect(rows.map((row) => [row[1], row[7], row[8], row[9], row[12], row[13], row[14]])).toEqual([
+      ['Armband', 1, 1, 0, '100.00', '119.00', 'nein'],
+      ['Brosche', 2, null, null, null, '60.00', 'ja'],
+      ['Brosche', 1, null, null, null, '30.00', 'ja'],
+    ]);
+  });
+
+  it('shows the difference to the target quantity, or nothing without one', () => {
+    const { rows } = articleTable([
+      entry({ articleId: 1, description: 'Batterie', quantity: 4, expectedQuantity: 10 }),
+      entry({ articleId: 2, description: 'Etui', quantity: 2, expectedQuantity: null }),
+    ]);
+    expect(rows.map((row) => [row[1], row[7], row[8], row[9]])).toEqual([
+      ['Batterie', 4, 10, -6],
+      ['Etui', 2, null, null],
     ]);
   });
 });
@@ -163,10 +183,13 @@ describe('reconciliationTable', () => {
   const reconciliation: Reconciliation = {
     stocktakeId: 1,
     articleCount: 3,
+    expectedQuantity: 13,
+    withoutTargetCount: 0,
     shortage: {
-      count: 1,
-      net: '200.00',
-      gross: '238.00',
+      count: 2,
+      quantity: 7,
+      net: '206.00',
+      gross: '245.14',
       byCategory: [],
       articles: [
         {
@@ -176,6 +199,24 @@ describe('reconciliationTable', () => {
           category: 'Uhren',
           priceNet: '200.00',
           priceGross: '238.00',
+          expected: 1,
+          counted: 0,
+          missing: 1,
+          net: '200.00',
+          gross: '238.00',
+        },
+        {
+          articleId: 4,
+          description: 'Batterie',
+          ean: null,
+          category: 'Zubehör',
+          priceNet: '1.00',
+          priceGross: '1.19',
+          expected: 10,
+          counted: 4,
+          missing: 6,
+          net: '6.00',
+          gross: '7.14',
         },
       ],
       truncated: false,
@@ -238,8 +279,23 @@ describe('reconciliationTable', () => {
         '-238.00',
       ],
       [
+        'Fehlbestand',
+        'zu wenig erfasst',
+        'Batterie',
+        null,
+        '',
+        'Zubehör',
+        10,
+        4,
+        -6,
+        '1.00',
+        '1.19',
+        '-6.00',
+        '-7.14',
+      ],
+      [
         'Mehrbestand',
-        'mehrfach gezählt',
+        'zu viel erfasst',
         'Herrenring',
         '4000000000017',
         '',

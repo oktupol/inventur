@@ -10,6 +10,8 @@ export interface GeneratedArticle {
   priceGross: string;
   category: string;
   articleNumbers: string[];
+  /** Target quantity; null for articles without one. */
+  expectedQuantity: number | null;
 }
 
 export interface GeneratorOptions {
@@ -225,6 +227,12 @@ const SHARE_WITHOUT_EAN = 0.15;
 const SHARE_DUPLICATES = 0.005;
 /** Share of articles created as a variant of an earlier article. */
 const SHARE_SIMILAR = 0.1;
+/** Share of articles with a target quantity of 0, e.g. sold but still listed. */
+const SHARE_EXPECTED_ZERO = 0.02;
+/** Share of articles without a target quantity. */
+const SHARE_WITHOUT_EXPECTED = 0.02;
+/** Accessories kept in stock in several pieces rather than as single items. */
+const BULK_ARTICLES = ['Uhrenbatterie', 'Uhrenarmband', 'Schmuckreinigungstuch', 'Silberpflegebad'];
 
 function randomCategory(r: Random): Category {
   let value = r.next() * TOTAL_WEIGHT;
@@ -323,11 +331,31 @@ export function generateMasterData({ count, seed }: GeneratorOptions): Generated
       articleNumbers: Array.from({ length: articleNumberCount(r) }, () =>
         unique(r, numbers, articleNumber),
       ),
+      expectedQuantity: 1,
     });
   }
 
   addDuplicates(r, articles);
+  addExpectedQuantities(new Random(seed ^ EXPECTED_SEED), articles);
   return articles;
+}
+
+/**
+ * Target quantities come from a separate sequence, so the other data of a
+ * seed stays the same: mostly single items, accessories in several pieces,
+ * and a few articles with a target of 0 or none.
+ */
+const EXPECTED_SEED = 0x5011;
+
+function addExpectedQuantities(r: Random, articles: GeneratedArticle[]): void {
+  for (const article of articles) {
+    const n = r.next();
+    if (n < SHARE_WITHOUT_EXPECTED) article.expectedQuantity = null;
+    else if (n < SHARE_WITHOUT_EXPECTED + SHARE_EXPECTED_ZERO) article.expectedQuantity = 0;
+    else if (BULK_ARTICLES.some((type) => article.description.startsWith(type))) {
+      article.expectedQuantity = r.int(2, 30);
+    }
+  }
 }
 
 function addDuplicates(r: Random, articles: GeneratedArticle[]): void {

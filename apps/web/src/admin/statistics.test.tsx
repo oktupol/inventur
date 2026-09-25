@@ -77,11 +77,12 @@ function statistics(overrides: Partial<StocktakeStatistics> = {}): StocktakeStat
         },
       ],
     },
-    duplicates: [
+    overcounted: [
       {
         articleId: 5,
         description: 'Herrenuhr Doppelt',
         ean: '4000000000017',
+        expected: 1,
         lines: 2,
         quantity: 2,
         workAreas: [{ id: 1, name: 'Vitrine 1' }],
@@ -94,13 +95,16 @@ function statistics(overrides: Partial<StocktakeStatistics> = {}): StocktakeStat
 const reconciliation: Reconciliation = {
   stocktakeId: 1,
   articleCount: 1000,
+  expectedQuantity: 1250,
+  withoutTargetCount: 12,
   shortage: {
     count: 988,
+    quantity: 1203,
     net: '50000.00',
     gross: '59500.00',
     byCategory: [
-      { category: 'Uhren', count: 900, net: '45000.00', gross: '53550.00' },
-      { category: null, count: 88, net: '5000.00', gross: '5950.00' },
+      { category: 'Uhren', count: 900, quantity: 1115, net: '45000.00', gross: '53550.00' },
+      { category: null, count: 88, quantity: 88, net: '5000.00', gross: '5950.00' },
     ],
     articles: [
       {
@@ -110,6 +114,11 @@ const reconciliation: Reconciliation = {
         category: 'Uhren',
         priceNet: '100.00',
         priceGross: '119.00',
+        expected: 3,
+        counted: 1,
+        missing: 2,
+        net: '200.00',
+        gross: '238.00',
       },
     ],
     truncated: true,
@@ -217,11 +226,31 @@ describe('statistics dashboard', () => {
     renderAdmin('/admin/statistik');
     const result = (await screen.findByRole('heading', { name: 'Soll/Ist-Abgleich' }))
       .parentElement!;
+    expect(
+      within(result).getByText(
+        /1\.000 Artikel .* 1\.250 Stück Soll-Bestand\. 12 Artikel ohne Soll-Anzahl/,
+      ),
+    ).toBeTruthy();
     expect(within(result).getByText('988')).toBeTruthy();
+    expect(within(result).getByText('1.203')).toBeTruthy();
     expect(within(result).getByText('59.500,00 €')).toBeTruthy();
     expect(within(result).getByText(/die ersten 1 von 988/)).toBeTruthy();
-    expect(within(result).getByText('Damenuhr Fehlend')).toBeTruthy();
-    expect(within(result).getByText('mehrfach gezählt')).toBeTruthy();
+    const missingRow = within(result).getByText('Damenuhr Fehlend').closest('tr')!;
+    expect(
+      within(missingRow)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      'Damenuhr Fehlend',
+      '',
+      '3',
+      '1',
+      '2',
+      '119,00\u00a0€',
+      '200,00\u00a0€',
+      '238,00\u00a0€',
+    ]);
+    expect(within(result).getByText('zu viel erfasst')).toBeTruthy();
     const manualRow = within(result).getByText('manuell erfasst').closest('tr')!;
     expect(within(manualRow).getByText('ohne Kategorie (manuell)')).toBeTruthy();
   });

@@ -25,10 +25,11 @@ Die Stammdaten werden vom Administrator in eine Postgres-Datenbank abgelegt. Die
     - Preis (brutto und netto)
     - Kategorie
     - 0-n Artikelnummern
+    - Soll-Anzahl (optional)
 
 Die Stammdaten können aus verschiedenen Quellen kommen. Die Anwendung gibt deshalb **feste Zieltabellen** vor, und der Administrator ist dafür verantwortlich, sie im Vorfeld zu befüllen (per SQL, ETL-Tool o. ä.). Die Anwendung liest die Stammdaten nur und ändert sie nie.
 
-Jeder Stammdatensatz ist ein **Einzelstück**, d. h. ein physischer Artikel mit eigener EAN oder Artikelnummer. Die Menge pro Zeile bleibt trotzdem änderbar, z. B. für Kleinteile wie Batterien oder Armbänder.
+Jeder Stammdatensatz hat eine optionale **Soll-Anzahl**: die Stückzahl, die laut Warenwirtschaft vorhanden sein soll. Bei Schmuck und Uhren ist sie meist 1 (Einzelstück), bei Kleinteilen wie Batterien oder Armbändern auch höher, bei verkauften, aber noch gelisteten Artikeln 0. Artikel ohne Soll-Anzahl werden im Soll/Ist-Abgleich nicht berücksichtigt. Die Menge pro Zeile ist immer änderbar.
 
 ### Schema `master_data` (Annahme)
 
@@ -41,7 +42,8 @@ CREATE TABLE master_data.article (
     ean          TEXT          NULL,       -- optional, nicht eindeutig erzwungen
     price_net    NUMERIC(12,2) NOT NULL,   -- Preis netto
     price_gross  NUMERIC(12,2) NOT NULL,   -- Preis brutto
-    category     TEXT          NULL        -- flache Kategorie, keine Hierarchie
+    category     TEXT          NULL,       -- flache Kategorie, keine Hierarchie
+    expected_quantity INTEGER  NULL CHECK (expected_quantity >= 0)  -- Soll-Anzahl, optional
 );
 
 CREATE TABLE master_data.article_number (
@@ -74,6 +76,7 @@ Für Tests, Entwicklung und Vorführungen lassen sich die Stammdaten automatisie
   - 0 bis 3 Artikelnummern je Artikel
   - Nettopreise zwischen 5 € und 15.000 €; Bruttopreis = Netto × 1,19, kaufmännisch gerundet
   - Einige absichtlich doppelte EANs und Artikelnummern sowie ähnliche Bezeichnungen, damit der Fall „gelb“ (mehrdeutig) testbar ist
+  - Soll-Anzahl meist 1, bei Kleinteilen (Batterien, Armbänder, Pflegeartikel) 2 bis 30, bei einigen Artikeln 0 oder leer
 - Die Dummy-Daten werden über dieselben Tabellen eingespielt wie echte Stammdaten. Die Anwendung behandelt sie nicht anders.
 - Die Integrationstests verwenden denselben Generator mit festem Startwert.
 
@@ -205,10 +208,10 @@ Der Administrator kann
   - Anzahl Zeilen, Stückzahl und Gesamtwert (netto und brutto), gesamt, je Arbeitsbereich und je Kategorie. Manuelle Artikel haben keinen Nettopreis und keine Kategorie. Sie fließen nur in die Bruttosumme ein und werden bei den Kategorien als „ohne Kategorie (manuell)“ ausgewiesen.
   - Erfassungen je Mitarbeiter und je Station sowie die Erfassungsrate über die Zeit
   - Manuell erfasste Artikel (Anzahl, Wert, Liste)
-  - Auffälligkeiten: Einzelstücke, die mehrfach erfasst wurden (mehrere Zeilen oder Menge > 1)
-  - **Soll/Ist-Abgleich**: Da die Stammdaten Einzelstücke sind, gilt jeder Stammdatenartikel als Soll-Bestand von 1.
-    - Fehlbestand: Stammdatenartikel, die in keiner Zeile erfasst wurden (Anzahl, Wert netto und brutto, Liste nach Kategorie)
-    - Mehrbestand: Stammdatenartikel mit einer erfassten Gesamtmenge größer als 1, außerdem alle manuell erfassten Artikel
+  - Auffälligkeiten: Artikel, deren erfasste Gesamtmenge ihre Soll-Anzahl übersteigt (mit Soll, Ist, Zeilen und Bereichen)
+  - **Soll/Ist-Abgleich**: Verglichen wird die erfasste Gesamtmenge je Stammdatenartikel mit seiner Soll-Anzahl. Artikel ohne Soll-Anzahl werden nicht berücksichtigt; ihre Anzahl wird angezeigt.
+    - Fehlbestand: Stammdatenartikel, deren erfasste Menge kleiner ist als die Soll-Anzahl, mit der fehlenden Stückzahl (Anzahl Artikel, fehlende Stück, Wert netto und brutto der fehlenden Stück, Liste nach Kategorie)
+    - Mehrbestand: Stammdatenartikel, deren erfasste Menge größer ist als die Soll-Anzahl, mit der überzähligen Stückzahl, außerdem alle manuell erfassten Artikel
     - Der Abgleich wird immer gegen den aktuellen Stand der Stammdaten berechnet. **(Annahme)**
     - Erfasste Artikel, die nicht mehr in den Stammdaten stehen, zählen ebenfalls zum Mehrbestand (Soll 0). **(Annahme)**
     - Das Dashboard zeigt höchstens die ersten 500 fehlenden Artikel. Die vollständige Liste enthält der Export. **(Annahme)**
@@ -220,6 +223,7 @@ Der Administrator kann
     - Bei manuellen Artikeln bleiben Nettopreis und Kategorie leer.
     - Der Soll/Ist-Abgleich lässt sich als eigene Liste exportieren (Fehlbestand und Mehrbestand).
     - Einzelzeilen und die Liste je Artikel gibt es für die gesamte Inventur oder je Arbeitsbereich. Die Liste je Artikel fasst die Zeilen eines Stammdatenartikels zusammen (zusätzliche Spalte „Zeilen“, Zeitpunkt der letzten Erfassung); manuelle Zeilen bleiben einzeln. **(Annahme)**
+    - Die Liste je Artikel enthält zusätzlich die Soll-Anzahl aus den aktuellen Stammdaten und die Differenz (Ist − Soll); ohne Soll-Anzahl bleiben beide leer.
     - Im Soll/Ist-Export sind Differenz und Wert beim Fehlbestand negativ, beim Mehrbestand positiv. **(Annahme)**
     - In der CSV stehen lange Ziffernfolgen wie EANs als `="…"`, damit Excel sie nicht als Zahl (4E+12) darstellt. **(Annahme)**
     - Zeitpunkte stehen in Ortszeit, standardmäßig `Europe/Berlin` (in der `.env` als `TZ` änderbar). **(Annahme)**
@@ -267,7 +271,7 @@ Während der Erfassung sehen die Nutzer ein Eingabefeld und eine Liste der im ak
 - Spalten: Zeit, Bezeichnung, EAN oder Artikelnummer, Seriennummer, Menge, Preis brutto, Station und eine Markierung für manuell erfasste Artikel.
 - Die **Gesamtanzahl der Artikel** im aktuellen Arbeitsbereich ist jederzeit gut sichtbar neben dem Eingabefeld zu sehen. Gezählt wird die Stückzahl, also die Summe der Mengen. Die Anzeige aktualisiert sich live, auch bei Erfassungen anderer Stationen. Daneben stehen kleiner die Zeilenzahl und der Bruttowert.
 - Jede Zeile hat Bedienelemente für die Maus: `+`, `−`, ein direkt editierbares Mengenfeld und `Löschen`. Sie funktionieren unabhängig von den Tastenkürzeln.
-- Jeder Scan erzeugt eine **neue Zeile**, auch wenn derselbe Artikel schon erfasst ist. Eine erneute Erfassung eines Einzelstücks wird dabei dezent als Hinweis angezeigt, damit Doppelscans auffallen. **(Annahme)**
+- Jeder Scan erzeugt eine **neue Zeile**, auch wenn derselbe Artikel schon erfasst ist. Eine erneute Erfassung eines Einzelstücks (Soll-Anzahl 1) wird dabei dezent als Hinweis angezeigt, damit Doppelscans auffallen. Bei anderen Soll-Anzahlen und ohne Soll-Anzahl erscheint kein Hinweis. **(Annahme)**
 
 Standardmäßig ist das Eingabefeld fokussiert. Beim Eintippen erhält der Nutzer Suchvorschläge, die zu seiner Suche passen. Gesucht werden kann:
 

@@ -5,7 +5,15 @@ import { removeCheckpointsOfEmptySections } from './migrations/0003_checkpoint_b
 import { migrateToLatest } from './migrate.ts';
 
 const EXPECTED_COLUMNS: Record<string, string[]> = {
-  'master_data.article': ['id', 'description', 'ean', 'price_net', 'price_gross', 'category'],
+  'master_data.article': [
+    'id',
+    'description',
+    'ean',
+    'price_net',
+    'price_gross',
+    'category',
+    'expected_quantity',
+  ],
   'master_data.article_number': ['article_id', 'number'],
   'inventory.stocktake': ['id', 'name', 'status', 'started_at', 'finished_at'],
   'inventory.employee': ['id', 'stocktake_id', 'name', 'workstation_id'],
@@ -60,6 +68,7 @@ describe('migrations', () => {
       '0002_entry_request_id',
       '0003_checkpoint_boundary',
       '0004_pairing_device_label',
+      '0005_article_expected_quantity',
     ]);
   });
 

@@ -41,6 +41,14 @@ describe('seedMasterData', () => {
     for (const { ean } of articles) if (ean !== null) expect(isValidEan13(ean), ean).toBe(true);
   });
 
+  it('stores the target quantities, including articles without one', async () => {
+    const { articles } = await dump(first.db);
+    const quantities = new Set(articles.map((a) => a.expected_quantity));
+    expect(quantities.has(1)).toBe(true);
+    expect(quantities.has(null)).toBe(true);
+    expect([...quantities].some((q) => q !== null && q > 1)).toBe(true);
+  });
+
   it('stores duplicate EANs for the ambiguous case', async () => {
     const duplicates = await first.db
       .selectFrom('master_data.article')

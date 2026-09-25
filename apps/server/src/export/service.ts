@@ -69,6 +69,9 @@ async function loadEntries(
         select array_agg(n.number order by n.number)
         from master_data.article_number n where n.article_id = e.article_id
       )`.as('article_numbers'),
+      sql<number | null>`(
+        select a.expected_quantity from master_data.article a where a.id = e.article_id
+      )`.as('expected_quantity'),
       sql<string[] | null>`(
         select array_agg(m.name order by m.name)
         from inventory.entry_employee ee
@@ -87,6 +90,7 @@ async function loadEntries(
     description: row.description,
     ean: row.ean,
     articleNumbers: row.is_manual ? [] : (row.article_numbers ?? []),
+    expectedQuantity: row.is_manual ? null : row.expected_quantity,
     category: row.category,
     serialNumber: row.serial_number,
     quantity: row.quantity,

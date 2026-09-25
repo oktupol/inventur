@@ -30,6 +30,8 @@ export interface ExportEntry {
   ean: string | null;
   /** Current article numbers of the article in the master data. */
   articleNumbers: readonly string[];
+  /** Current target quantity of the article in the master data; null without one. */
+  expectedQuantity: number | null;
   category: string | null;
   serialNumber: string | null;
   quantity: number;
@@ -107,7 +109,9 @@ export function entryTable(entries: readonly ExportEntry[]): Table {
 /**
  * One row per article with the sum of its lines. Manual lines have no
  * article, so each of them stays a row of its own. Prices are those of the
- * newest line; the sums add up every line with its own snapshot.
+ * newest line; the sums add up every line with its own snapshot. Target
+ * quantity and difference (counted − target) come from the current master
+ * data and stay empty without a target.
  */
 export function articleTable(entries: readonly ExportEntry[]): Table {
   const groups = new Map<string, ExportEntry[]>();
@@ -147,6 +151,8 @@ export function articleTable(entries: readonly ExportEntry[]): Table {
         joined(lines.flatMap((line) => (line.serialNumber ? [line.serialNumber] : []))),
         lines.length,
         quantity,
+        newest.expectedQuantity,
+        newest.expectedQuantity === null ? null : quantity - newest.expectedQuantity,
         newest.priceNet,
         newest.priceGross,
         newest.isManual ? null : fromCents(net),
@@ -176,6 +182,8 @@ export function articleTable(entries: readonly ExportEntry[]): Table {
       text('Seriennummer'),
       integer('Zeilen'),
       integer('Menge'),
+      integer('Soll'),
+      integer('Differenz'),
       amount('Preis netto'),
       amount('Preis brutto'),
       amount('Summe netto'),
@@ -190,7 +198,7 @@ export function articleTable(entries: readonly ExportEntry[]): Table {
 }
 
 const SURPLUS_REASONS: Record<SurplusKind, string> = {
-  excess: 'mehrfach gezählt',
+  excess: 'zu viel erfasst',
   unknown: 'nicht mehr in den Stammdaten',
   manual: 'manuell erfasst',
 };
@@ -228,18 +236,18 @@ export function reconciliationTable(
     rows: [
       ...reconciliation.shortage.articles.map((article): Cell[] => [
         'Fehlbestand',
-        'nicht erfasst',
+        article.counted === 0 ? 'nicht erfasst' : 'zu wenig erfasst',
         article.description,
         article.ean,
         numbers(article.articleId),
         article.category,
-        1,
-        0,
-        -1,
+        article.expected,
+        article.counted,
+        -article.missing,
         article.priceNet,
         article.priceGross,
-        negate(article.priceNet),
-        negate(article.priceGross),
+        negate(article.net),
+        negate(article.gross),
       ]),
       ...reconciliation.surplus.items.map((item): Cell[] => [
         'Mehrbestand',

@@ -38,6 +38,16 @@ function entryQuery(db: Db | Trx) {
         .whereRef('other.stocktake_id', '=', 'e.stocktake_id')
         .whereRef('other.article_id', '=', 'e.article_id')
         .whereRef('other.id', '!=', 'e.id')
+        // Only single items (target quantity 1) are hinted at.
+        .where((w) =>
+          w.exists(
+            w
+              .selectFrom('master_data.article as a')
+              .select('a.id')
+              .whereRef('a.id', '=', 'e.article_id')
+              .where('a.expected_quantity', '=', 1),
+          ),
+        )
         .as('duplicate_count'),
     ]);
 }

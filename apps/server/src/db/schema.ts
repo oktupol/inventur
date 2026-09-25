@@ -17,6 +17,8 @@ export interface ArticleTable {
   price_net: Amount;
   price_gross: Amount;
   category: string | null;
+  /** Target quantity (Soll-Anzahl); null leaves the article out of the comparison. */
+  expected_quantity: ColumnType<number | null, number | null | undefined, number | null>;
 }
 
 export interface ArticleNumberTable {
