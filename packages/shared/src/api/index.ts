@@ -6,6 +6,7 @@ export * from './common.ts';
 export * from './employee.ts';
 export * from './entry.ts';
 export * from './errors.ts';
+export * from './master-data.ts';
 export * from './names.ts';
 export * from './pairing.ts';
 export * from './station.ts';

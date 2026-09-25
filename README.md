@@ -22,6 +22,7 @@ Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere
 - **Seriennummern**: an jeder Zeile nachtragen, z. B. für Uhren, auch per Scan oder am Handy
 - **Auswertung**: Statistiken, Soll/Ist-Abgleich gegen die Stammdaten, Export als CSV, XLSX und PDF-Zählliste
 - **Nachvollziehbarkeit**: Änderungsprotokoll aller Mengenänderungen und Löschungen mit Station und Mitarbeitern
+- **Stammdaten prüfen**: Kennzahlen und Prüfungen (Dubletten, falsche Prüfziffern, fehlende Codes, auffällige Preise) vor dem Start
 - **Artikelsuche im Dashboard**: „Wo wurde Artikel X erfasst?“ – mit allen Zeilen, Seriennummern und Änderungen
 
 ## Architektur
@@ -134,6 +135,8 @@ Die Anwendung liest die Stammdaten nur, befüllt werden sie vom Administrator in
 - `master_data.article_number`: `article_id`, `number` (0 bis n Artikelnummern je Artikel)
 
 Das vollständige Schema steht in [Anforderung.md](Anforderung.md#stammdaten). Die **Soll-Anzahl** ist die Stückzahl laut Warenwirtschaft: bei Schmuck und Uhren meist 1, bei Kleinteilen wie Batterien auch mehr. Artikel ohne Soll-Anzahl (`NULL`) werden im Soll/Ist-Abgleich nicht berücksichtigt. Wird ein Artikel im selben Arbeitsbereich erneut erfasst, weisen Station und Handy mit einem Hinweis und zwei kurzen Pieptönen darauf hin (Doppelscan); bei Artikeln mit Soll-Anzahl 1 auch über Bereiche hinweg.
+
+Nach dem Laden zeigt das Admin-Dashboard unter **Stammdaten** Kennzahlen (Anzahl Artikel, Soll-Stückzahl und Soll-Wert je Kategorie) und prüft die Daten auf doppelte EANs und Artikelnummern, Artikel ohne scanbaren Code, EANs mit falscher Prüfziffer sowie Preise von 0 € oder Bruttopreise unter dem Nettopreis. So fallen Fehler vor dem Start der Inventur auf.
 
 > **Wichtig:** Als `id` die feste Artikel-ID aus der Warenwirtschaft verwenden. Der Soll/Ist-Abgleich vergleicht die Erfassungen über diese ID mit den aktuellen Stammdaten. Werden die Stammdaten neu geladen, müssen dieselben Artikel dieselbe ID behalten.
 

@@ -1630,3 +1630,34 @@ button.link {
 .article-results tr.selected td {
   background: #e3effc;
 }
+
+/* Checks of the master data: a count per check, the affected articles on request. */
+details.check {
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+
+details.check summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+details.check .check-count {
+  display: inline-block;
+  min-width: 3.5rem;
+  text-align: right;
+  margin-right: 0.5rem;
+}
+
+details.check.ok .check-count {
+  color: var(--muted);
+}
+
+details.check.warning .check-count {
+  color: var(--warning);
+}
+
+.pager {
+  align-items: center;
+  margin-top: 0.75rem;
+}
