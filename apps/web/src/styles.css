@@ -674,6 +674,27 @@ table.entries tr.selected td:first-child {
   font-weight: 700;
 }
 
+.serial-label {
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.entries td.serial {
+  white-space: nowrap;
+}
+
+.entries td.serial .edit-serial {
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  opacity: 0.45;
+}
+
+.entries tr:hover td.serial .edit-serial,
+.entries tr.selected td.serial .edit-serial,
+.entries td.serial .edit-serial:focus-visible {
+  opacity: 1;
+}
+
 .capture-input input.quantity-mode {
   background: #fff;
   border-color: var(--accent);
@@ -1320,6 +1341,28 @@ table.entries td.time-cell {
   font-weight: 700;
   min-width: 2rem;
   text-align: center;
+}
+
+.result-actions .text-button {
+  width: auto;
+  font-size: 1rem;
+  padding: 0 0.8rem;
+}
+
+.result-serial {
+  margin: -0.2rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.serial-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.serial-form input {
+  flex: 1;
+  min-width: 0;
 }
 
 .result-actions .danger {

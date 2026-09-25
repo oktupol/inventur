@@ -6,6 +6,7 @@ import {
   manualEntryValues,
   nextQuantity,
   parseInput,
+  parseSerialNumber,
   planRestore,
   RESTORE_WINDOW_MS,
   snapshotOf,
@@ -174,5 +175,20 @@ describe('planRestore', () => {
     const restored = { ...deleted, action: 'restored' as const };
     expect(planRestore(restored, 7, after(120_000))).toBe('already_restored');
     expect(codeOf(() => planRestore(restored, 6, after(1_000)))).toBe('restore_unavailable');
+  });
+});
+
+describe('parseSerialNumber', () => {
+  it('trims and keeps the serial number', () => {
+    expect(parseSerialNumber('  SN 123 ')).toBe('SN 123');
+  });
+
+  it('removes empty serial numbers', () => {
+    for (const value of ['', '   ', null, undefined]) expect(parseSerialNumber(value)).toBeNull();
+  });
+
+  it('rejects serial numbers longer than 100 characters', () => {
+    expect(parseSerialNumber('x'.repeat(100))).toHaveLength(100);
+    expect(codeOf(() => parseSerialNumber('x'.repeat(101)))).toBe('validation_failed');
   });
 });

@@ -19,6 +19,7 @@ Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere
 - **Arbeitsbereiche**: Mehrere Stationen arbeiten gemeinsam an einem Bereich, mit Live-Aktualisierung
 - **Smartphone als Scanner**: Kopplung per QR-Code oder Einmal-Code, die Kamera liest die Barcodes
 - **Unbekannte Artikel**: manuelle Erfassung mit Bezeichnung, Bruttopreis und optionaler Seriennummer
+- **Seriennummern**: an jeder Zeile nachtragen, z. B. für Uhren, auch per Scan oder am Handy
 - **Auswertung**: Statistiken, Soll/Ist-Abgleich gegen die Stammdaten, Export als CSV, XLSX und PDF-Zählliste
 - **Nachvollziehbarkeit**: Änderungsprotokoll aller Mengenänderungen und Löschungen mit Station und Mitarbeitern
 
@@ -253,6 +254,7 @@ Tastenkürzel an der Station, wenn das Eingabefeld leer ist (auch auf dem Nummer
 | `Tab` | Vorgeschlagene Ergänzung übernehmen (bei Texteingabe) |
 | `F2` | Manuell erfassen (jederzeit) |
 | `F3` | Checkpoint setzen |
+| `F4` | Seriennummer der ausgewählten Zeile eingeben oder scannen, `Enter` übernimmt, `Esc` bricht ab (auch per Stift in der Spalte Seriennummer) |
 
 **Auswertung und Abschluss**
 

@@ -52,6 +52,7 @@ type Feedback =
   | { kind: 'not_found'; input: string; fromPhone?: boolean }
   | { kind: 'phone'; result: 'unique' | 'ambiguous'; input: string; description: string | null }
   | { kind: 'updated'; entry: Entry }
+  | { kind: 'serial'; entry: Entry }
   | { kind: 'deleted'; entryId: number; description: string; removedCheckpoints: number[] }
   | { kind: 'restored'; entry: Entry; restoredCheckpoints: number[] }
   | { kind: 'info'; message: string }
@@ -104,6 +105,8 @@ export function CaptureView() {
   const [text, setText] = useState('');
   const [quantityDigits, setQuantityDigits] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  /** The serial number being edited in the input, for a line; null outside of this mode. */
+  const [serial, setSerial] = useState<{ entryId: number; text: string } | null>(null);
   /** Original input of the open manual capture dialog, or null while it is closed. */
   const [manualInput, setManualInput] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -112,8 +115,9 @@ export function CaptureView() {
   /** The line this workstation deleted last, while it can still be restored. */
   const [undoable, setUndoable] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestions = useSuggestions(api, choice || quantityDigits !== null ? '' : text);
-  const completion = choice || quantityDigits !== null ? null : completionFor(text, suggestions);
+  const plainInput = !choice && quantityDigits === null && serial === null;
+  const suggestions = useSuggestions(api, plainInput ? text : '');
+  const completion = plainInput ? completionFor(text, suggestions) : null;
 
   const list = entries.data?.entries ?? [];
   const selection = effectiveSelection(list, selectedId, state.workstation.id);
@@ -178,6 +182,12 @@ export function CaptureView() {
           const description = list.find((e) => e.id === target)?.description ?? 'Zeile';
           setFeedback({ kind: 'deleted', entryId: target, description, removedCheckpoints });
           setUndoable(target);
+        } else if (action.type === 'serial') {
+          const body = { serialNumber: action.serialNumber };
+          setFeedback({
+            kind: 'serial',
+            entry: await api.put<Entry>(`${url}/serial-number`, body),
+          });
         } else {
           const body =
             action.type === 'set' ? { quantity: action.quantity } : { delta: action.delta };
@@ -368,6 +378,19 @@ export function CaptureView() {
     queue.push({ kind: 'row', action, entryId: entryId ?? explicitSelection });
   }
 
+  /** Edits the serial number of a line (by default the selected one) in the input. */
+  function startSerial(entryId: number | null = selection) {
+    const entry = list.find((e) => e.id === entryId);
+    if (!entry) {
+      setFeedback({ kind: 'error', message: 'Es ist keine Zeile ausgewählt.' });
+      return;
+    }
+    setQuantityDigits(null);
+    setSelectedId(entry.id);
+    setSerial({ entryId: entry.id, text: entry.serialNumber ?? '' });
+    inputRef.current?.focus();
+  }
+
   /** Restores the line deleted last, while the offer lasts. */
   function undoDelete() {
     if (undoable === null) return;
@@ -378,7 +401,7 @@ export function CaptureView() {
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     const command = interpretKey(
-      { text, quantityDigits, choiceOpen: choice !== null },
+      { text, quantityDigits, choiceOpen: choice !== null, serialMode: serial !== null },
       keyOf(event),
     );
     if (command.type !== 'none') event.preventDefault();
@@ -411,6 +434,13 @@ export function CaptureView() {
         return addCheckpoint();
       case 'undo':
         return undoDelete();
+      case 'start_serial':
+        return startSerial();
+      case 'set_serial':
+        setSerial(null);
+        return changeRow({ type: 'serial', serialNumber: serial!.text }, serial!.entryId);
+      case 'cancel_serial':
+        return setSerial(null);
       case 'ignore':
         return;
       case 'none':
@@ -464,6 +494,7 @@ export function CaptureView() {
           ? 'not_found'
           : undefined;
   const quantityMode = quantityDigits !== null;
+  const serialMode = serial !== null;
   const latestCheckpoint = entries.data?.checkpoints[0];
   const totals = entries.data?.totals;
 
@@ -482,8 +513,9 @@ export function CaptureView() {
       <div className={`capture-panel ${tone ?? ''}`} data-feedback={tone ?? 'none'}>
         <div className="capture-input-row">
           {quantityMode && <span className="quantity-label">Menge:</span>}
+          {serialMode && <span className="quantity-label serial-label">Seriennummer:</span>}
           <div className="capture-input">
-            {!quantityMode && (
+            {plainInput && (
               <div className="ghost" aria-hidden>
                 <span className="typed">{text}</span>
                 {completion?.slice(text.length)}
@@ -491,19 +523,25 @@ export function CaptureView() {
             )}
             <input
               ref={inputRef}
-              value={quantityMode ? quantityDigits : text}
+              value={quantityMode ? quantityDigits : serialMode ? serial.text : text}
               disabled={!enabled}
               aria-label="Eingabe: EAN, Artikelnummer oder Bezeichnung"
               placeholder={
                 quantityMode
                   ? 'Menge eingeben, Enter übernimmt, Esc bricht ab'
-                  : 'Scannen oder EAN, Artikelnummer, Bezeichnung eingeben'
+                  : serialMode
+                    ? 'Seriennummer eingeben oder scannen, Enter übernimmt, Esc bricht ab'
+                    : 'Scannen oder EAN, Artikelnummer, Bezeichnung eingeben'
               }
-              className={quantityMode ? 'quantity-mode' : undefined}
+              className={quantityMode || serialMode ? 'quantity-mode' : undefined}
               autoComplete="off"
               spellCheck={false}
               onChange={(event) => {
                 if (quantityMode) return;
+                if (serialMode) {
+                  setSerial({ ...serial, text: event.target.value });
+                  return;
+                }
                 if (text === '' && event.target.value !== '') setFeedback(null);
                 setText(event.target.value);
               }}
@@ -603,6 +641,20 @@ export function CaptureView() {
               <strong>{formatNumber(feedback.entry.quantity)}</strong>.
             </span>
           )}
+          {!choice && feedback?.kind === 'serial' && (
+            <span>
+              {feedback.entry.serialNumber === null ? (
+                <>
+                  Seriennummer von <strong>{feedback.entry.description}</strong> entfernt.
+                </>
+              ) : (
+                <>
+                  Seriennummer von <strong>{feedback.entry.description}</strong>:{' '}
+                  <strong>{feedback.entry.serialNumber}</strong>
+                </>
+              )}
+            </span>
+          )}
           {!choice && feedback?.kind === 'info' && <span>{feedback.message}</span>}
           {!choice && feedback?.kind === 'phone' && feedback.result === 'unique' && (
             <span>
@@ -677,6 +729,7 @@ export function CaptureView() {
             inputRef.current?.focus();
           }}
           onInsertCheckpoint={(entryId) => addCheckpoint(entryId)}
+          onEditSerial={(entryId) => startSerial(entryId)}
           onDeleteCheckpoint={(checkpoint) => {
             queue.push({ kind: 'delete_checkpoint', checkpoint });
             inputRef.current?.focus();

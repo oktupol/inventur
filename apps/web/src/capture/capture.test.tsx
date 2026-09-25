@@ -176,6 +176,12 @@ function stubServer(options: { employees?: boolean } = {}) {
       );
       return { status: 204 };
     }
+    const serialUrl = /^\/api\/station\/entries\/(\d+)\/serial-number$/.exec(url);
+    if (method === 'PUT' && serialUrl) {
+      const entry = entries.find((e) => e.id === Number(serialUrl[1]))!;
+      entry.serialNumber = (body as { serialNumber: string }).serialNumber.trim() || null;
+      return { body: entry };
+    }
     const row = /^\/api\/station\/entries\/(\d+)$/.exec(url);
     if (row) {
       const index = entries.findIndex((e) => e.id === Number(row[1]));
@@ -527,6 +533,80 @@ describe('changing lines', () => {
     expect(await screen.findByText('Zeile gelöscht:')).toBeTruthy();
     await waitFor(() =>
       expect(document.querySelectorAll('table.entries tbody tr')).toHaveLength(2),
+    );
+  });
+
+  const serialCalls = (server: ReturnType<typeof stubServer>) =>
+    server.api.calls.filter((c) => c.method === 'PUT');
+
+  /** Types into the input like a keyboard or barcode scanner. */
+  async function typeText(value: string) {
+    const field = await input();
+    for (const char of value) {
+      fireEvent.keyDown(field, { key: char });
+      fireEvent.change(field, { target: { value: field.value + char } });
+    }
+  }
+
+  it('edits the serial number of the selected line with F4', async () => {
+    const server = await scanned(2);
+    await press('ArrowDown', 'F4');
+    expect(screen.getByText('Seriennummer:')).toBeTruthy();
+    await typeText('SN-4711');
+    await press('Enter');
+
+    await waitFor(() => expect(serialCalls(server)).toHaveLength(1));
+    expect(serialCalls(server)[0]).toMatchObject({
+      url: '/api/station/entries/1/serial-number',
+      body: { serialNumber: 'SN-4711' },
+    });
+    expect(await screen.findByText('SN-4711', { selector: 'strong' })).toBeTruthy();
+    expect(screen.queryByText('Seriennummer:')).toBeNull();
+    await waitFor(() =>
+      expect(document.querySelector('tr[data-entry-id="1"] td.serial')?.textContent).toContain(
+        'SN-4711',
+      ),
+    );
+  });
+
+  it('takes a scanned code as serial number without capturing it', async () => {
+    const server = await scanned(1);
+    const posts = server.entryPosts().length;
+    await press('F4');
+    await typeText('4000000000017');
+    await press('Enter');
+    await waitFor(() => expect(serialCalls(server)).toHaveLength(1));
+    expect(serialCalls(server)[0]!.body).toEqual({ serialNumber: '4000000000017' });
+    expect(server.entryPosts()).toHaveLength(posts);
+  });
+
+  it('prefills the current serial number and cancels with Esc', async () => {
+    const server = await scanned(1);
+    await press('F4');
+    await typeText('ALT-1');
+    await press('Enter');
+    await waitFor(() =>
+      expect(document.querySelector('td.serial')?.textContent).toContain('ALT-1'),
+    );
+
+    await press('F4');
+    const field = await input();
+    expect(field.value).toBe('ALT-1');
+    await press('Escape');
+    expect(field.value).toBe('');
+    expect(screen.queryByText('Seriennummer:')).toBeNull();
+    expect(serialCalls(server)).toHaveLength(1);
+  });
+
+  it('edits the serial number of a line with the pencil button', async () => {
+    const server = await scanned(2);
+    const row = document.querySelector('tr[data-entry-id="1"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Seriennummer bearbeiten' }));
+    expect(screen.getByText('Seriennummer:')).toBeTruthy();
+    await typeText('SN-1');
+    await press('Enter');
+    await waitFor(() =>
+      expect(serialCalls(server)[0]?.url).toBe('/api/station/entries/1/serial-number'),
     );
   });
 

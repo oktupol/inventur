@@ -30,6 +30,7 @@ import {
   manualEntryValues,
   nextQuantity,
   parseInput,
+  parseSerialNumber,
   planRestore,
   snapshotOf,
 } from './rules.ts';
@@ -256,7 +257,7 @@ async function lockOwnAreaEntry(trx: Trx, station: StationIdentity, entryId: num
   const { workArea } = await lockCaptureContext(trx, station);
   const entry = await trx
     .selectFrom('inventory.entry')
-    .select(['id', 'quantity', 'work_area_id', 'description', 'ean', 'input'])
+    .select(['id', 'quantity', 'work_area_id', 'description', 'ean', 'input', 'serial_number'])
     .where('id', '=', entryId)
     .forUpdate()
     .executeTakeFirst();
@@ -297,6 +298,48 @@ export async function updateEntryQuantity(
       );
     }
     return { entry: await getEntry(trx, entryId), changed: quantity !== current.quantity };
+  });
+  if (changed) {
+    events.publish({
+      type: 'entry.changed',
+      action: 'updated',
+      stocktakeId,
+      workAreaId: entry.workAreaId,
+      entryId,
+    });
+  }
+  return entry;
+}
+
+/**
+ * Sets, changes or removes (empty value) the serial number of a line. A
+ * change is recorded in the audit log.
+ */
+export async function updateSerialNumber(
+  { db, events }: Context,
+  actor: StationActor,
+  entryId: number,
+  value: string | null,
+): Promise<Entry> {
+  const serialNumber = parseSerialNumber(value);
+  const stocktakeId = requireActiveStocktake(await getActiveStocktake(db)).id;
+  const { entry, changed } = await withWritableStocktake(db, stocktakeId, async (trx) => {
+    const { entry: current } = await lockOwnAreaEntry(trx, actor.workstation, entryId);
+    const changed = serialNumber !== current.serial_number;
+    if (changed) {
+      await trx
+        .updateTable('inventory.entry')
+        .set({ serial_number: serialNumber, updated_at: new Date() })
+        .where('id', '=', entryId)
+        .execute();
+      await recordAudit(
+        trx,
+        stocktakeId,
+        actor,
+        entryChange('serial_number_changed', current, current.serial_number, serialNumber),
+      );
+    }
+    return { entry: await getEntry(trx, entryId), changed };
   });
   if (changed) {
     events.publish({

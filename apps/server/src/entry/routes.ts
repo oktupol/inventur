@@ -6,6 +6,7 @@ import {
   type DeleteEntryResponse,
   type RestoreEntryRequest,
   type RestoreEntryResponse,
+  type UpdateSerialNumberRequest,
   type Entry,
   type EntryListResponse,
   type UpdateEntryRequest,
@@ -20,6 +21,7 @@ import {
   deleteEntry,
   listEntries,
   restoreEntry,
+  updateSerialNumber,
   updateEntryQuantity,
 } from './service.ts';
 
@@ -28,6 +30,14 @@ export const restoreBody = {
   type: 'object',
   required: ['entryId'],
   properties: { entryId: idParams.properties.id },
+  additionalProperties: false,
+} as const;
+
+/** JSON schema of `UpdateSerialNumberRequest`; `parseSerialNumber` checks the length. */
+export const serialNumberBody = {
+  type: 'object',
+  required: ['serialNumber'],
+  properties: { serialNumber: { type: ['string', 'null'] } },
   additionalProperties: false,
 } as const;
 
@@ -98,6 +108,18 @@ export async function entryRoutes(app: FastifyInstance, context: Context): Promi
         context,
         { source: 'station', workstation: await authenticateRequest(db, request) },
         request.params.id,
+      ),
+  );
+
+  app.put<{ Params: IdParams; Body: UpdateSerialNumberRequest }>(
+    '/api/station/entries/:id/serial-number',
+    { schema: { params: idParams, body: serialNumberBody } },
+    async (request): Promise<Entry> =>
+      updateSerialNumber(
+        context,
+        { source: 'station', workstation: await authenticateRequest(db, request) },
+        request.params.id,
+        request.body.serialNumber,
       ),
   );
 

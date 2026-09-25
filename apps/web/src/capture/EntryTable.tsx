@@ -4,7 +4,10 @@ import { formatEuro, formatNumber, formatTime } from '../format.ts';
 import { buildRows, insertionTargets, type InsertionTargets } from './rows.ts';
 
 export type RowAction =
-  { type: 'delta'; delta: 1 | -1 } | { type: 'set'; quantity: number } | { type: 'delete' };
+  | { type: 'delta'; delta: 1 | -1 }
+  | { type: 'set'; quantity: number }
+  | { type: 'delete' }
+  | { type: 'serial'; serialNumber: string };
 
 export interface EntryTableProps {
   entries: readonly Entry[];
@@ -20,6 +23,8 @@ export interface EntryTableProps {
   onDeleteCheckpoint?: (checkpoint: Checkpoint) => void;
   /** Inserts a checkpoint after a line; offered by a button that appears on mouseover. */
   onInsertCheckpoint?: (entryId: number) => void;
+  /** Starts editing the serial number of a line; offered by a pencil button. */
+  onEditSerial?: (entryId: number) => void;
 }
 
 /** Quantity that can be edited directly; Enter or leaving the field applies it. */
@@ -80,6 +85,7 @@ export function EntryTable({
   onAction,
   onDeleteCheckpoint,
   onInsertCheckpoint,
+  onEditSerial,
 }: EntryTableProps) {
   /**
    * The gap the mouse is near, named by the line whose upper edge it is.
@@ -215,7 +221,21 @@ export function EntryTable({
                   )}
                 </td>
                 <td className="code">{entry.ean ?? entry.input}</td>
-                <td>{entry.serialNumber ?? ''}</td>
+                <td className="serial">
+                  {entry.serialNumber ?? ''}
+                  {onEditSerial && (
+                    <button
+                      type="button"
+                      className="small edit-serial"
+                      disabled={disabled}
+                      aria-label="Seriennummer bearbeiten"
+                      title="Seriennummer bearbeiten (F4)"
+                      onClick={() => onEditSerial(entry.id)}
+                    >
+                      ✎
+                    </button>
+                  )}
+                </td>
                 <td className="number">
                   {onAction ? (
                     <span className="quantity-controls">

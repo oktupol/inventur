@@ -110,6 +110,15 @@ export function parsePrice(text: string): string | null {
 }
 
 /**
+ * `PUT /api/station/entries/:id/serial-number`: sets or changes the serial
+ * number of a line; an empty value or null removes it. At most 100
+ * characters, surrounding spaces are removed.
+ */
+export interface UpdateSerialNumberRequest {
+  serialNumber: string | null;
+}
+
+/**
  * `POST /api/station/entries/restore`: brings back the line the workstation
  * (or its phone) deleted last, shortly after deleting it.
  */
