@@ -65,6 +65,21 @@ export function nextQuantity(
   return Math.min(MAX_QUANTITY, Math.max(1, current + change.delta));
 }
 
+/** Longest serial number of a line. */
+export const MAX_SERIAL_NUMBER_LENGTH = 100;
+
+/**
+ * A serial number as stored: trimmed, and null when empty. Serial numbers
+ * need not be unique.
+ */
+export function parseSerialNumber(value: string | null | undefined): string | null {
+  const serialNumber = value?.trim() || null;
+  if (serialNumber && serialNumber.length > MAX_SERIAL_NUMBER_LENGTH) {
+    throw new DomainError('validation_failed', 'Serial number is too long');
+  }
+  return serialNumber;
+}
+
 export interface ManualEntryInput {
   input: string;
   description: string;
@@ -86,10 +101,7 @@ export function manualEntryValues(request: ManualEntryInput) {
   if (priceGross === null) {
     throw new DomainError('validation_failed', 'Gross price must be a positive amount');
   }
-  const serialNumber = request.serialNumber?.trim() || null;
-  if (serialNumber && serialNumber.length > 100) {
-    throw new DomainError('validation_failed', 'Serial number is too long');
-  }
+  const serialNumber = parseSerialNumber(request.serialNumber);
   const input = request.input.trim();
   if (input.length > 200) throw new DomainError('validation_failed', 'Input is too long');
   return {

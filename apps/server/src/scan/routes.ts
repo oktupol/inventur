@@ -5,13 +5,20 @@ import {
   type DeleteEntryResponse,
   type RestoreEntryRequest,
   type RestoreEntryResponse,
+  type UpdateSerialNumberRequest,
   type Entry,
   type UpdateEntryRequest,
 } from '@inventur/shared';
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../context.ts';
-import { restoreBody } from '../entry/routes.ts';
-import { createEntry, deleteEntry, restoreEntry, updateEntryQuantity } from '../entry/service.ts';
+import { restoreBody, serialNumberBody } from '../entry/routes.ts';
+import {
+  createEntry,
+  deleteEntry,
+  restoreEntry,
+  updateEntryQuantity,
+  updateSerialNumber,
+} from '../entry/service.ts';
 import { idParams, type IdParams } from '../http/schemas.ts';
 import { authenticateDeviceRequest } from '../pairing/routes.ts';
 
@@ -94,6 +101,20 @@ export async function scanRoutes(app: FastifyInstance, context: Context): Promis
     async (request): Promise<DeleteEntryResponse> => {
       const { workstation } = await authenticateDeviceRequest(db, request);
       return deleteEntry(context, { source: 'phone', workstation }, request.params.id);
+    },
+  );
+
+  app.put<{ Params: IdParams; Body: UpdateSerialNumberRequest }>(
+    '/api/scan/entries/:id/serial-number',
+    { schema: { params: idParams, body: serialNumberBody } },
+    async (request): Promise<Entry> => {
+      const { workstation } = await authenticateDeviceRequest(db, request);
+      return updateSerialNumber(
+        context,
+        { source: 'phone', workstation },
+        request.params.id,
+        request.body.serialNumber,
+      );
     },
   );
 

@@ -16,7 +16,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export type Headers = Record<string, string>;
 
@@ -50,6 +50,7 @@ export function createApi(headers: Headers = {}) {
   return {
     get: <T>(url: string) => apiRequest<T>('GET', url, undefined, headers),
     post: <T>(url: string, body?: unknown) => apiRequest<T>('POST', url, body ?? {}, headers),
+    put: <T>(url: string, body: unknown) => apiRequest<T>('PUT', url, body, headers),
     patch: <T>(url: string, body: unknown) => apiRequest<T>('PATCH', url, body, headers),
     delete: <T = void>(url: string) => apiRequest<T>('DELETE', url, undefined, headers),
   };

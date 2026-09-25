@@ -111,6 +111,10 @@ function renderScanner() {
     if (method === 'DELETE' && url === '/api/scan/entries/8') {
       return { body: { removedCheckpoints: [] } };
     }
+    if (method === 'PUT' && url === '/api/scan/entries/8/serial-number') {
+      const { serialNumber } = body as { serialNumber: string };
+      return { body: { ...entry(8, 'Herrenring Gold', quantity), serialNumber } };
+    }
     if (method === 'POST' && url === '/api/scan/entries/restore') {
       return { body: { entry: entry(8, 'Herrenring Gold', quantity), restoredCheckpoints: [] } };
     }
@@ -166,6 +170,27 @@ describe('phone scanner', () => {
       ['PATCH', '/api/scan/entries/8', { delta: -1 }],
       ['DELETE', '/api/scan/entries/8', undefined],
     ]);
+  });
+
+  it('sets the serial number of the scanned line', async () => {
+    const { api } = renderScanner();
+    await startScanning();
+    act(() => detect('4000000000017'));
+    await waitFor(() => expect(result()?.getAttribute('data-result')).toBe('unique'));
+    const card = result() as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Seriennummer' }));
+    fireEvent.change(within(card).getByRole('textbox', { name: 'Seriennummer' }), {
+      target: { value: 'SN-4711' },
+    });
+    fireEvent.click(within(card).getByRole('button', { name: 'Speichern' }));
+
+    await waitFor(() => expect(result()?.textContent).toContain('Seriennummer: SN-4711'));
+    expect(api.calls.at(-1)).toMatchObject({
+      method: 'PUT',
+      url: '/api/scan/entries/8/serial-number',
+      body: { serialNumber: 'SN-4711' },
+    });
+    expect(within(result() as HTMLElement).queryByRole('textbox')).toBeNull();
   });
 
   it('restores a line deleted on the phone', async () => {

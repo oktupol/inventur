@@ -48,6 +48,8 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
   const [cameraError, setCameraError] = useState<string>();
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The serial number being edited, for the line it belongs to. */
+  const [serialEdit, setSerialEdit] = useState<{ entryId: number; text: string } | null>(null);
   /** The line deleted last on this phone, while it can still be restored. */
   const [undoable, setUndoable] = useState<number | null>(null);
   const [typing, setTyping] = useState(false);
@@ -184,6 +186,27 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
     }
   }
 
+  async function saveSerial(event: FormEvent, entry: Entry) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const updated = await api.put<Entry>(`/api/scan/entries/${entry.id}/serial-number`, {
+        serialNumber: serialText,
+      });
+      setResult({ kind: 'unique', entry: updated });
+      setSerialEdit(null);
+    } catch (error) {
+      setResult({ kind: 'error', message: messageOf(error) });
+      setSerialEdit(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Editing the serial number ends when another line (or no line) is shown.
+  const shownEntryId = result?.kind === 'unique' ? result.entry.id : null;
+  const serialText = serialEdit?.entryId === shownEntryId ? serialEdit.text : null;
+
   async function undoDelete(entryId: number) {
     setUndoable(null);
     setBusy(true);
@@ -268,6 +291,9 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
                 <span className="code">{result.entry.ean ?? result.entry.input}</span>
                 <strong>{formatEuro(result.entry.priceGross)}</strong>
               </div>
+              {result.entry.serialNumber && (
+                <div className="result-serial">Seriennummer: {result.entry.serialNumber}</div>
+              )}
               {result.entry.duplicateCount > 0 && (
                 <div className="duplicate-hint">Dieser Artikel wurde schon erfasst.</div>
               )}
@@ -291,6 +317,21 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
                 </button>
                 <button
                   type="button"
+                  className="text-button"
+                  aria-pressed={serialText !== null}
+                  disabled={busy}
+                  onClick={() =>
+                    setSerialEdit(
+                      serialText === null
+                        ? { entryId: result.entry.id, text: result.entry.serialNumber ?? '' }
+                        : null,
+                    )
+                  }
+                >
+                  Seriennummer
+                </button>
+                <button
+                  type="button"
                   className="danger"
                   disabled={busy}
                   onClick={() => void change(result.entry, 'delete')}
@@ -298,6 +339,23 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
                   Löschen
                 </button>
               </div>
+              {serialText !== null && (
+                <form className="serial-form" onSubmit={(e) => void saveSerial(e, result.entry)}>
+                  <input
+                    aria-label="Seriennummer"
+                    value={serialText}
+                    maxLength={100}
+                    onChange={(event) =>
+                      setSerialEdit({ entryId: result.entry.id, text: event.target.value })
+                    }
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  <button type="submit" className="primary" disabled={busy}>
+                    Speichern
+                  </button>
+                </form>
+              )}
             </div>
           )}
           {result?.kind === 'ambiguous' && (

@@ -34,6 +34,7 @@ describe('shortcuts with an empty input', () => {
     ['Escape', 'reset_selection'],
     ['F3', 'checkpoint'],
     ['Ctrl+z', 'undo'],
+    ['F4', 'start_serial'],
   ])('%s → %s', (key, type) => {
     expect(interpretKey(empty, key).type).toBe(type);
   });
@@ -79,6 +80,34 @@ describe('typing into a non-empty input', () => {
   it('leaves arrow keys to an open choice', () => {
     expect(interpretKey({ ...empty, choiceOpen: true }, 'ArrowDown').type).toBe('none');
     expect(interpretKey({ ...empty, choiceOpen: true }, '+').type).toBe('none');
+  });
+});
+
+describe('serial number mode', () => {
+  const serial: KeyState = { ...empty, serialMode: true };
+
+  it('takes over the serial number with Enter and cancels with Esc', () => {
+    expect(interpretKey(serial, 'Enter').type).toBe('set_serial');
+    expect(interpretKey({ ...serial, text: 'SN-1' }, 'Enter').type).toBe('set_serial');
+    expect(interpretKey(serial, 'Escape').type).toBe('cancel_serial');
+  });
+
+  it('types every character, including shortcut keys', () => {
+    for (const key of ['S', '-', '+', '*', '=', '4', 'Delete', 'ArrowUp', 'Ctrl+z']) {
+      expect(interpretKey(serial, key).type).toBe('none');
+    }
+  });
+
+  it('ignores function keys', () => {
+    for (const key of ['F2', 'F3', 'F4']) expect(interpretKey(serial, key).type).toBe('ignore');
+  });
+
+  it('treats a scanned code as the serial number, not as a new line', () => {
+    const keys = [...'4000000000017', 'Enter'];
+    expect(keys.map((key) => interpretKey(serial, key).type)).toEqual([
+      ...Array<string>(13).fill('none'),
+      'set_serial',
+    ]);
   });
 });
 

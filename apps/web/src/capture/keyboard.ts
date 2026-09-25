@@ -16,6 +16,11 @@ export interface KeyState {
   quantityDigits: string | null;
   /** An ambiguous result waits for a choice; arrows and Enter belong to it. */
   choiceOpen: boolean;
+  /**
+   * The input edits the serial number of a line. Every key types normally,
+   * also from a barcode scanner, until Enter or Esc.
+   */
+  serialMode?: boolean;
 }
 
 export type KeyCommand =
@@ -33,7 +38,10 @@ export type KeyCommand =
   | { type: 'reset_selection' }
   | { type: 'manual' }
   | { type: 'checkpoint' }
-  | { type: 'undo' };
+  | { type: 'undo' }
+  | { type: 'start_serial' }
+  | { type: 'set_serial' }
+  | { type: 'cancel_serial' };
 
 const MAX_DIGITS = String(MAX_QUANTITY).length;
 
@@ -62,6 +70,11 @@ function quantityModeKey(digits: string, key: string): KeyCommand {
 
 /** Decides what a key press in the capture input does. */
 export function interpretKey(state: KeyState, key: string): KeyCommand {
+  if (state.serialMode) {
+    if (key === 'Enter') return { type: 'set_serial' };
+    if (key === 'Escape') return { type: 'cancel_serial' };
+    return /^F\d+$/.test(key) ? { type: 'ignore' } : { type: 'none' };
+  }
   // Manual capture works at any time, also with text in the input (it becomes the original input).
   if (key === 'F2' && !state.choiceOpen) return { type: 'manual' };
   if (state.quantityDigits !== null) return quantityModeKey(state.quantityDigits, key);
@@ -84,6 +97,8 @@ export function interpretKey(state: KeyState, key: string): KeyCommand {
       return { type: 'reset_selection' };
     case 'F3':
       return { type: 'checkpoint' };
+    case 'F4':
+      return { type: 'start_serial' };
     case 'Ctrl+z':
       return { type: 'undo' };
     default:
