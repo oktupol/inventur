@@ -949,7 +949,8 @@ table.entries td.time-cell {
   object-fit: cover;
 }
 
-.camera:not(.running) video {
+.camera:not(.running) video,
+.camera:not(.running) .camera-frame {
   visibility: hidden;
 }
 
