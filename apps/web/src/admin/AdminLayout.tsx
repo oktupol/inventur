@@ -18,6 +18,7 @@ function Navigation() {
       <NavLink to="/admin/mitarbeiter">Mitarbeiter</NavLink>
       <NavLink to="/admin/bereiche">Arbeitsbereiche</NavLink>
       <NavLink to="/admin/stationen">Arbeitsstationen</NavLink>
+      <NavLink to="/admin/statistik">Statistik</NavLink>
       <NavLink to="/admin/historie">Historie</NavLink>
       <div className="spacer" />
       <ConnectionIndicator />

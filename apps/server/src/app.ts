@@ -14,6 +14,7 @@ import { pairingRoutes } from './pairing/routes.ts';
 import { scanRoutes } from './scan/routes.ts';
 import { searchRoutes } from './search/routes.ts';
 import { stationRoutes } from './station/routes.ts';
+import { statisticsRoutes } from './statistics/routes.ts';
 import { stocktakeRoutes } from './stocktake/routes.ts';
 import { workAreaRoutes } from './work-area/routes.ts';
 import { workstationRoutes } from './workstation/routes.ts';
@@ -58,6 +59,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     await checkpointRoutes(app, context);
     await pairingRoutes(app, context);
     await scanRoutes(app, context);
+    await statisticsRoutes(app, context);
   }
 
   if (options.staticDir) {

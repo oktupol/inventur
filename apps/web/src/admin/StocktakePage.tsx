@@ -95,6 +95,8 @@ function ActiveStocktake({
         <Link to="/admin/mitarbeiter">Mitarbeiter verwalten</Link>
         <span className="muted">·</span>
         <Link to="/admin/bereiche">Arbeitsbereiche verwalten</Link>
+        <span className="muted">·</span>
+        <Link to="/admin/statistik">Statistik</Link>
       </div>
       {finishing && (
         <FinishStocktakeDialog

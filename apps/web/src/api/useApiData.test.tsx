@@ -66,6 +66,38 @@ describe('useApiData', () => {
     expect(api.calls).toHaveLength(3);
   });
 
+  it('reloads at most once per interval when throttled', async () => {
+    vi.useFakeTimers();
+    let value = 1;
+    const api = stubApi(() => ({ body: { value: value++ } }));
+    const realtime = createFakeRealtime();
+    function Throttled() {
+      const { data } = useApiData<{ value: number }>('/api/x', {
+        channels: ['admin'],
+        throttleMs: 1000,
+      });
+      return <p>{data?.value}</p>;
+    }
+    render(
+      <RealtimeProvider client={realtime.client}>
+        <Throttled />
+      </RealtimeProvider>,
+    );
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    act(() => realtime.latest().open());
+    const event = { type: 'stocktake.changed', action: 'updated', stocktakeId: 1 };
+
+    // A steady stream of events reloads once per interval instead of never.
+    for (let i = 0; i < 10; i++) {
+      act(() => realtime.latest().receive({ type: 'event', event }));
+      await act(() => vi.advanceTimersByTimeAsync(300));
+    }
+    expect(api.calls).toHaveLength(3);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(api.calls).toHaveLength(4);
+    expect(screen.getByText('4')).toBeTruthy();
+  });
+
   it('shows errors and loads nothing without a URL', async () => {
     const api = stubApi(() => ({ status: 404, body: { error: 'x', code: 'not_found' } }));
     const realtime = createFakeRealtime();

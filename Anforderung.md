@@ -210,6 +210,9 @@ Der Administrator kann
     - Fehlbestand: Stammdatenartikel, die in keiner Zeile erfasst wurden (Anzahl, Wert netto und brutto, Liste nach Kategorie)
     - Mehrbestand: Stammdatenartikel mit einer erfassten Gesamtmenge größer als 1, außerdem alle manuell erfassten Artikel
     - Der Abgleich wird immer gegen den aktuellen Stand der Stammdaten berechnet. **(Annahme)**
+    - Erfasste Artikel, die nicht mehr in den Stammdaten stehen, zählen ebenfalls zum Mehrbestand (Soll 0). **(Annahme)**
+    - Das Dashboard zeigt höchstens die ersten 500 fehlenden Artikel. Die vollständige Liste enthält der Export. **(Annahme)**
+  - Die Statistik aktualisiert sich höchstens alle 2 Sekunden, der Soll/Ist-Abgleich höchstens alle 5 Sekunden, damit die Berechnung die Erfassung nicht bremst. Die Statistik früherer Inventuren ist über die Historie erreichbar. **(Annahme)**
 - Ergebnisse exportieren (während und nach der Inventur):
   - **CSV** (UTF-8 mit BOM, Semikolon-getrennt, deutsches Zahlenformat, damit Excel sie direkt öffnet) und **XLSX**
     - Spalten: Arbeitsbereich, Bezeichnung, EAN, Artikelnummer(n), Kategorie, Seriennummer, Menge, Preis netto, Preis brutto, Summe netto, Summe brutto, manuell (ja/nein), Station, Mitarbeiter, Zeitpunkt

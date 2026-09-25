@@ -17,6 +17,11 @@ export interface ApiDataOptions {
   filter?: (event: DomainEvent) => boolean;
   /** Extra request headers, e.g. the workstation token. */
   headers?: Headers;
+  /**
+   * Reloads at most once per interval, for data that is expensive to compute.
+   * Without it, a reload follows shortly after the last event of a burst.
+   */
+  throttleMs?: number;
 }
 
 /** Delay that merges bursts of events, e.g. when a stocktake is finished, into one reload. */
@@ -61,8 +66,18 @@ export function useApiData<T>(url: string | null, options: ApiDataOptions = {}):
   useEffect(() => {
     filterRef.current = options.filter;
   });
+  const throttleMs = options.throttleMs;
   useRealtimeEvents(options.channels ?? [], (event) => {
     if (filterRef.current && !filterRef.current(event)) return;
+    if (throttleMs !== undefined) {
+      // A pending reload also covers this event.
+      if (timer.current !== undefined) return;
+      timer.current = setTimeout(() => {
+        timer.current = undefined;
+        reload();
+      }, throttleMs);
+      return;
+    }
     clearTimeout(timer.current);
     timer.current = setTimeout(reload, RELOAD_DELAY_MS);
   });
