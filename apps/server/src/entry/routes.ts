@@ -73,7 +73,7 @@ export async function entryRoutes(app: FastifyInstance, context: Context): Promi
     async (request): Promise<Entry> =>
       updateEntryQuantity(
         context,
-        await authenticateRequest(db, request),
+        { source: 'station', workstation: await authenticateRequest(db, request) },
         request.params.id,
         request.body,
       ),
@@ -83,7 +83,11 @@ export async function entryRoutes(app: FastifyInstance, context: Context): Promi
     '/api/station/entries/:id',
     { schema: { params: idParams } },
     async (request): Promise<DeleteEntryResponse> =>
-      deleteEntry(context, await authenticateRequest(db, request), request.params.id),
+      deleteEntry(
+        context,
+        { source: 'station', workstation: await authenticateRequest(db, request) },
+        request.params.id,
+      ),
   );
 
   app.post<{ Body: CreateManualEntryRequest }>(

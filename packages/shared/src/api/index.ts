@@ -1,4 +1,5 @@
 export * from './article.ts';
+export * from './audit-log.ts';
 export * from './checkpoint.ts';
 export * from './common.ts';
 export * from './employee.ts';

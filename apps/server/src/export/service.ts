@@ -37,7 +37,7 @@ const TITLES: Record<ExportKind, string> = {
   reconciliation: 'Soll-Ist-Abgleich',
 };
 
-const CONTENT_TYPES: Record<ExportFormat, string> = {
+export const CONTENT_TYPES: Record<ExportFormat, string> = {
   csv: 'text/csv; charset=utf-8',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };

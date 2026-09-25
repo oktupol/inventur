@@ -1,4 +1,4 @@
-import type { StocktakeStatus, WorkAreaStatus } from '@inventur/shared';
+import type { AuditAction, AuditSource, StocktakeStatus, WorkAreaStatus } from '@inventur/shared';
 
 export const WORK_AREA_STATUS_LABELS: Record<WorkAreaStatus, string> = {
   open: 'offen',
@@ -9,6 +9,21 @@ export const WORK_AREA_STATUS_LABELS: Record<WorkAreaStatus, string> = {
 export const STOCKTAKE_STATUS_LABELS: Record<StocktakeStatus, string> = {
   active: 'aktiv',
   finished: 'beendet',
+};
+
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  quantity_changed: 'Menge geändert',
+  serial_number_changed: 'Seriennummer geändert',
+  deleted: 'Zeile gelöscht',
+  restored: 'Zeile wiederhergestellt',
+  stocktake_finished: 'Inventur beendet',
+  stocktake_reopened: 'Inventur wieder geöffnet',
+};
+
+export const AUDIT_SOURCE_LABELS: Record<AuditSource, string> = {
+  station: 'Station',
+  phone: 'Handy',
+  admin: 'Dashboard',
 };
 
 const dateTime = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });

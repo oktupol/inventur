@@ -76,7 +76,12 @@ export async function scanRoutes(app: FastifyInstance, context: Context): Promis
     },
     async (request): Promise<Entry> => {
       const { workstation } = await authenticateDeviceRequest(db, request);
-      return updateEntryQuantity(context, workstation, request.params.id, request.body);
+      return updateEntryQuantity(
+        context,
+        { source: 'phone', workstation },
+        request.params.id,
+        request.body,
+      );
     },
   );
 
@@ -85,7 +90,7 @@ export async function scanRoutes(app: FastifyInstance, context: Context): Promis
     { schema: { params: idParams } },
     async (request): Promise<DeleteEntryResponse> => {
       const { workstation } = await authenticateDeviceRequest(db, request);
-      return deleteEntry(context, workstation, request.params.id);
+      return deleteEntry(context, { source: 'phone', workstation }, request.params.id);
     },
   );
 }

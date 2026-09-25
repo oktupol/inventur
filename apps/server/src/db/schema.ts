@@ -1,3 +1,4 @@
+import type { AuditAction, AuditSource } from '@inventur/shared';
 import type { ColumnType, Generated } from 'kysely';
 
 /** Money amounts come from `NUMERIC` as strings to avoid rounding errors. */
@@ -107,6 +108,27 @@ export interface PairingTable {
   device_label: string | null;
 }
 
+export interface AuditLogTable {
+  id: Generated<number>;
+  stocktake_id: number;
+  action: AuditAction;
+  entry_id: number | null;
+  work_area_id: number | null;
+  work_area_name: string | null;
+  /** Snapshot of the article description and its code (EAN or input). */
+  description: string | null;
+  code: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  /** The deleted line, see `EntrySnapshot`; the basis for restoring it. */
+  entry_snapshot: ColumnType<unknown, string | null | undefined, never>;
+  source: AuditSource;
+  workstation_id: number | null;
+  workstation_name: string | null;
+  employee_names: ColumnType<string[], string[] | undefined, never>;
+  created_at: Timestamp;
+}
+
 export interface Database {
   'master_data.article': ArticleTable;
   'master_data.article_number': ArticleNumberTable;
@@ -118,4 +140,5 @@ export interface Database {
   'inventory.entry_employee': EntryEmployeeTable;
   'inventory.checkpoint': CheckpointTable;
   'inventory.pairing': PairingTable;
+  'inventory.audit_log': AuditLogTable;
 }

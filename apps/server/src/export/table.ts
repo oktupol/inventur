@@ -1,4 +1,10 @@
-import type { Reconciliation, SurplusKind } from '@inventur/shared';
+import type {
+  AuditAction,
+  AuditLogEntry,
+  AuditSource,
+  Reconciliation,
+  SurplusKind,
+} from '@inventur/shared';
 import { fromCents, lineCents, toCents } from '../money.ts';
 
 /**
@@ -265,5 +271,51 @@ export function reconciliationTable(
         item.gross,
       ]),
     ],
+  };
+}
+
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  quantity_changed: 'Menge geändert',
+  serial_number_changed: 'Seriennummer geändert',
+  deleted: 'Zeile gelöscht',
+  restored: 'Zeile wiederhergestellt',
+  stocktake_finished: 'Inventur beendet',
+  stocktake_reopened: 'Inventur wieder geöffnet',
+};
+
+const AUDIT_SOURCE_LABELS: Record<AuditSource, string> = {
+  station: 'Station',
+  phone: 'Handy',
+  admin: 'Dashboard',
+};
+
+/** The audit log, oldest first. */
+export function auditLogTable(entries: readonly AuditLogEntry[]): Table {
+  const sorted = [...entries].sort((a, b) => a.id - b.id);
+  return {
+    columns: [
+      { header: 'Zeitpunkt', type: 'datetime' },
+      text('Aktion'),
+      text('Arbeitsbereich'),
+      text('Bezeichnung'),
+      text('EAN/Code'),
+      text('Alter Wert'),
+      text('Neuer Wert'),
+      text('Quelle'),
+      text('Station'),
+      text('Mitarbeiter'),
+    ],
+    rows: sorted.map((entry) => [
+      new Date(entry.createdAt),
+      AUDIT_ACTION_LABELS[entry.action],
+      entry.workArea?.name ?? null,
+      entry.description,
+      entry.code,
+      entry.oldValue,
+      entry.newValue,
+      AUDIT_SOURCE_LABELS[entry.source],
+      entry.workstation?.name ?? null,
+      joined(entry.employees),
+    ]),
   };
 }

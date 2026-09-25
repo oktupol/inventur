@@ -20,6 +20,7 @@ Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere
 - **Smartphone als Scanner**: Kopplung per QR-Code oder Einmal-Code, die Kamera liest die Barcodes
 - **Unbekannte Artikel**: manuelle Erfassung mit Bezeichnung, Bruttopreis und optionaler Seriennummer
 - **Auswertung**: Statistiken, Soll/Ist-Abgleich gegen die Stammdaten, Export als CSV, XLSX und PDF-Zählliste
+- **Nachvollziehbarkeit**: Änderungsprotokoll aller Mengenänderungen und Löschungen mit Station und Mitarbeitern
 
 ## Architektur
 
@@ -257,7 +258,9 @@ Tastenkürzel an der Station, wenn das Eingabefeld leer ist (auch auf dem Nummer
 1. Im Dashboard unter **Statistik** den Fortschritt verfolgen und den **Soll/Ist-Abgleich** prüfen: Fehlbestand (weniger erfasst als die Soll-Anzahl) und Mehrbestand (mehr erfasst als die Soll-Anzahl, manuell erfasste oder nicht mehr in den Stammdaten stehende Artikel). Auffällige Bereiche wieder öffnen und nachzählen.
 2. Unter **Inventur → Export** je Bereich die **Zählliste** als PDF drucken und von Zählern und Verantwortlichem unterschreiben lassen. Dort gibt es auch die Einzelzeilen, die Liste je Artikel und den Soll/Ist-Abgleich als CSV (für Excel mit deutschen Einstellungen) und XLSX.
 3. **Inventur beenden.** Offene Bereiche werden in einer Warnung aufgelistet. Danach ist die Inventur schreibgeschützt, alle Stationen zeigen „Keine aktive Inventur“, und alle Handys werden getrennt.
-4. Frühere Inventuren bleiben unter **Historie** mit Statistik und Exporten erhalten.
+4. Frühere Inventuren bleiben unter **Historie** mit Statistik, Änderungsprotokoll und Exporten erhalten.
+
+Unter **Protokoll** stehen alle nachträglichen Änderungen an Erfassungen: Mengenänderungen und gelöschte Zeilen mit Zeitpunkt, Station (oder Handy) und angemeldeten Mitarbeitern. Das Protokoll lässt sich nach Bereich, Station und Aktion filtern und als CSV oder XLSX exportieren.
 
 ## Fehlerbehebung
 
