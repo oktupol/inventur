@@ -2,7 +2,7 @@
 
 Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere Arbeitsstationen im lokalen Netzwerk erfassen Artikel parallel in Arbeitsbereichen, per Barcode-Scanner, Tastatur oder Smartphone-Kamera. Ein Administrations-Dashboard steuert die Inventur, zeigt Statistiken und exportiert die Ergebnisse.
 
-> **Version 1.0.** Die Installation beschreibt der Abschnitt [Installation](#installation), den Ablauf einer Inventur der Abschnitt [Ablauf einer Inventur](#ablauf-einer-inventur).
+> **Version 1.1.** Die Installation beschreibt der Abschnitt [Installation](#installation), den Ablauf einer Inventur der Abschnitt [Ablauf einer Inventur](#ablauf-einer-inventur).
 
 ## Dokumentation
 
@@ -79,7 +79,7 @@ nano .env
 |---|---|
 | `PUBLIC_HOST` | IP-Adresse (oder Hostname) des Servers im LAN, z. B. `192.168.1.10` |
 | `POSTGRES_PASSWORD` | Langes, zufälliges Passwort für die Datenbank, z. B. aus `openssl rand -base64 24` |
-| `APP_VERSION` | Version der Anwendung, z. B. `v1.0.0` (Standard in der Vorlage) |
+| `APP_VERSION` | Version der Anwendung, z. B. `v1.1.0` (Standard in der Vorlage) |
 | `TZ` | Zeitzone für Zeitpunkte in Exporten und PDFs, Standard `Europe/Berlin` |
 
 Das Datenbank-Passwort wird beim ersten Start festgelegt. Eine spätere Änderung in der `.env` ändert das Passwort in der Datenbank nicht.
@@ -130,7 +130,7 @@ Die Anwendung liest die Stammdaten nur, befüllt werden sie vom Administrator in
 - `master_data.article`: `id`, `description` (Bezeichnung), `ean` (optional), `price_net`, `price_gross`, `category` (optional), `expected_quantity` (Soll-Anzahl, optional)
 - `master_data.article_number`: `article_id`, `number` (0 bis n Artikelnummern je Artikel)
 
-Das vollständige Schema steht in [Anforderung.md](Anforderung.md#stammdaten). Die **Soll-Anzahl** ist die Stückzahl laut Warenwirtschaft: bei Schmuck und Uhren meist 1, bei Kleinteilen wie Batterien auch mehr. Artikel ohne Soll-Anzahl (`NULL`) werden im Soll/Ist-Abgleich nicht berücksichtigt. Bei Artikeln mit Soll-Anzahl 1 weist die Station auf eine erneute Erfassung hin (Doppelscan).
+Das vollständige Schema steht in [Anforderung.md](Anforderung.md#stammdaten). Die **Soll-Anzahl** ist die Stückzahl laut Warenwirtschaft: bei Schmuck und Uhren meist 1, bei Kleinteilen wie Batterien auch mehr. Artikel ohne Soll-Anzahl (`NULL`) werden im Soll/Ist-Abgleich nicht berücksichtigt. Wird ein Artikel im selben Arbeitsbereich erneut erfasst, weisen Station und Handy mit einem Hinweis und zwei kurzen Pieptönen darauf hin (Doppelscan); bei Artikeln mit Soll-Anzahl 1 auch über Bereiche hinweg.
 
 > **Wichtig:** Als `id` die feste Artikel-ID aus der Warenwirtschaft verwenden. Der Soll/Ist-Abgleich vergleicht die Erfassungen über diese ID mit den aktuellen Stammdaten. Werden die Stammdaten neu geladen, müssen dieselben Artikel dieselbe ID behalten.
 
@@ -217,7 +217,7 @@ Koppeln:
 2. Mit der Kamera-App des Handys den QR-Code scannen, oder `https://<PUBLIC_HOST>/scan` öffnen und den sechsstelligen Code eingeben. Beides gilt 5 Minuten und nur einmal.
 3. Die Station zeigt „Handy verbunden“. Auf dem Handy **Kamera starten** und den Kamerazugriff erlauben.
 
-Standardmäßig scannt das Handy nur, solange man **Zum Scannen halten** gedrückt hält. Über den Modus-Schalter lässt sich dauerhaftes Scannen einstellen. Das Ergebnis erscheint auf dem Handy und an der Station; bei grün lassen sich Menge und Zeile direkt auf dem Handy ändern oder löschen, bei gelb wählt man den Artikel auf dem Handy aus, bei rot erfasst man den Artikel an der Station manuell. Mehrere Handys pro Station sind möglich. Die Kopplung bleibt bis zum Trennen oder bis zum Ende der Inventur bestehen, auch beim Neuladen der Seite.
+Standardmäßig scannt das Handy nur, solange man **Zum Scannen halten** gedrückt hält, und liest pro Druck einen Code. Gelesen wird nur der Barcode im Rahmen in der Bildmitte. Über den Modus-Schalter lässt sich dauerhaftes Scannen einstellen. Das Ergebnis erscheint auf dem Handy und an der Station; bei grün lassen sich Menge und Zeile direkt auf dem Handy ändern oder löschen, bei gelb wählt man den Artikel auf dem Handy aus, bei rot erfasst man den Artikel an der Station manuell. Mehrere Handys pro Station sind möglich. Die Kopplung bleibt bis zum Trennen oder bis zum Ende der Inventur bestehen, auch beim Neuladen der Seite.
 
 ## Ablauf einer Inventur
 
