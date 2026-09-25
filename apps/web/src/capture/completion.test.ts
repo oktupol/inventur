@@ -1,6 +1,6 @@
 import type { ArticleMatch, MatchField } from '@inventur/shared';
 import { describe, expect, it } from 'vitest';
-import { completionFor, matchedText, moveSelection } from './completion.ts';
+import { completionFor, matchedText, moveSelection, suggestionCode } from './completion.ts';
 
 function match(matchedBy: MatchField, overrides: Partial<ArticleMatch> = {}): ArticleMatch {
   return {
@@ -22,6 +22,16 @@ describe('matchedText', () => {
     expect(matchedText(match('ean'))).toBe('4000000000017');
     expect(matchedText(match('article_number'))).toBe('AB-123');
     expect(matchedText(match('description'))).toBe('Herrenring Gold');
+  });
+});
+
+describe('suggestionCode', () => {
+  it('shows the matched code, or for a description the EAN or first article number', () => {
+    expect(suggestionCode(match('ean'))).toBe('4000000000017');
+    expect(suggestionCode(match('article_number'))).toBe('AB-123');
+    expect(suggestionCode(match('description'))).toBe('4000000000017');
+    expect(suggestionCode(match('description', { ean: null }))).toBe('AB-123');
+    expect(suggestionCode(match('description', { ean: null, articleNumbers: [] }))).toBe('');
   });
 });
 

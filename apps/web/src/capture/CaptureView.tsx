@@ -17,7 +17,7 @@ import { formatEuro, formatNumber } from '../format.ts';
 import { useConnectionStatus, useRealtimeEvents } from '../realtime/RealtimeProvider.tsx';
 import { playTone } from '../station/audio.ts';
 import { useStation } from '../station/StationContext.tsx';
-import { completionFor, matchedText, moveSelection } from './completion.ts';
+import { completionFor, moveSelection, suggestionCode } from './completion.ts';
 import { EntryTable, type RowAction } from './EntryTable.tsx';
 import { effectiveSelection, interpretKey, moveRowSelection } from './keyboard.ts';
 import { ManualEntryDialog, type ManualEntryValues } from './ManualEntryDialog.tsx';
@@ -470,7 +470,7 @@ export function CaptureView() {
                       onClick={() => submit({ input: text.trim(), articleId: article.id })}
                     >
                       <span>{article.description}</span>
-                      <span className="code">{matchedText(article)}</span>
+                      <span className="code">{suggestionCode(article)}</span>
                       <span className="price">{formatEuro(article.priceGross)}</span>
                     </button>
                   </li>

@@ -80,8 +80,6 @@ a.button:focus-visible {
 
 button,
 a.button {
-  display: inline-block;
-  text-decoration: none;
   padding: 0.45rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -546,8 +544,9 @@ select {
   position: absolute;
   z-index: 5;
   left: 0;
-  right: 0;
   top: 100%;
+  /* At least as wide as the input, wider when the input is narrow. */
+  width: max(100%, min(36rem, calc(100vw - 2rem)));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1040,6 +1039,12 @@ table.entries td.time-cell {
   min-width: 0;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+/* Long codes wrap instead of squeezing the description. */
+.suggestions button > .code,
+.choices button > .code {
+  max-width: 12rem;
 }
 
 /* Workstation layout: while capturing, entry and list take the main column and
@@ -1542,6 +1547,11 @@ tr.group-header th {
 
 .rate-labels span:last-child {
   justify-content: flex-end;
+}
+
+a.button {
+  display: inline-block;
+  text-decoration: none;
 }
 
 .export-table td {

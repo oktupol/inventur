@@ -13,6 +13,16 @@ export function matchedText(match: ArticleMatch): string {
 }
 
 /**
+ * The code shown next to a suggestion: the matched EAN or article number, and
+ * for matches by description the EAN or first article number, as the
+ * description is shown anyway.
+ */
+export function suggestionCode(match: ArticleMatch): string {
+  if (match.matchedBy !== 'description') return matchedText(match);
+  return match.ean ?? match.articleNumbers[0] ?? '';
+}
+
+/**
  * With exactly one suggestion whose matched text starts with the input, the
  * full text is offered as completion (shown grey, accepted with Tab).
  */
