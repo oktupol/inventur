@@ -232,7 +232,7 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
                 <strong>{formatEuro(result.entry.priceGross)}</strong>
               </div>
               {result.entry.duplicateCount > 0 && (
-                <div className="duplicate-hint">Dieses Einzelstück wurde schon erfasst.</div>
+                <div className="duplicate-hint">Dieser Artikel wurde schon erfasst.</div>
               )}
               <div className="result-actions">
                 <button

@@ -522,7 +522,7 @@ export function CaptureView() {
               {feedback.entry.duplicateCount > 0 && (
                 <span className="duplicate-hint">
                   {' '}
-                  – Hinweis: Dieses Einzelstück wurde bereits{' '}
+                  – Hinweis: Dieser Artikel wurde bereits{' '}
                   {feedback.entry.duplicateCount === 1
                     ? 'einmal'
                     : `${feedback.entry.duplicateCount}-mal`}{' '}

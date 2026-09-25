@@ -641,6 +641,14 @@ table.entries tr.selected td {
   background: #e3effc;
 }
 
+table.entries tr.same-article td {
+  background: var(--warning-bg);
+}
+
+table.entries tr.same-article td:first-child {
+  box-shadow: inset 4px 0 0 var(--warning);
+}
+
 table.entries tr.selected td:first-child {
   box-shadow: inset 4px 0 0 var(--accent);
 }

@@ -286,7 +286,7 @@ describe('capture', () => {
     expect((post!.body as { requestId: string }).requestId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('hints at a single item captured again', async () => {
+  it('hints at an article captured again', async () => {
     stubServer();
     renderStation();
     await scan('4000000000017');
@@ -673,7 +673,13 @@ describe('checkpoints', () => {
     );
     // The new line is above the separator, the older ones below it.
     const rows = [...document.querySelectorAll('table.entries tbody tr')].map((r) => r.className);
-    expect(rows).toEqual(['selected', 'since-checkpoint-row', 'checkpoint-row', '', '']);
+    expect(rows).toEqual([
+      'selected',
+      'since-checkpoint-row',
+      'checkpoint-row',
+      'same-article',
+      'same-article',
+    ]);
   });
 
   it('rejects a checkpoint without a line since the last one', async () => {
