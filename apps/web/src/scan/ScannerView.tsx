@@ -102,7 +102,13 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
         (detected) => {
           const { holdMode: hold, holding: held } = accepting.current;
           if (hold && !held) return;
-          if (debouncer.accept(detected, performance.now())) capture(detected);
+          if (!debouncer.accept(detected, performance.now())) return;
+          capture(detected);
+          // In hold mode, a press reads at most one code; the next needs a new press.
+          if (hold) {
+            accepting.current = { ...accepting.current, holding: false };
+            setHolding(false);
+          }
         },
         { frame: frameRect },
       );
