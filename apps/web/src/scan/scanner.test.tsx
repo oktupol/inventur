@@ -241,6 +241,29 @@ describe('hold mode', () => {
     expect(entryPosts()).toHaveLength(1);
   });
 
+  it('reads at most one code per press', async () => {
+    localStorage.removeItem('inventur.scanHoldMode');
+    const { entryPosts } = renderScanner();
+    await startScanning();
+    fireEvent.pointerDown(holdButton(), { pointerId: 1 });
+    act(() => detect('4000000000017'));
+    await waitFor(() => expect(entryPosts()).toHaveLength(1));
+    expect(holdButton().textContent).toBe('Zum Scannen halten');
+
+    // Still held: neither another code nor the same one after the repeat window counts.
+    act(() => detect('4000000000031'));
+    const later = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 5000);
+    act(() => detect('4000000000017'));
+    later.mockRestore();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(entryPosts()).toHaveLength(1);
+    fireEvent.pointerUp(holdButton(), { pointerId: 1 });
+
+    fireEvent.pointerDown(holdButton(), { pointerId: 2 });
+    act(() => detect('4000000000031'));
+    await waitFor(() => expect(entryPosts()).toHaveLength(2));
+  });
+
   it('switches to continuous scanning and remembers it', async () => {
     localStorage.removeItem('inventur.scanHoldMode');
     const { entryPosts } = renderScanner();
