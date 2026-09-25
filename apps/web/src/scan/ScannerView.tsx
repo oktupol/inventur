@@ -63,7 +63,11 @@ export function ScannerView({ api, notice }: { api: Api; notice?: string }) {
     queue.setHandler(async (scan) => {
       try {
         const response = await api.post<CreateEntryResponse>('/api/scan/entries', scan);
-        signal(response.result);
+        signal(
+          response.result === 'unique' && response.entry.duplicateCount > 0
+            ? 'duplicate'
+            : response.result,
+        );
         setResult(
           response.result === 'unique'
             ? { kind: 'unique', entry: response.entry }

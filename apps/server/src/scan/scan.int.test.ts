@@ -104,7 +104,19 @@ describe('capturing with a paired phone', () => {
       result: 'unique',
       entryId,
       description: 'Ring',
+      duplicate: false,
     });
+  });
+
+  it('tells the workstation about a repeated article', async () => {
+    await scan({ input: '4000000000017' });
+    await scan({ input: '4000000000017' });
+    expect(
+      t
+        .takeEvents()
+        .filter((e) => e.type === 'phone_scan.result')
+        .map((e) => 'duplicate' in e && e.duplicate),
+    ).toEqual([false, true]);
   });
 
   it('returns choices and unknown codes like the keyboard input', async () => {

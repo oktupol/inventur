@@ -34,6 +34,8 @@ export type DomainEvent =
       result: 'unique' | 'ambiguous' | 'not_found';
       entryId: number | null;
       description: string | null;
+      /** The article was captured before, see `Entry.duplicateCount`. */
+      duplicate: boolean;
     }
   | {
       type: 'checkpoint.changed';
