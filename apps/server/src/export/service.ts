@@ -1,6 +1,7 @@
 import { sql } from 'kysely';
 import type { Db } from '../db/connection.ts';
 import { DomainError } from '../errors.ts';
+import { safeFileName } from '../http/download.ts';
 import { getReconciliation } from '../statistics/service.ts';
 import { getStocktake } from '../stocktake/service.ts';
 import { toCsv } from './csv.ts';
@@ -106,12 +107,6 @@ async function loadArticleNumbers(db: Db): Promise<Map<number, string[]>> {
   return new Map(rows.map((row) => [row.article_id, row.numbers]));
 }
 
-/** Characters that are not allowed in file names on Windows. */
-function safeFileName(name: string): string {
-  // eslint-disable-next-line no-control-regex
-  return name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim();
-}
-
 export async function createExport(db: Db, request: ExportRequest): Promise<ExportFile> {
   const stocktake = await getStocktake(db, request.stocktakeId);
   let workAreaName: string | undefined;
@@ -149,13 +144,4 @@ export async function createExport(db: Db, request: ExportRequest): Promise<Expo
     body:
       request.format === 'csv' ? await toCsv(table) : await toXlsx(table, workAreaName ?? title),
   };
-}
-
-/** `Content-Disposition` with an ASCII fallback and the UTF-8 file name. */
-export function contentDisposition(filename: string): string {
-  const fallback = filename
-    .normalize('NFD')
-    .replace(/[^\x20-\x7e]/g, '')
-    .replace(/"/g, '');
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }

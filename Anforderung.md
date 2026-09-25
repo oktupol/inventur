@@ -224,6 +224,8 @@ Der Administrator kann
     - In der CSV stehen lange Ziffernfolgen wie EANs als `="…"`, damit Excel sie nicht als Zahl (4E+12) darstellt. **(Annahme)**
     - Zeitpunkte stehen in Ortszeit, standardmäßig `Europe/Berlin` (in der `.env` als `TZ` änderbar). **(Annahme)**
   - **PDF-Zählliste** je Arbeitsbereich und gesamt: Kopf mit Inventur, Bereich, Datum und beteiligten Mitarbeitern; Positionen mit Summen; Checkpoints als Zwischensummen **(Annahme)**; Unterschriftsfelder für Zähler und Verantwortlichen
+    - Die Positionen stehen in Erfassungsreihenfolge (älteste zuerst) mit Pos., Zeit, Bezeichnung, EAN bzw. Artikelnummer, Seriennummer, Menge, Preis und Summe brutto. Nach dem Abschnitt eines Checkpoints folgen seine Zwischensumme und die Summe seit Beginn des Bereichs. Bereichsname und Spaltenköpfe wiederholen sich auf jeder Seite. **(Annahme)**
+    - Die Zählliste gesamt beginnt mit einer Übersicht aller Bereiche und deren Summen (Unterschrift des Verantwortlichen), danach folgt jeder Bereich auf einer neuen Seite mit eigenen Unterschriftsfeldern. **(Annahme)**
 
 ## Arbeitsstationen
 

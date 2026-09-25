@@ -13,7 +13,7 @@ const EXPORTS: { kind: ExportKind; label: string; hint: string }[] = [
   },
 ];
 
-/** Downloads of the results as CSV and XLSX, for all work areas or one of them. */
+/** Downloads of the results as PDF count list, CSV and XLSX, for all work areas or one of them. */
 export function ExportCard({
   stocktakeId,
   workAreas,
@@ -22,6 +22,7 @@ export function ExportCard({
   workAreas: readonly WorkArea[];
 }) {
   const [workAreaId, setWorkAreaId] = useState('');
+  const countListUrl = `/api/admin/stocktakes/${stocktakeId}/count-list${workAreaId ? `?workAreaId=${workAreaId}` : ''}`;
   const url = (kind: ExportKind, format: 'csv' | 'xlsx') => {
     const area = kind !== 'reconciliation' && workAreaId ? `&workAreaId=${workAreaId}` : '';
     return `/api/admin/stocktakes/${stocktakeId}/export/${kind}?format=${format}${area}`;
@@ -46,6 +47,19 @@ export function ExportCard({
       <div className="table-wrap">
         <table className="export-table">
           <tbody>
+            <tr>
+              <td>
+                <strong>Zählliste</strong>
+                <div className="muted">
+                  Zum Ausdrucken und Unterschreiben, mit Checkpoints als Zwischensummen
+                </div>
+              </td>
+              <td className="actions">
+                <a className="button small" href={countListUrl} download>
+                  PDF
+                </a>
+              </td>
+            </tr>
             {EXPORTS.map((item) => (
               <tr key={item.kind}>
                 <td>

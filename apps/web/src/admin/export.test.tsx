@@ -45,7 +45,7 @@ function renderAdmin(path: string) {
 }
 
 describe('export', () => {
-  it('offers CSV and XLSX downloads, for all work areas or one of them', async () => {
+  it('offers the count list and CSV and XLSX downloads, for all work areas or one of them', async () => {
     stubApi(({ url }) => {
       if (url === '/api/admin/stocktakes/active') return { body: { stocktake: null } };
       if (url === '/api/admin/stocktakes/3') return { body: stocktake };
@@ -60,6 +60,7 @@ describe('export', () => {
         .getAllByRole('link')
         .map((link) => link.getAttribute('href'));
     expect(hrefs()).toEqual([
+      '/api/admin/stocktakes/3/count-list',
       '/api/admin/stocktakes/3/export/entries?format=csv',
       '/api/admin/stocktakes/3/export/entries?format=xlsx',
       '/api/admin/stocktakes/3/export/articles?format=csv',
@@ -70,6 +71,7 @@ describe('export', () => {
 
     fireEvent.change(await within(card).findByRole('combobox'), { target: { value: '7' } });
     expect(hrefs()).toEqual([
+      '/api/admin/stocktakes/3/count-list?workAreaId=7',
       '/api/admin/stocktakes/3/export/entries?format=csv&workAreaId=7',
       '/api/admin/stocktakes/3/export/entries?format=xlsx&workAreaId=7',
       '/api/admin/stocktakes/3/export/articles?format=csv&workAreaId=7',

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../context.ts';
 import { idParams, type IdParams } from '../http/schemas.ts';
-import { contentDisposition, createExport, type ExportFormat, type ExportKind } from './service.ts';
+import { contentDisposition } from '../http/download.ts';
+import { createExport, type ExportFormat, type ExportKind } from './service.ts';
 
 interface ExportQuery {
   format: ExportFormat;
