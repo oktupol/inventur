@@ -19,6 +19,7 @@ function Navigation() {
       <NavLink to="/admin/bereiche">Arbeitsbereiche</NavLink>
       <NavLink to="/admin/stationen">Arbeitsstationen</NavLink>
       <NavLink to="/admin/statistik">Statistik</NavLink>
+      <NavLink to="/admin/artikel">Artikelsuche</NavLink>
       <NavLink to="/admin/protokoll">Protokoll</NavLink>
       <NavLink to="/admin/historie">Historie</NavLink>
       <div className="spacer" />

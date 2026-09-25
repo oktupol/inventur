@@ -31,7 +31,8 @@ function queryOf(filters: Filters, extra: Record<string, string> = {}): string {
   return query ? `?${query}` : '';
 }
 
-function AuditLogTable({ entries }: { entries: readonly AuditLogEntry[] }) {
+/** Audit log entries, newest first. */
+export function AuditLogTable({ entries }: { entries: readonly AuditLogEntry[] }) {
   if (entries.length === 0) return <p className="muted">Keine Einträge.</p>;
   return (
     <div className="table-wrap">

@@ -1,3 +1,4 @@
+export * from './article-search.ts';
 export * from './article.ts';
 export * from './audit-log.ts';
 export * from './checkpoint.ts';

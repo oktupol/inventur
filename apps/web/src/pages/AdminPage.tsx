@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router';
 import { AdminLayout } from '../admin/AdminLayout.tsx';
+import { ArticleSearchPage, StocktakeArticleSearchPage } from '../admin/ArticleSearchPage.tsx';
 import { AuditLogPage, StocktakeAuditLogPage } from '../admin/AuditLogPage.tsx';
 import { EmployeesPage } from '../admin/EmployeesPage.tsx';
 import { HistoryPage, StocktakeDetailPage } from '../admin/HistoryPage.tsx';
@@ -19,9 +20,11 @@ export function AdminPage() {
         <Route path="stationen" element={<WorkstationsPage />} />
         <Route path="historie" element={<HistoryPage />} />
         <Route path="statistik" element={<StatisticsPage />} />
+        <Route path="artikel" element={<ArticleSearchPage />} />
         <Route path="protokoll" element={<AuditLogPage />} />
         <Route path="historie/:id" element={<StocktakeDetailPage />} />
         <Route path="historie/:id/statistik" element={<StocktakeStatisticsPage />} />
+        <Route path="historie/:id/artikel" element={<StocktakeArticleSearchPage />} />
         <Route path="historie/:id/protokoll" element={<StocktakeAuditLogPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

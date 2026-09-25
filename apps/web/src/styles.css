@@ -1613,3 +1613,20 @@ a.button {
 .export-table td {
   vertical-align: middle;
 }
+
+/* A button that looks like a link, e.g. an article in the article search. */
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 0;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.article-results tr.selected td {
+  background: #e3effc;
+}

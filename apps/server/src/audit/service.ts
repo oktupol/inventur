@@ -57,7 +57,8 @@ export async function recordAudit(
     .execute();
 }
 
-function auditLogQuery(db: Db, stocktakeId: number, query: AuditLogQuery) {
+/** Audit log rows of a stocktake with the filters of the list, newest first. */
+export function auditLogQuery(db: Db, stocktakeId: number, query: AuditLogQuery) {
   return db
     .selectFrom('inventory.audit_log')
     .select([
