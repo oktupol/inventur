@@ -20,7 +20,7 @@ services:
       retries: 10
 
   app:
-    image: ghcr.io/oktupol/inventur-app:${APP_VERSION:-v1.0.0}
+    image: ghcr.io/oktupol/inventur-app:${APP_VERSION:-v1.1.0}
     restart: unless-stopped
     environment:
       PGHOST: db
