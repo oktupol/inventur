@@ -2,7 +2,7 @@
 
 Webanwendung zur Inventurerfassung in einem Uhren- und Schmuckgeschäft. Mehrere Arbeitsstationen im lokalen Netzwerk erfassen Artikel parallel in Arbeitsbereichen, per Barcode-Scanner, Tastatur oder Smartphone-Kamera. Ein Administrations-Dashboard steuert die Inventur, zeigt Statistiken und exportiert die Ergebnisse.
 
-> **Version 1.1.** Die Installation beschreibt der Abschnitt [Installation](#installation), den Ablauf einer Inventur der Abschnitt [Ablauf einer Inventur](#ablauf-einer-inventur).
+> **Version 1.2.** Die Installation beschreibt der Abschnitt [Installation](#installation), den Ablauf einer Inventur der Abschnitt [Ablauf einer Inventur](#ablauf-einer-inventur).
 
 ## Dokumentation
 
@@ -83,7 +83,7 @@ nano .env
 |---|---|
 | `PUBLIC_HOST` | IP-Adresse (oder Hostname) des Servers im LAN, z. B. `192.168.1.10` |
 | `POSTGRES_PASSWORD` | Langes, zufälliges Passwort für die Datenbank, z. B. aus `openssl rand -base64 24` |
-| `APP_VERSION` | Version der Anwendung, z. B. `v1.1.0` (Standard in der Vorlage) |
+| `APP_VERSION` | Version der Anwendung, z. B. `v1.2.0` (Standard in der Vorlage) |
 | `TZ` | Zeitzone für Zeitpunkte in Exporten und PDFs, Standard `Europe/Berlin` |
 
 Das Datenbank-Passwort wird beim ersten Start festgelegt. Eine spätere Änderung in der `.env` ändert das Passwort in der Datenbank nicht.
